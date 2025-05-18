@@ -55,38 +55,36 @@ public class HybridCommands extends ListenerAdapter implements Cog {
         if (event.getAuthor().isBot()) {
             return;
         }
-
         String messageContent = event.getMessage().getContentRaw().trim();
         if (!messageContent.startsWith(".")) return;
-
         String[] args = messageContent.substring(".".length()).split("\\s+");
         if (args.length == 0) return;
-
         String command = args[0].toLowerCase();
         User sender = event.getAuthor();
-
         if (command.equals("openai")) {
             if (args.length > 2 && "model".equalsIgnoreCase(args[1])) {
-                Vyrtuous.getInstance().completeGetUserModelSettings().thenCompose(userModelSettings -> {
-                    Map<Long, String> userModelObject = (Map<Long, String>) userModelSettings;
-                    TextChannel channel = (TextChannel) event.getChannel();
-                    String arg = args[2].toLowerCase();
-                    if (Helpers.containsString(Maps.OPENAI_RESPONSE_MODELS, arg)) {
-                        userModelObject.put(sender.getIdLong(), arg);
-                        app.completeSetUserModelSettings(userModelObject);
-                        channel.sendMessage("OpenAI model:" + arg + " for " + sender.getName()).queue();
-                    } else {
-                        String[] options = Maps.OPENAI_RESPONSE_MODELS;
-                        StringBuilder sb = new StringBuilder("[");
-                        for (int i = 0; i < options.length; i++) {
-                            sb.append(options[i]);
-                            if (i < options.length - 1) sb.append(", ");
+                Vyrtuous.completeGetInstance()
+                    .thenCompose(vyr -> vyr.completeGetUserModelSettings())
+                    .thenAccept(userModelSettings -> {
+                        @SuppressWarnings("unchecked")
+                        Map<Long, String> userModelObject = (Map<Long, String>) userModelSettings;
+                        TextChannel channel = (TextChannel) event.getChannel();
+                        String arg = args[2].toLowerCase();
+                        if (Helpers.containsString(Maps.OPENAI_RESPONSE_MODELS, arg)) {
+                            userModelObject.put(sender.getIdLong(), arg);
+                            app.completeSetUserModelSettings(userModelObject);
+                            channel.sendMessage("OpenAI model: " + arg + " for " + sender.getName()).queue();
+                        } else {
+                            String[] options = Maps.OPENAI_RESPONSE_MODELS;
+                            StringBuilder sb = new StringBuilder("[");
+                            for (int i = 0; i < options.length; i++) {
+                                sb.append(options[i]);
+                                if (i < options.length - 1) sb.append(", ");
+                            }
+                            sb.append("]");
+                            channel.sendMessage("Your options are " + sb).queue();
                         }
-                        sb.append("]");
-                        channel.sendMessage("Your options are " + sb.toString()).queue();
-                    }
-                    return null;
-                });
+                    });
             }
         } else if (command.equals("wipe")) {
             boolean wipeAll = false, wipeBot = false, wipeCommands = false;

@@ -56,7 +56,87 @@ public class AIManager {
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
 
-    public CompletableFuture<Long> completeCalculateMaxOutputTokens(String model, String prompt) {
+    private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
+        String content,
+        String previousResponseId,
+        String model,
+        String requestType
+    ) {
+        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
+            Map<String, Object> body = new HashMap<>();
+            if ("perplexity".equals(requestType)) {
+                if (model == null) {
+                    String setting = ModelRegistry.OPENAI_PERPLEXITY_MODEL.asString();
+                    body.put("model", setting);
+                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
+                    if (info != null && info.status()) {
+                        body.put("max_output_tokens", tokens);
+                    } else {
+                        body.put("max_tokens", tokens);
+                    }
+                } else {
+                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                    body.put("model", model);
+                    if (info != null && info.status()) {
+                        body.put("max_output_tokens", tokens);
+                    } else {
+                        body.put("max_tokens", tokens);
+                    }
+                }
+                body.put("text", Map.of("format", Maps.OPENAI_RESPONSE_FORMAT_PERPLEXITY));
+                body.put("instructions", ModelRegistry.OPENAI_PERPLEXITY_SYS_INPUT.asString());
+                List<Map<String, Object>> messages = new ArrayList<>();
+                Map<String, Object> msgMap = new HashMap<>();
+                msgMap.put("role", "user");
+                msgMap.put("content", content);
+                messages.add(msgMap);
+                body.put("input", messages);
+            }
+            else if ("moderation".equals(requestType)) {
+                body.put("input", content);
+                if (model == null) {
+                    body.put("model", ModelRegistry.OPENAI_MODERATION_MODEL.asString());
+                }
+            }
+            else if ("response".equals(requestType)){
+                if (model == null) {
+                    String setting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+                    body.put("model", setting);
+                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
+                    if (info != null && info.status()) {
+                        body.put("max_output_tokens", tokens);
+                    } else {
+                        body.put("max_tokens", tokens);
+                    }
+                } else {
+                    body.put("model", model);
+                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                    if (info != null && info.status()) {
+                        body.put("max_output_tokens", tokens);
+                    } else {
+                        body.put("max_tokens", tokens);
+                    }
+                }
+                body.put("instructions", Maps.OPENAI_RESPONSE_SYS_INPUT);
+                List<Map<String, Object>> messages = new ArrayList<>();
+                Map<String, Object> msgMap = new HashMap<>();
+                msgMap.put("role", "user");
+                msgMap.put("content", content);
+                messages.add(msgMap);
+                body.put("input", messages);
+                if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                    body.put("previous_response_id", previousResponseId);
+                }
+                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                }
+
+            }
+            return body;
+        });
+    }
+
+    private CompletableFuture<Long> completeCalculateMaxOutputTokens(String model, String prompt) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Encoding encoding = registry.getEncoding("cl100k_base")
@@ -73,7 +153,17 @@ public class AIManager {
         });
     }
 
-    private CompletableFuture<ResponseObject> sendRequest(Map<String, Object> requestBody, String endpoint) {
+    public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
+        return completeBuildRequestBody(content, previousResponseId, model, requestType)
+            .thenCompose(reqBody -> {
+                String endpoint = "moderation".equals(requestType)
+                                  ? moderationApiUrl
+                                  : responseApiUrl;
+                return completeProcessRequest(reqBody, endpoint);
+              });
+    }
+
+    private CompletableFuture<ResponseObject> completeProcessRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENAI_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
@@ -103,117 +193,18 @@ public class AIManager {
         });
     }
 
-    private CompletableFuture<Map<String, Object>> buildRequestBody(
-        String content,
-        String model,
-        Map<String, Object> textFormat,
-        boolean store,
-        boolean stream,
-        String systemPrompt,
-        float temperature,
-        float topP,
-        String previousResponseId,
-        String requestType
-    ) {
-        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
-            Map<String, Object> body = new HashMap<>();
-            body.put("model", model);
-            if ("perplexity".equals(requestType)) {
-                body.put("text", Map.of("format", textFormat));
-            }
-            if ("moderation".equals(requestType)) {
-                body.put("input", content);
-            } else {
-                body.put("instructions", systemPrompt);
-                List<Map<String, Object>> messages = new ArrayList<>();
-                Map<String, Object> msgMap = new HashMap<>();
-                msgMap.put("role", "user");
-                msgMap.put("content", content);
-                messages.add(msgMap);
-                body.put("input", messages);
-            }
-            if (previousResponseId != null && !previousResponseId.isEmpty()) {
-                body.put("previous_response_id", previousResponseId);
-            }
-            if (store) {
-                body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-            }
-            ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-            if (info != null && info.status()) {
-                body.put("max_output_tokens", tokens);
-            } else {
-                body.put("max_tokens", tokens);
-            }
-            return body;
-        });
-    }
-
-    private CompletableFuture<Map<String, Object>> prepareChatRequest(
-        String content,
-        String previousResponseId,
-        String model
-    ) {
-        return buildRequestBody(
-            content,
-            model,
-            OPENAI_RESPONSE_FORMAT,
-            ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean(),
-            ModelRegistry.OPENAI_RESPONSE_STREAM.asBoolean(),
-            Maps.OPENAI_RESPONSE_SYS_INPUT,
-            ModelRegistry.OPENAI_RESPONSE_TEMPERATURE.asFloat(),
-            ModelRegistry.OPENAI_RESPONSE_TOP_P.asFloat(),
-            previousResponseId,
-            "chat"
-        );
-    }
-
-    private CompletableFuture<Map<String, Object>> prepareModerationRequest(String content) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("input", content);
-        return CompletableFuture.completedFuture(body);
-    }
-
-    private CompletableFuture<Map<String, Object>> preparePerplexityRequest(String content, String model) {
-        return buildRequestBody(
-            content,
-            model,
-            Maps.OPENAI_RESPONSE_FORMAT_PERPLEXITY,
-            ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean(),
-            ModelRegistry.OPENAI_RESPONSE_STREAM.asBoolean(),
-            ModelRegistry.OPENAI_PERPLEXITY_SYS_INPUT.asString(),
-            ModelRegistry.OPENAI_RESPONSE_TEMPERATURE.asFloat(),
-            ModelRegistry.OPENAI_RESPONSE_TOP_P.asFloat(),
-            null,
-            "perplexity"
-        );
-    }
-
-    public CompletableFuture<ResponseObject> completeChat(String content, String previousResponseId, String model) {
-        return prepareChatRequest(content, previousResponseId, model)
-            .thenCompose(reqBody -> sendRequest(reqBody, responseApiUrl));
-    }
-
-    public CompletableFuture<ResponseObject> completeModeration(String content) {
-        return prepareModerationRequest(content)
-            .thenCompose(reqBody -> sendRequest(reqBody, moderationApiUrl));
-    }
-
-    public CompletableFuture<ResponseObject> completePerplexity(String content, String model) {
-        return preparePerplexityRequest(content, model)
-            .thenCompose(reqBody -> sendRequest(reqBody, responseApiUrl));
-    }
-
     public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) {
-        return completePerplexity(content, model)
-            .thenCompose(resp -> resp.completeGetPerplexity())
-            .thenApply(perplexityObj -> {
-                Integer perplexity = (Integer) perplexityObj;
-                if (perplexity < 100) return "o4-mini";
-                if (perplexity > 100 && perplexity < 150 && Boolean.TRUE.equals(multiModal))
-                    return "o4-mini";
-                if (perplexity > 175 && perplexity < 200 && Boolean.TRUE.equals(multiModal))
-                    return "o4-mini";
-                return "o4-mini";
-            });
+        return CompletableFuture.supplyAsync(() -> model);
+//        return completeRequest(content, null, model, "perplexity")
+//            .thenCompose(resp -> resp.completeGetPerplexity())
+//            .thenApply(perplexityObj -> {
+//                Integer perplexity = (Integer) perplexityObj;
+//                if (perplexity < 100) return "o4-mini";
+//                if (perplexity > 100 && perplexity < 150 && Boolean.TRUE.equals(multiModal))
+//                    return "o4-mini";
+//                if (perplexity > 175 && perplexity < 200 && Boolean.TRUE.equals(multiModal))
+//                    return "o4-mini";
+//                return "o4-mini";
+//            });
     }
 }

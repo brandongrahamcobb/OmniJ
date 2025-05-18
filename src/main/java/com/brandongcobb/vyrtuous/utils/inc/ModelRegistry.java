@@ -35,7 +35,7 @@ public enum ModelRegistry {
     OPENAI_PERPLEXITY_MODEL("gpt-4o-mini"),
     OPENAI_PERPLEXITY_SYS_INPUT("You determine how perplexing text is to you on a integer scale from 0 (not perplexing) to 200 (most perplexing."),
 
-    OPENAI_RESPONSE_MODEL("gpt-4.1-nano"),
+    OPENAI_RESPONSE_MODEL("o4-mini"),
     OPENAI_RESPONSE_N(1),
     OPENAI_RESPONSE_STATUS(true),
     OPENAI_RESPONSE_STORE(false),

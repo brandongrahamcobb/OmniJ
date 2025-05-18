@@ -43,7 +43,7 @@ public class ResponseObject extends MetadataContainer{
         MetadataKey<String> idKey = new MetadataKey<>("id", STRING);
         String requestId = (String) responseMap.get("id");
         put(idKey, requestId);
-        if (requestId.startsWith("chatcmpl")) {
+        if (requestId.startsWith("responsecmpl")) {
             MetadataKey<String> objectKey = new MetadataKey<>("object", STRING);
             String requestObject = (String) responseMap.get("object");
             if (requestObject == null) {

@@ -45,7 +45,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
     @Override
     public void register (JDA api, DiscordBot bot) {
-        this.app = Vyrtuous.getInstance();
         this.bot = bot.completeGetBot();
         this.api = api;
         api.addEventListener(this);
@@ -68,67 +67,67 @@ public class EventListeners extends ListenerAdapter implements Cog {
         if (attachments != null && !attachments.isEmpty()) {
             fullContentFuture = mem.completeProcessAttachments(attachments)
                 .thenApply(attachmentContentList -> {
-                    String joined = String.join("\n", attachmentContentList);
                     multimodal[0] = true;
-                    return joined + "\n" + content;
+                    return String.join("\n", attachmentContentList) + "\n" + content;
                 });
         } else {
             fullContentFuture = CompletableFuture.completedFuture(content);
         }
         fullContentFuture
             .thenCompose(fullContent -> {
-                return aim.completeModeration(fullContent)
+                return aim.completeRequest(fullContent, null, null, "moderation")
                     .thenCompose(moderationResponseObject ->
                         moderationResponseObject.completeGetFlagged()
                             .thenCompose(flagged -> {
                                 if (flagged) {
                                     ModerationManager mom = new ModerationManager();
-                                    return moderationResponseObject.completeGetFormatFlaggedReasons()
+                                    return moderationResponseObject
+                                        .completeGetFormatFlaggedReasons()
                                         .thenCompose(reason ->
                                             mom.completeHandleModeration(message, reason)
-                                                .thenApply(ignored -> null)
+                                               .thenApply(ignored -> null)
                                         );
                                 } else {
-                                    return Vyrtuous.getInstance().completeGetUserModelSettings()
-                                            .thenCompose(userModelSettings -> {
-                                                String setting = userModelSettings.getOrDefault(
-                                                    senderId,
-                                                    ModelRegistry.OPENAI_RESPONSE_MODEL.asString()
-                                                );
-                                                return aim.completeResolveModel(fullContent, multimodal[0], setting)
-                                                    .thenCompose(model -> {
-                                                        CompletableFuture<String> previousResponseIdFuture =
-                                                            (previousResponse != null)
-                                                                ? previousResponse.completeGetResponseId()
-                                                                : CompletableFuture.completedFuture(null);
-                                                        return previousResponseIdFuture.thenCompose(previousResponseId -> {
-                                                            return aim.completeChat(fullContent, previousResponseId, model)
-                                                                .thenCompose(chatResponseObject -> {
-                                                                    CompletableFuture<Void> setPrevFuture;
-                                                                    if (previousResponse != null) {
-                                                                        setPrevFuture = previousResponse.completeGetPreviousResponseId()
-                                                                            .thenCompose(prevId -> {
-                                                                                return chatResponseObject.completeSetPreviousResponseId(prevId);
-                                                                            });
-                                                                    } else {
-                                                                        setPrevFuture = chatResponseObject.completeSetPreviousResponseId(null);
-                                                                    }
-                                                                    return setPrevFuture.thenCompose(v -> {
-                                                                        userResponseMap.put(senderId, chatResponseObject);
-                                                                        return chatResponseObject.completeGetOutput()
-                                                                            .thenCompose(outputContent -> {
-                                                                                return mem.completeSendResponse(message, outputContent)
-                                                                                    .thenApply(ignored -> {
-                                                                                        return null;
-                                                                                    });
-                                                                            });
-                                                                    });
+                                    return Vyrtuous.completeGetInstance()
+                                        .thenCompose(vyr -> vyr.completeGetUserModelSettings())
+                                        .thenCompose(userModelSettings -> {
+                                            String setting = userModelSettings.getOrDefault(
+                                                senderId,
+                                                ModelRegistry.OPENAI_RESPONSE_MODEL.asString()
+                                            );
+                                            return aim.completeResolveModel(fullContent, multimodal[0], setting)
+                                                .thenCompose(model -> {
+                                                    CompletableFuture<String> prevIdFut = previousResponse != null
+                                                        ? previousResponse.completeGetResponseId()
+                                                        : CompletableFuture.completedFuture(null);
+                                                    return prevIdFut.thenCompose(previousResponseId ->
+                                                        aim.completeRequest(fullContent, previousResponseId, model, "response")
+                                                            .thenCompose(responseObject -> {
+                                                                CompletableFuture<Void> setPrevFut;
+                                                                if (previousResponse != null) {
+                                                                    setPrevFut = previousResponse
+                                                                        .completeGetPreviousResponseId()
+                                                                        .thenCompose(prevRespId ->
+                                                                            responseObject.completeSetPreviousResponseId(prevRespId)
+                                                                        );
+                                                                } else {
+                                                                    setPrevFut = responseObject.completeSetPreviousResponseId(null);
+                                                                }
+                                                                return setPrevFut.thenCompose(v -> {
+                                                                    userResponseMap.put(senderId, responseObject);
+                                                                    return responseObject.completeGetOutput()
+                                                                        .thenCompose(outputContent ->
+                                                                            mem.completeSendResponse(message, outputContent)
+                                                                               .thenApply(ignored -> null)
+                                                                        );
                                                                 });
-                                                        });
-                                                    });
-                                            });
+                                                            })
+                                                    );
+                                                });
+                                        });
                                 }
-                            }));
+                            })
+                    );
             })
             .exceptionally(ex -> {
                 ex.printStackTrace();
