@@ -23,7 +23,7 @@ import com.brandongcobb.vyrtuous.records.ModelInfo;
 import com.brandongcobb.vyrtuous.utils.handlers.ResponseObject;
 import com.brandongcobb.vyrtuous.utils.inc.Helpers;
 import com.brandongcobb.vyrtuous.utils.inc.ModelRegistry;
-import com.brandongcobb.vyrtuous.metadata.*;
+import com.brandongcobb.metadata.*;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;

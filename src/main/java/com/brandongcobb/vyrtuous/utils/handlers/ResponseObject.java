@@ -18,7 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
-import com.brandongcobb.vyrtuous.metadata.*;
+import com.brandongcobb.metadata.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;

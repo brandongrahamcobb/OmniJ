@@ -19,7 +19,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.inc;
 
-import com.brandongcobb.vyrtuous.metadata.*;
+import com.brandongcobb.metadata.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;

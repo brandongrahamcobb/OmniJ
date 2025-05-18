@@ -19,7 +19,7 @@
 package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.metadata.*;
+import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;

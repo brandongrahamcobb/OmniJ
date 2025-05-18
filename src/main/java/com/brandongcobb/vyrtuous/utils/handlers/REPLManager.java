@@ -21,7 +21,7 @@ package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.bots.DiscordBot;
-import com.brandongcobb.vyrtuous.metadata.MetadataContainer;
+import com.brandongcobb.metadata.MetadataContainer;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import java.io.File;
