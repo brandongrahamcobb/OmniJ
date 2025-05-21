@@ -38,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
@@ -55,6 +56,49 @@ public class AIManager {
     private String responseApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("responses");
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
+    private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
+
+    public CompletableFuture<String> handleAI(String message, long senderId) {
+        MessageManager mem = new MessageManager();
+        ResponseObject previousResponse = userResponseMap.get(senderId);
+
+        return CompletableFuture.completedFuture(message)
+                .thenCompose(fullContent ->
+                        completeRequest(fullContent, null, null, "moderation")
+                                .thenCompose(moderationResponseObject ->
+                                        moderationResponseObject.completeGetFlagged()
+                                                .thenCompose(flagged -> {
+                                                    if (flagged) {
+                                                        return moderationResponseObject
+                                                                .completeGetFormatFlaggedReasons(); // return reason string
+                                                    } else {
+                                                        CompletableFuture<String> prevIdFut = (previousResponse != null)
+                                                                ? previousResponse.completeGetResponseId()
+                                                                : CompletableFuture.completedFuture(null);
+
+                                                        return prevIdFut.thenCompose(previousResponseId ->
+                                                                completeRequest(fullContent, previousResponseId, ModelRegistry.OPENAI_RESPONSE_MODEL.asString(), "response")
+                                                                        .thenCompose(responseObject -> {
+                                                                            CompletableFuture<Void> setPrevFut = (previousResponse != null)
+                                                                                    ? previousResponse
+                                                                                    .completeGetPreviousResponseId()
+                                                                                    .thenCompose(prevRespId -> responseObject.completeSetPreviousResponseId(prevRespId))
+                                                                                    : responseObject.completeSetPreviousResponseId(null);
+
+                                                                            return setPrevFut.thenCompose(v -> {
+                                                                                userResponseMap.put(senderId, responseObject);
+                                                                                return responseObject.completeGetOutput(); // returns output string
+                                                                            });
+                                                                        })
+                                                        );
+                                                    }
+                                                })
+                                )
+                ).exceptionally(ex -> {
+                    ex.printStackTrace();
+                    return "⚠️ AI Assistant Error: " + ex.getMessage();
+                });
+    }
 
     private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
         String content,

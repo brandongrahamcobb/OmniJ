@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
 import java.util.HashMap;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -259,12 +260,19 @@ public class ResponseObject extends MetadataContainer{
             MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", MAP);
             Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
             put(responsesTextFormatKey, responsesTextFormat);
-            MetadataKey<String> responsesToolChoiceKey = new MetadataKey<>("tool_choice", STRING);
-            String responsesToolChoice = (String) responseMap.get("tool_choice");
-            put(responsesToolChoiceKey, responsesToolChoice);
-            MetadataKey<List<String>> responsesToolsKey = new MetadataKey<>("tools", LIST);
-            List<String> responsesTools = (List<String>) responseMap.get("tools");
-            put(responsesToolsKey, responsesTools);
+            MetadataKey<String> toolChoiceModeKey = new MetadataKey<>("tool_choice_mode", STRING);
+            MetadataKey<Map<String, Object>> toolChoiceFunctionKey = new MetadataKey<>("tool_choice_function", MAP);
+            Object toolChoice = responseMap.get("tool_choice");
+            if (toolChoice instanceof String) {
+                put(toolChoiceModeKey, (String) toolChoice);
+            } else if (toolChoice instanceof Map) {
+                Map<String, Object> toolChoiceMap = (Map<String, Object>) toolChoice;
+                put(toolChoiceModeKey, (String) toolChoiceMap.get("type"));
+                put(toolChoiceFunctionKey, (Map<String, Object>) toolChoiceMap.get("function"));
+            }
+            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", LIST);
+            List<Map<String, Object>> toolsList = (List<Map<String, Object>>) responseMap.get("tools");
+            put(toolsKey, toolsList);
             MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", DOUBLE);
             Double responsesTopP = (Double) responseMap.get("top_p");
             put(responsesTopPKey, responsesTopP);
@@ -313,6 +321,41 @@ public class ResponseObject extends MetadataContainer{
             MetadataKey<Boolean> flaggedKey = new MetadataKey<>("flagged", BOOLEAN);
             Object flaggedObj = this.get(flaggedKey);
             return flaggedObj != null && Boolean.parseBoolean(String.valueOf(flaggedObj));
+        });
+    }
+
+    public CompletableFuture<String> completeGetToolChoice() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<String> toolChoiceKey = new MetadataKey<>("tool_choice", STRING);
+            Object toolChoiceObj = this.get(toolChoiceKey);
+            return toolChoiceObj != null ? String.valueOf(toolChoiceObj) : null;
+        });
+    }
+
+    public CompletableFuture<List<Map<String, Object>>> completeGetTools() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", LIST);
+            Object toolsObj = this.get(toolsKey);
+            if (toolsObj instanceof List) {
+                return (List<Map<String, Object>>) toolsObj;
+            } else {
+                return Collections.emptyList();
+            }
+        });
+    }
+
+    public CompletableFuture<Map<String, Object>> completeGetToolByName(String toolName) {
+        return completeGetTools().thenApply(tools -> {
+            for (Map<String, Object> tool : tools) {
+                Object functionObj = tool.get("function");
+                if (functionObj instanceof Map) {
+                    Map<String, Object> functionMap = (Map<String, Object>) functionObj;
+                    if (toolName.equals(functionMap.get("name"))) {
+                        return tool;
+                    }
+                }
+            }
+            return null;
         });
     }
 
