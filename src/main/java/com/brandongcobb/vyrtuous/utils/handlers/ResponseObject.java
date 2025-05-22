@@ -446,34 +446,39 @@ public class ResponseObject extends MetadataContainer{
             put(responsesMetadataKey, responsesMetadata);
             MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
             Object outputObj = responseMap.get("output");
-            List<Map<String, Object>> outputList = (List<Map<String, Object>>) responseMap.get("output");
-            if (outputList != null) {
-                for (Map<String, Object> outputItem : outputList) {
+
+            if (outputObj instanceof List<?> outputList) {
+                for (Object outputItemObj : outputList) {
+                    if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
+
+                    // Handle local shell tool calls
                     String type = (String) outputItem.get("type");
                     if ("local_shell_call".equals(type)) {
-                        Map<String, Object> action = (Map<String, Object>) outputItem.get("action");
-                        if (action != null && action.get("command") instanceof List<?> cmdList) {
-                            // Join list of command parts into a single command string
-                            @SuppressWarnings("unchecked")
-                            List<String> commandParts = (List<String>) cmdList;
-                            String joinedCommand = String.join(" ", commandParts);
-                            put(ToolHandler.LOCALSHELLTOOL_COMMAND, joinedCommand);
+                        Object actionObj = outputItem.get("action");
+                        if (actionObj instanceof Map<?, ?> action) {
+                            Object commandObj = action.get("command");
+                            if (commandObj instanceof List<?> cmdList) {
+                                @SuppressWarnings("unchecked")
+                                List<String> commandParts = (List<String>) cmdList;
+                                String joinedCommand = String.join(" ", commandParts);
+                                put(ToolHandler.LOCALSHELLTOOL_COMMAND, joinedCommand);
+                            }
                         }
                     }
-                }
-            } else {
-                outer:
-                for (Object outputItem : outputList) {
-                    if (!(outputItem instanceof Map<?, ?> messageMap)) continue;
-                    Object contentObj = messageMap.get("content");
-                    if (!(contentObj instanceof List<?> contentList)) continue;
-                    for (Object contentEntry : contentList) {
-                        if (!(contentEntry instanceof Map<?, ?> contentMap)) continue;
-                        Object text = contentMap.get("text");
-                        if (text instanceof String textStr && !textStr.isBlank()) {
-                            System.out.println(textStr);
-                            put(responsesOutputContentKey, textStr);
-                            break outer;
+
+                    // Handle assistant messages (text output)
+                    if ("message".equals(type)) {
+                        Object contentObj = outputItem.get("content");
+                        if (contentObj instanceof List<?> contentList) {
+                            for (Object contentEntry : contentList) {
+                                if (!(contentEntry instanceof Map<?, ?> contentMap)) continue;
+                                Object text = contentMap.get("text");
+                                if (text instanceof String textStr && !textStr.isBlank()) {
+                                    System.out.println(textStr);
+                                    put(responsesOutputContentKey, textStr);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
