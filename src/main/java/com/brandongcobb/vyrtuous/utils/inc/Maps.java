@@ -145,7 +145,8 @@ public class Maps {
         Map.entry("gpt-4o-audio", new ModelInfo(Helpers.parseCommaNumber("128,000"), false)),
         Map.entry("gpt-4o-mini", new ModelInfo(Helpers.parseCommaNumber("128,000"), false)),
         Map.entry("o3-mini", new ModelInfo(Helpers.parseCommaNumber("200,000"), true)),
-        Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("200,000"), true))
+        Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("200,000"), true)),
+        Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("200,000"), true))
     );
     public static final Map<String, ModelInfo> OPENAI_RESPONSE_MODEL_OUTPUT_LIMITS = Map.ofEntries(
         Map.entry("ft:gpt-4o-mini-2024-07-18:spawd:vyrtuous:AjZpTNN2", new ModelInfo(Helpers.parseCommaNumber("128,000"), false)),
@@ -156,7 +157,8 @@ public class Maps {
         Map.entry("gpt-4o-audio", new ModelInfo(Helpers.parseCommaNumber("16,384"), false)),
         Map.entry("gpt-4o-mini", new ModelInfo(Helpers.parseCommaNumber("16,384"), false)),
         Map.entry("o3-mini", new ModelInfo(Helpers.parseCommaNumber("100,000"), true)),
-        Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("100,000"), true))
+        Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("100,000"), true)),
+        Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("100,000"), true))
     );
 
     public static final String OPENAI_RESPONSE_SYS_INPUT = "You are Codex CLI, an agentic OpenAI API implementation running on a homebrew Macbook M4. Always check if a program is installed before trying to run it.";
