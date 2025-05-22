@@ -101,7 +101,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                         ? previousResponse.completeGetResponseId()
                                                         : CompletableFuture.completedFuture(null);
                                                     return prevIdFut.thenCompose(previousResponseId ->
-                                                        aim.completeRequest(fullContent, previousResponseId, model, "response")
+                                                        aim.completeWebRequest(fullContent, previousResponseId, model, "response")
                                                             .thenCompose(responseObject -> {
                                                                 CompletableFuture<Void> setPrevFut;
                                                                 if (previousResponse != null) {

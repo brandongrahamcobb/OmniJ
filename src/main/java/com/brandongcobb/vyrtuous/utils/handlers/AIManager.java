@@ -58,10 +58,11 @@ public class AIManager {
 
     private String moderationApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("moderations");
     private String responseApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("responses");
+    // Align HTTP socket timeout with our application-level 30s timeout to avoid unbounded hangs
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(10_000)
             .setConnectionRequestTimeout(10_000)
-            .setSocketTimeout(999_000)
+            .setSocketTimeout(30_000)
             .build();
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
@@ -278,6 +279,33 @@ public class AIManager {
         Map<String, Object> shellTool = new LinkedHashMap<>();
         shellTool.put("type", "local_shell");
         tools.add(shellTool);
+        //Map<String, Object> searchTool = new LinkedHashMap<>();
+        //shellTool.put("type", "web_search_preview");
+        body.put("tools", tools);
+        if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+            body.put("metadata", Map.of("timestamp", LocalDateTime.now().toString()));
+        }
+        String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
+        return completeProcessRequest(body, endpoint);
+    }
+
+    public CompletableFuture<ResponseObject> completeWebRequest(
+            String content,
+            String previousResponseId,
+            String model,
+            String requestType
+    ) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
+        body.put("input", input);
+        if (previousResponseId != null && !previousResponseId.isEmpty()) {
+            body.put("previous_response_id", previousResponseId);
+        }
+        List<Map<String, Object>> tools = new ArrayList<>();
+        Map<String, Object> searchTool = new LinkedHashMap<>();
+        searchTool.put("type", "web_search_preview");
+        tools.add(searchTool);
         //Map<String, Object> searchTool = new LinkedHashMap<>();
         //shellTool.put("type", "web_search_preview");
         body.put("tools", tools);
