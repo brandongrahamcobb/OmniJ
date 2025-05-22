@@ -93,9 +93,16 @@ public class REPLManager {
                 contentToSend = String.join("\n", shellHistory) + "\n" + loopInput;
             }
             // ask model with shell tool available
-            ResponseObject response = aim
-                    .completeToolRequest(contentToSend, null, modelSetting, "response")
-                    .join();
+            ResponseObject response;
+            try {
+                response = aim
+                        .completeToolRequest(contentToSend, null, modelSetting, "response")
+                        .join();
+            } catch (CompletionException e) {
+                String msg = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+                fullTranscript.append("⚠️ AI request failed: ").append(msg).append("\n");
+                break;
+            }
             // get executed command and its call ID
             String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
             String callId = response.get(ToolHandler.LOCALSHELLTOOL_CALL_ID);
