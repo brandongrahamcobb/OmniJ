@@ -180,6 +180,51 @@ public class AIManager {
         });
     }
 
+
+    public static CompletableFuture<RequestObject> completeBuildRequestObject(
+            String content,
+            String model,
+            String previousResponseId,
+            List<Map<String, Object>> tools,
+            boolean useStoreMetadata,
+            String vectorStoreId
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            Map<String, Object> requestMap = new HashMap<>();
+
+            // Required: model
+            requestMap.put("model", model);
+
+            // Input content
+            List<Map<String, Object>> inputMessages = new ArrayList<>();
+            inputMessages.add(Map.of("role", "user", "content", content));
+            requestMap.put("input", inputMessages);
+
+            // Optional: previous response ID
+            if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                requestMap.put("previous_response_id", previousResponseId);
+            }
+
+            // Tools: inject vectorStoreId if needed
+            if (tools != null && !tools.isEmpty()) {
+                for (Map<String, Object> tool : tools) {
+                    Object type = tool.get("type");
+                    if ("file_search".equals(type) && vectorStoreId != null) {
+                        tool.put("vector_store_ids", List.of(vectorStoreId));
+                    }
+                }
+                requestMap.put("tools", tools);
+            }
+
+            // Optional: metadata
+            if (useStoreMetadata) {
+                requestMap.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+            }
+
+            return new RequestObject(requestMap);
+        });
+    }
+    
     private CompletableFuture<Long> completeCalculateMaxOutputTokens(String model, String prompt) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -197,14 +242,99 @@ public class AIManager {
         });
     }
 
+    /**
+     * Build and send a request using OpenAI's file_search and local_shell tools.
+     * Automatically creates a vector store from the given file IDs before requesting.
+     *
+     * @param content            the input content for the AI
+     * @param previousResponseId optional previous response ID for threading
+     * @param model              the model to use
+     * @param requestType        request type, e.g., "response" or "moderation"
+     * @return a future with the ResponseObject
+     */
+    public CompletableFuture<ResponseObject> completeToolRequest(
+            String content,
+            String previousResponseId,
+            String model,
+            String requestType
+    ) {
+        // List of uploaded file IDs to use in vector store creation
+        List<String> fileIds = List.of("file-ToDXSxedx12w7xAFJa1kdM"); // provided file IDs
+        // Step 1: create or reuse a vector store
+        return completeCreateVectorStore(fileIds)
+            .thenCompose(vectorInfo -> {
+                String vectorStoreId = (String) vectorInfo.get("id");
+                // Build the request body
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("model", model);
+                List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
+                body.put("input", input);
+                if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                    body.put("previous_response_id", previousResponseId);
+                }
+                // Tools configuration
+                List<Map<String, Object>> tools = new ArrayList<>();
+                Map<String, Object> fsTool = new LinkedHashMap<>();
+                //fsTool.put("type", "file_search");
+                //fsTool.put("vector_store_ids", List.of(vectorStoreId));
+                //tools.add(fsTool);
+                Map<String, Object> shellTool = new LinkedHashMap<>();
+                shellTool.put("type", "local_shell");
+                tools.add(shellTool);
+                body.put("tools", tools);
+                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                }
+                String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
+                return completeProcessRequest(body, endpoint);
+            });
+    }
+
     public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
         return completeBuildRequestBody(content, previousResponseId, model, requestType)
-            .thenCompose(reqBody -> {
-                String endpoint = "moderation".equals(requestType)
-                                  ? moderationApiUrl
-                                  : responseApiUrl;
-                return completeProcessRequest(reqBody, endpoint);
-              });
+                .thenCompose(reqBody -> {
+                    String endpoint = "moderation".equals(requestType)
+                            ? moderationApiUrl
+                            : responseApiUrl;
+                    return completeProcessRequest(reqBody, endpoint);
+                });
+    }
+
+    public CompletableFuture<Map<String, Object>> completeCreateVectorStore(List<String> fileIds) {
+        String apiKey = System.getenv("OPENAI_API_KEY");
+        if (apiKey == null || apiKey.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try (CloseableHttpClient client = HttpClients.createDefault()) {
+                HttpPost post = new HttpPost("https://api.openai.com/v1/vector_stores");
+
+                post.setHeader("Authorization", "Bearer " + apiKey);
+                post.setHeader("Content-Type", "application/json");
+
+                ObjectMapper mapper = new ObjectMapper();
+                Map<String, Object> body = Map.of("file_ids", fileIds);
+                String json = mapper.writeValueAsString(body);
+
+                post.setEntity(new StringEntity(json));
+
+                try (CloseableHttpResponse resp = client.execute(post)) {
+                    int code = resp.getStatusLine().getStatusCode();
+                    String respBody = EntityUtils.toString(resp.getEntity(), "UTF-8");
+
+                    System.out.println("📦 Vector Store Response:\n" + respBody);
+
+                    if (code >= 200 && code < 300) {
+                        return mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
+                    } else {
+                        throw new IOException("HTTP " + code + ": " + respBody);
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create vector store", e);
+            }
+        });
     }
 
     private CompletableFuture<ResponseObject> completeProcessRequest(Map<String, Object> requestBody, String endpoint) {
@@ -226,6 +356,7 @@ public class AIManager {
                     System.out.println(respBody);
                     if (code >= 200 && code < 300) {
                         Map<String, Object> respMap = mapper.readValue(respBody, new TypeReference<>() {});
+                        ResponseObject rObject = new ResponseObject(respMap);
                         return new ResponseObject(respMap);
                     } else {
                         throw new IOException("HTTP " + code + ": " + respBody);
@@ -236,6 +367,21 @@ public class AIManager {
             }
         });
     }
+    /**
+     * Stub for searching a vector store or using OpenAI's built-in file_search tool.
+     * Replace this stub with a call to your chosen file_search API or client helper.
+     */
+    public List<String> searchVectorStore(
+            String vectorStoreId,
+            String query,
+            Integer maxResults,
+            Map<String, Object> filters,
+            Map<String, Object> rankingOptions
+    ) {
+        // TODO: implement vector store/file_search lookup
+        return List.of();
+    }
+
 
     public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) {
         return CompletableFuture.supplyAsync(() -> model);

@@ -1,0 +1,22 @@
+Codex Session Progress Log
+=========================
+Date: 2025-05-22
+
+Changes Made:
+- AIManager.java:
+  * Added DEFAULT_FILE_IDS placeholder for vector store creation.
+  * Refactored completeToolRequest to build proper tool definitions (file_search, local_shell).
+  * Corrected parameter order for completeBuildRequestObject.
+  * Added stub searchVectorStore() method for future vector store search implementation.
+- RequestObject.java:
+  * Enhanced local_shell tool parsing: now captures both localshelltool_type and localshelltool_command metadata.
+- ResponseObject.java:
+  * Extended local_shell tool parsing: captures LOCALSHELLTOOL_COMMAND if provided.
+- ToolHandler.java:
+  * Fixed executeShellCommand to retrieve command via responseObject.get().
+  * Updated executeFileSearch to invoke AIManager.searchVectorStore stub with proper parameters.
+
+Next Steps:
+- Implement actual vector store search in AIManager.searchVectorStore().
+- Replace DEFAULT_FILE_IDS with real file IDs from OpenAI.
+- Integrate command execution and file search flows in REPL and DiscordBot handlers.

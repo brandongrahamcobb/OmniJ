@@ -107,7 +107,7 @@ public class REPLManager {
                                 ? previousResponse.completeGetResponseId()
                                 : CompletableFuture.completedFuture(null);
                             return prevIdFut.thenCompose(prevId ->
-                                aim.completeRequest(message, prevId, model, "response")
+                                aim.completeToolRequest(message, prevId, model, "response")
                                     .thenCompose(responseObject -> {
                                         CompletableFuture<Void> setPrevFut;
                                         if (previousResponse != null) {
@@ -121,7 +121,7 @@ public class REPLManager {
                                         }
                                         return setPrevFut.thenCompose(v -> {
                                             userResponseMap.put(senderId, responseObject);
-                                            return responseObject.completeGetOutput();
+                                            return responseObject.completeGetShellToolCommand();
                                         });
                                     })
                             );

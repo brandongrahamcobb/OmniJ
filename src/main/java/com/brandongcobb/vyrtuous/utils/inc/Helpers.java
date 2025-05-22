@@ -78,29 +78,35 @@ public class Helpers {
     public static final Path PATH_RESPONSE_OBJECT = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ResponseObject.java");
     public static final Path PATH_VYRTUOUS = Paths.get(DIR_BASE.toString(), "vyrtuous", "Vyrtuous.java");
 
+    // Safely read source files into static fields; missing files yield empty strings
     static {
+        FILE_ACTIVITY_OBJECT      = safeRead(EnvironmentPaths.ACTIVITY_OBJECT.get());
+        FILE_AI_MANAGER           = safeRead(EnvironmentPaths.AI_MANAGER.get());
+        FILE_COST_OBJECT          = safeRead(EnvironmentPaths.COST_OBJECT.get());
+        FILE_DISCORD_BOT          = safeRead(EnvironmentPaths.DISCORD_BOT.get());
+        FILE_EVENT_LISTENERS      = safeRead(EnvironmentPaths.EVENT_LISTENERS.get());
+        FILE_HELPERS              = safeRead(EnvironmentPaths.HELPERS.get());
+        FILE_HYBIRD_COMMANDS      = safeRead(EnvironmentPaths.HYBIRD_COMMANDS.get());
+        FILE_METADATA_CONTAINER   = safeRead(EnvironmentPaths.METADATA_CONTAINER.get());
+        FILE_METADATA_HOLDER      = safeRead(EnvironmentPaths.METADATA_HOLDER.get());
+        FILE_METADATA_KEY         = safeRead(EnvironmentPaths.METADATA_KEY.get());
+        FILE_METADATA_TYPE        = safeRead(EnvironmentPaths.METADATA_TYPE.get());
+        FILE_MESSAGE_MANAGER      = safeRead(EnvironmentPaths.MESSAGE_MANAGER.get());
+        FILE_MODEL_INFO           = safeRead(EnvironmentPaths.MODEL_INFO.get());
+        FILE_MODEL_REGISTRY       = safeRead(EnvironmentPaths.MODEL_REGISTRY.get());
+        FILE_MODERATION_MANAGER   = safeRead(EnvironmentPaths.MODERATION_MANAGER.get());
+        FILE_PREDICATOR           = safeRead(EnvironmentPaths.PREDICATOR.get());
+        FILE_REQUEST_OBJECT       = safeRead(EnvironmentPaths.REQUEST_OBJECT.get());
+        FILE_RESPONSE_OBJECT      = safeRead(EnvironmentPaths.RESPONSE_OBJECT.get());
+        FILE_VYRTUOUS             = safeRead(EnvironmentPaths.VYRTUOUS.get());
+    }
+
+    // Helper method to read a file or return empty string if unavailable
+    private static String safeRead(Path path) {
         try {
-            FILE_ACTIVITY_OBJECT  = Files.readString(EnvironmentPaths.ACTIVITY_OBJECT.get());
-            FILE_AI_MANAGER  = Files.readString(EnvironmentPaths.AI_MANAGER.get());
-            FILE_COST_OBJECT  = Files.readString(EnvironmentPaths.COST_OBJECT.get());
-            FILE_DISCORD_BOT  = Files.readString(EnvironmentPaths.DISCORD_BOT.get());
-            FILE_EVENT_LISTENERS  = Files.readString(EnvironmentPaths.EVENT_LISTENERS.get());
-            FILE_HELPERS  = Files.readString(EnvironmentPaths.HELPERS.get());
-            FILE_HYBIRD_COMMANDS  = Files.readString(EnvironmentPaths.HYBIRD_COMMANDS.get());
-            FILE_METADATA_CONTAINER  = Files.readString(EnvironmentPaths.METADATA_CONTAINER.get());
-            FILE_METADATA_HOLDER  = Files.readString(EnvironmentPaths.METADATA_HOLDER.get());
-            FILE_METADATA_KEY  = Files.readString(EnvironmentPaths.METADATA_KEY.get());
-            FILE_METADATA_TYPE  = Files.readString(EnvironmentPaths.METADATA_TYPE.get());
-            FILE_MESSAGE_MANAGER  = Files.readString(EnvironmentPaths.MESSAGE_MANAGER.get());
-            FILE_MODEL_INFO  = Files.readString(EnvironmentPaths.MODEL_INFO.get());
-            FILE_MODEL_REGISTRY  = Files.readString(EnvironmentPaths.MODEL_REGISTRY.get());
-            FILE_MODERATION_MANAGER  = Files.readString(EnvironmentPaths.MODERATION_MANAGER.get());
-            FILE_PREDICATOR  = Files.readString(EnvironmentPaths.PREDICATOR.get());
-            FILE_REQUEST_OBJECT  = Files.readString(EnvironmentPaths.REQUEST_OBJECT.get());
-            FILE_RESPONSE_OBJECT  = Files.readString(EnvironmentPaths.RESPONSE_OBJECT.get());
-            FILE_VYRTUOUS  = Files.readString(EnvironmentPaths.VYRTUOUS.get());
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+            return Files.readString(path);
+        } catch (IOException e) {
+            return "";
         }
     }
 

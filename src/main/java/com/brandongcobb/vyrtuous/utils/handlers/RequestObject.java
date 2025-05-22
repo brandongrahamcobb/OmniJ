@@ -24,6 +24,8 @@ import com.brandongcobb.vyrtuous.utils.handlers.ResponseObject;
 import com.brandongcobb.vyrtuous.utils.inc.Helpers;
 import com.brandongcobb.vyrtuous.utils.inc.ModelRegistry;
 import com.brandongcobb.metadata.*;
+
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -57,7 +59,7 @@ public class RequestObject extends MetadataContainer {
             put(streamKey, stream);
         }
         MetadataKey<List<Map<String, Object>>> inputKey = new MetadataKey<>("input", Metadata.LIST_MAP);
-        @SuppressWarnings("unchecked")
+
         List<Map<String, Object>> input = (List<Map<String, Object>>) requestMap.get("input");
         if (input != null) {
             put(inputKey, input);
@@ -85,6 +87,56 @@ public class RequestObject extends MetadataContainer {
                 put(maxTokensKey, maxTokens);
             }
         }
-
+        if (requestMap.containsKey("tools")) {
+            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
+            Object toolsObj = requestMap.get("tools");
+    
+            if (toolsObj instanceof List<?> toolsList && !toolsList.isEmpty()) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> tools = (List<Map<String, Object>>) toolsList;
+                put(toolsKey, tools); // Save raw list
+            
+                for (Map<String, Object> toolMap : tools) {
+                    Object typeObj = toolMap.get("type");
+    
+                    if (typeObj instanceof String type) {
+                        switch (type) {
+                            case "file_search" -> {
+                                if (toolMap.containsKey("vector_store_ids")) {
+                                    put(new MetadataKey<>("filesearchtool_vector_store_ids", Metadata.LIST_STRING),
+                                        (List<String>) toolMap.get("vector_store_ids"));
+                                }
+                                if (toolMap.containsKey("filters")) {
+                                    put(new MetadataKey<>("filesearchtool_filters", Metadata.MAP),
+                                        (Map<String, Object>) toolMap.get("filters"));
+                                }
+                                if (toolMap.containsKey("max_num_results")) {
+                                    put(new MetadataKey<>("filesearchtool_max_num_results", Metadata.INTEGER),
+                                        Integer.parseInt(toolMap.get("max_num_results").toString()));
+                                }
+                                if (toolMap.containsKey("ranking_options")) {
+                                    put(new MetadataKey<>("filesearchtool_ranking_options", Metadata.MAP),
+                                        (Map<String, Object>) toolMap.get("ranking_options"));
+                                }
+                            }
+    
+                            case "local_shell" -> {
+                                // Capture the local shell tool type and command
+                                put(new MetadataKey<>("localshelltool_type", Metadata.STRING), "local_shell");
+                                Object cmdObj = toolMap.get("command");
+                                if (cmdObj instanceof String cmd) {
+                                    put(new MetadataKey<>("localshelltool_command", Metadata.STRING), cmd);
+                                }
+                            }
+    
+                            default -> {
+                                // Optionally log or skip unknown tool types
+                                System.out.println("⚠️ Unknown tool type: " + type);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
