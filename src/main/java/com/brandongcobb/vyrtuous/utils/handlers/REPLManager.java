@@ -109,14 +109,19 @@ public class REPLManager {
                 String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
 
                 if (command == null || command.isBlank()) {
-                    // No shell call present — just print model output and exit loop
+                    // No shell call present — just print model output and continue loop
                     String modelOutput = response.completeGetOutput().join();
                     if (modelOutput != null && !modelOutput.isBlank()) {
-                        fullTranscript.append(modelOutput);
+                        fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
+                        loopInput = modelOutput; // keep feeding response into loop
+                    } else if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
+                        fullTranscript.append("🛑 Exit trigger detected.\n");
+                        stopLoop = true;
                     } else {
-                        fullTranscript.append("No output from model.");
+                        fullTranscript.append("🤖 Model returned no output.\n");
+                        stopLoop = true; // only stop on truly empty message
                     }
-                    break;
+                    continue; // ✅ loop continues
                 }
                 if (requiresApproval(command)) {
                     System.out.println("🛑 Approval required for command: " + command);
