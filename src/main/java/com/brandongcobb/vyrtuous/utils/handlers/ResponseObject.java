@@ -292,6 +292,34 @@ public class ResponseObject extends MetadataContainer{
             MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
             Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
             put(responsesTextFormatKey, responsesTextFormat);
+            // Parse tool calls from 'output' array for local_shell_call
+            if (responseMap.containsKey("output") && responseMap.get("output") instanceof List<?> outputArray) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> outputs = (List<Map<String, Object>>) outputArray;
+                for (Map<String, Object> entry : outputs) {
+                    Object typeObj = entry.get("type");
+                    if ("local_shell_call".equals(typeObj)) {
+                        // extract call ID for chaining
+                        Object callIdObj = entry.get("call_id");
+                        if (callIdObj instanceof String callId) {
+                            put(ToolHandler.LOCALSHELLTOOL_CALL_ID, callId);
+                        }
+                        Object actionObj = entry.get("action");
+                        if (actionObj instanceof Map<?, ?> action) {
+                            Object cmdObj = action.get("command");
+                            String cmdString = null;
+                            if (cmdObj instanceof List<?> cmdList) {
+                                cmdString = cmdList.stream().map(Object::toString).collect(Collectors.joining(" "));
+                            } else if (cmdObj != null) {
+                                cmdString = cmdObj.toString();
+                            }
+                            if (cmdString != null) {
+                                put(LOCALSHELLTOOL_COMMAND, cmdString);
+                            }
+                        }
+                    }
+                }
+            }
             MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", LIST);
             List<Map<String, Object>> toolsList = (List<Map<String, Object>>) responseMap.get("tools");
             put(toolsKey, toolsList);

@@ -1,6 +1,6 @@
 //
 //  ToolHandler.java
-//  
+//
 //
 //  Created by Brandon Cobb on 5/22/25.
 //
@@ -54,42 +54,57 @@ public class ToolHandler {
 
 
     public String executeShellCommand(ResponseObject responseObject) {
-        String command = responseObject.get(LOCALSHELLTOOL_COMMAND);
-        if (command == null || command.isBlank()) return "⚠️ No shell command provided.";
+        String originalCommand = responseObject.get(LOCALSHELLTOOL_COMMAND);
+        if (originalCommand == null || originalCommand.isBlank()) return "⚠️ No shell command provided.";
 
         try {
-            ProcessBuilder builder = new ProcessBuilder("sh", "-c", command);
+            // Diagnostic log
+            System.out.println("🔧 Original command: " + originalCommand);
+
+            // Attempt to reconstruct the command if it was accidentally split
+            String cleanedCommand = originalCommand.trim();
+
+            // If it looks like `rg Dockerfile -n` and fails due to arg parsing, add quotes
+            if (cleanedCommand.startsWith("rg ") && !cleanedCommand.contains("\"")) {
+                String[] parts = cleanedCommand.split("\\s+");
+                if (parts.length >= 2) {
+                    String pattern = parts[1];
+                    // Wrap pattern in quotes unless already present
+                    if (!pattern.startsWith("\"") && !pattern.endsWith("\"")) {
+                        parts[1] = "\"" + pattern + "\"";
+                        cleanedCommand = String.join(" ", parts);
+                        System.out.println("🧼 Auto-quoted rg pattern: " + cleanedCommand);
+                    }
+                }
+            }
+
+            // Prefer the unmodified original command for actual execution
+            ProcessBuilder builder = new ProcessBuilder("sh", "-c", originalCommand);
+            builder.redirectErrorStream(true);
             Process process = builder.start();
 
             StringBuilder outputBuilder = new StringBuilder();
-            StringBuilder errorBuilder = new StringBuilder();
-
-            try (BufferedReader outReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                 BufferedReader errReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                 
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
                 String line;
-                while ((line = outReader.readLine()) != null) {
-                    System.out.println(line);  // live print
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
                     outputBuilder.append(line).append("\n");
-                }
-                while ((line = errReader.readLine()) != null) {
-                    System.err.println(line);  // live print error
-                    errorBuilder.append(line).append("\n");
                 }
             }
 
             int exitCode = process.waitFor();
-
             if (exitCode == 0) {
                 return outputBuilder.toString();
             } else {
-                return "❌ Shell error:\n" + errorBuilder.toString();
+                return "❌ Shell command exited with code " + exitCode + ":\n" + outputBuilder;
             }
+
         } catch (Exception e) {
             return "⚠️ Shell execution failed: " + e.getMessage();
         }
     }
-
+    
     public static List<String> executeFileSearch(ResponseObject responseObject, String query) {
         String type = responseObject.get(FILESEARCHTOOL_TYPE);
         if (!"file_search".equals(type)) {

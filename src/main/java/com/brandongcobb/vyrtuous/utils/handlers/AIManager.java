@@ -48,13 +48,20 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.HttpEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.util.EntityUtils;
 
 public class AIManager {
 
     private String moderationApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("moderations");
     private String responseApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("responses");
+    private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
+            .setConnectTimeout(10_000)
+            .setConnectionRequestTimeout(10_000)
+            .setSocketTimeout(60_000)
+            .build();
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
     private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
@@ -287,9 +294,32 @@ public class AIManager {
             String requestType,
             List<Map<String, Object>> toolResponses
     ) {
-        // reuse vector store creation if needed
+        // If this is a follow-up for shell tool, skip vector store creation
+        if (toolResponses != null && !toolResponses.isEmpty()) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("model", model);
+            List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
+            body.put("input", input);
+            if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                body.put("previous_response_id", previousResponseId);
+            }
+            List<Map<String, Object>> tools = List.of(Map.of("type", "local_shell"));
+            body.put("tools", tools);
+            body.put("tool_responses", toolResponses);
+            if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+            }
+            String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
+            return completeProcessRequest(body, endpoint);
+        }
+        // Otherwise perform vector store creation for file_search
         List<String> fileIds = List.of("file-ToDXSxedx12w7xAFJa1kdM");
         return completeCreateVectorStore(fileIds)
+            .orTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+            .exceptionally(ex -> {
+                System.err.println("⚠️ Vector store creation failed or timed out: " + ex.getMessage());
+                return java.util.Collections.emptyMap();
+            })
             .thenCompose(vectorInfo -> {
                 String vectorStoreId = (String) vectorInfo.get("id");
                 Map<String, Object> body = new LinkedHashMap<>();
@@ -299,16 +329,10 @@ public class AIManager {
                 if (previousResponseId != null && !previousResponseId.isEmpty()) {
                     body.put("previous_response_id", previousResponseId);
                 }
-                // Tools configuration: local_shell only
                 List<Map<String, Object>> tools = new ArrayList<>();
-                Map<String, Object> shellTool = new LinkedHashMap<>();
-                shellTool.put("type", "local_shell");
-                tools.add(shellTool);
+                tools.add(Map.of("type", "local_shell"));
                 body.put("tools", tools);
-                // supply tool_responses
-                if (toolResponses != null && !toolResponses.isEmpty()) {
-                    body.put("tool_responses", toolResponses);
-                }
+                body.put("tool_responses", toolResponses);
                 if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
                     body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
                 }
@@ -334,7 +358,9 @@ public class AIManager {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            try (CloseableHttpClient client = HttpClients.createDefault()) {
+            try (CloseableHttpClient client = HttpClients.custom()
+                    .setDefaultRequestConfig(REQUEST_CONFIG)
+                    .build()) {
                 HttpPost post = new HttpPost("https://api.openai.com/v1/vector_stores");
 
                 post.setHeader("Authorization", "Bearer " + apiKey);
@@ -370,7 +396,9 @@ public class AIManager {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
         }
         return CompletableFuture.supplyAsync(() -> {
-            try (CloseableHttpClient client = HttpClients.createDefault()) {
+            try (CloseableHttpClient client = HttpClients.custom()
+                    .setDefaultRequestConfig(REQUEST_CONFIG)
+                    .build()) {
                 HttpPost post = new HttpPost(endpoint);
                 post.setHeader("Authorization", "Bearer " + apiKey);
                 post.setHeader("Content-Type", "application/json");

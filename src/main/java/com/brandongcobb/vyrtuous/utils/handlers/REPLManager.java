@@ -96,7 +96,9 @@ public class REPLManager {
             ResponseObject response = aim
                     .completeToolRequest(contentToSend, null, modelSetting, "response")
                     .join();
+            // get executed command and its call ID
             String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
+            String callId = response.get(ToolHandler.LOCALSHELLTOOL_CALL_ID);
             if (command == null || command.isBlank()) {
                 // no shell call: final output
                 String modelOutput = response.completeGetOutput().join();
@@ -139,7 +141,7 @@ public class REPLManager {
             String shellResult = runAndRecordCommand(response);
             fullTranscript.append("🔁 Command:\n").append(command)
                           .append("\n📤 Output:\n").append(shellResult).append("\n\n");
-            // prepare next iteration
+            // prepare next iteration input (model sees history of commands and outputs)
             loopInput = shellResult;
         }
         return fullTranscript.toString();
