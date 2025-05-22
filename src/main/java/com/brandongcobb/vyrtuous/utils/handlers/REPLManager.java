@@ -112,17 +112,22 @@ public class REPLManager {
                 if (command == null || command.isBlank()) {
                     // No shell call present — just a message or explanation
                     String modelOutput = response.completeGetOutput().join();
-                    fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
+                    if (modelOutput != null && !modelOutput.isBlank()) {
+                        fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
 
-                    // Summarize the shell session so far
-                    String summary = summarizeShellSession();
-                    fullTranscript.append("🧠 Summary of session:\n").append(summary).append("\n");
+                        // Summarize the shell session so far
+                        String summary = summarizeShellSession();
+                        fullTranscript.append("🧠 Summary of session:\n").append(summary).append("\n");
 
-                    // Exit if the model suggests it
-                    if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
-                        stopLoop = true;
+                        // Exit if the model suggests it
+                        if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
+                            stopLoop = true;
+                        } else {
+                            loopInput = modelOutput;  // continue the conversation
+                        }
                     } else {
-                        loopInput = modelOutput;  // continue the conversation
+                        fullTranscript.append("🤖 Model returned no output.\n");
+                        stopLoop = true; // or optionally continue the loop
                     }
                     continue;
                 }
