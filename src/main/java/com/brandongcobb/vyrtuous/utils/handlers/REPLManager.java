@@ -114,13 +114,16 @@ public class REPLManager {
                     String modelOutput = response.completeGetOutput().join();
                     fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
 
-                    // Optionally: break out of loop if it's not tool-based
+                    // Summarize the shell session so far
+                    String summary = summarizeShellSession();
+                    fullTranscript.append("🧠 Summary of session:\n").append(summary).append("\n");
+
+                    // Exit if the model suggests it
                     if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
                         stopLoop = true;
-                        break;
+                    } else {
+                        loopInput = modelOutput;  // continue the conversation
                     }
-
-                    loopInput = modelOutput;
                     continue;
                 }
                 if (requiresApproval(command)) {
@@ -142,18 +145,6 @@ public class REPLManager {
                 String shellResult = runAndRecordCommand(response);
                 fullTranscript.append("🔁 Command:\n").append(loopInput)
                               .append("\n📤 Output:\n").append(shellResult).append("\n\n");
-
-                // Exit condition? Model might tell us.
-                String summary = summarizeShellSession();
-                if (summary != null && (summary.toLowerCase().contains("exit") || summary.contains("🛑"))) {
-                    stopLoop = true;
-                    fullTranscript.append("🧠 Summary of session:\n").append(summary);
-                    break;
-                }
-
-                // Feed shell output as new input
-                loopInput = summary + "\nPrevious output:\n" + shellResult;
-                // enforce session timeout if configured
                 if (maxSessionDurationMillis > 0
                     && System.currentTimeMillis() - startTime >= maxSessionDurationMillis) {
                     fullTranscript.append("⏲️ Time limit reached. Stopping session.\n");
