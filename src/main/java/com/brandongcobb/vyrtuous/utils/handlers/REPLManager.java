@@ -95,9 +95,8 @@ public class REPLManager {
         while (!stopLoop) {
             try {
                 String modelSetting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-                String prevResponseId = previousResponse != null
-                        ? previousResponse.completeGetResponseId().join()
-                        : null;
+                // Avoid using previous_response_id to prevent API errors when chaining tools
+                String prevResponseId = null;
 
                 // Request next step based on last command/output
                 ResponseObject response = aim
@@ -138,6 +137,9 @@ public class REPLManager {
                 String shellResult = runAndRecordCommand(response);
                 fullTranscript.append("🔁 Command:\n").append(loopInput)
                               .append("\n📤 Output:\n").append(shellResult).append("\n\n");
+                // Prepare for next iteration: use shell output as input and clear previousResponse
+                loopInput = shellResult;
+                previousResponse = null;
                 if (maxSessionDurationMillis > 0
                     && System.currentTimeMillis() - startTime >= maxSessionDurationMillis) {
                     fullTranscript.append("⏲️ Time limit reached. Stopping session.\n");
