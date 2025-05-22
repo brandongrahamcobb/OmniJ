@@ -82,80 +82,52 @@ public class REPLManager {
     }
     
     private String completeREPL(String initialMessage) {
-        long senderId = 1L;
         AIManager aim = new AIManager();
-        ResponseObject previousResponse = userResponseMap.get(senderId);
-        boolean multimodal = false;
-        String loopInput = initialMessage;
         StringBuilder fullTranscript = new StringBuilder();
-        boolean stopLoop = false;
-        // track session start for timeout
-        long startTime = System.currentTimeMillis();
-        // chain context: previous response ID for tool calls
-        String previousResponseId = null;
-
-        while (!stopLoop) {
-            try {
-                String modelSetting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-                // Use previous response id for chaining tool calls
-                String prevResponseId = previousResponseId;
-
-                // Build content with shell history
-                String contentToSend = loopInput;
-                if (!shellHistory.isEmpty()) {
-                    contentToSend = String.join("\n", shellHistory) + "\n" + loopInput;
-                }
-
-                // Request next step based on last command/output
-                ResponseObject response = aim
-                        .completeToolRequest(contentToSend, prevResponseId, modelSetting, "response")
-                        .join();
-                String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
-
-                if (command == null || command.isBlank()) {
-                    // No shell call present — just print model output and exit loop
-                    String modelOutput = response.completeGetOutput().join();
-                    if (modelOutput != null && !modelOutput.isBlank()) {
-                        fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
-                    }
-                    // End tool-chaining mode and wait for user
-                    previousResponseId = null;
-                    break;
-                }
-                if (requiresApproval(command)) {
-                    System.out.println("🛑 Approval required for command: " + command);
-                    System.out.print("Approve? (y = yes, e = edit, a = always auto): ");
-                    String approval = new Scanner(System.in).nextLine().trim().toLowerCase();
-                    if (approval.equals("e")) {
-                        System.out.print("Edit command: ");
-                        command = new Scanner(System.in).nextLine();
-                        response.put(ToolHandler.LOCALSHELLTOOL_COMMAND, command);
-                    } else if (approval.equals("a")) {
-                        setApprovalMode(ApprovalMode.FULL_AUTO);
-                    } else if (!approval.equals("y")) {
-                        System.out.println("❌ Command not approved.");
-                        break;
-                    }
-                }
-                // Execute shell command
-                String shellResult = runAndRecordCommand(response);
-                fullTranscript.append("🔁 Command:\n").append(loopInput)
-                              .append("\n📤 Output:\n").append(shellResult).append("\n\n");
-                // Prepare for next iteration: use shell output as input and set previousResponseId
-                loopInput = shellResult;
-                previousResponseId = response.completeGetResponseId().join();
-                if (maxSessionDurationMillis > 0
-                    && System.currentTimeMillis() - startTime >= maxSessionDurationMillis) {
-                    fullTranscript.append("⏲️ Time limit reached. Stopping session.\n");
-                    break;
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                return "❌ REPL loop error: " + e.getMessage();
+        String modelSetting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+        String loopInput = initialMessage;
+        while (true) {
+            // build prompt including past shell history
+            String contentToSend = loopInput;
+            if (!shellHistory.isEmpty()) {
+                contentToSend = String.join("\n", shellHistory) + "\n" + loopInput;
             }
+            // ask model with shell tool available
+            ResponseObject response = aim
+                    .completeToolRequest(contentToSend, null, modelSetting, "response")
+                    .join();
+            String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
+            if (command == null || command.isBlank()) {
+                // no shell call: final output
+                String modelOutput = response.completeGetOutput().join();
+                if (modelOutput != null && !modelOutput.isBlank()) {
+                    fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
+                }
+                break;
+            }
+            // approval if needed
+            if (requiresApproval(command)) {
+                System.out.println("🛑 Approval required for command: " + command);
+                System.out.print("Approve? (y = yes, e = edit, a = always auto): ");
+                String approval = new Scanner(System.in).nextLine().trim().toLowerCase();
+                if (approval.equals("e")) {
+                    System.out.print("Edit command: ");
+                    command = new Scanner(System.in).nextLine();
+                    response.put(ToolHandler.LOCALSHELLTOOL_COMMAND, command);
+                } else if (approval.equals("a")) {
+                    setApprovalMode(ApprovalMode.FULL_AUTO);
+                } else if (!approval.equals("y")) {
+                    fullTranscript.append("❌ Command not approved.\n");
+                    break;
+                }
+            }
+            // execute and record
+            String shellResult = runAndRecordCommand(response);
+            fullTranscript.append("🔁 Command:\n").append(command)
+                          .append("\n📤 Output:\n").append(shellResult).append("\n\n");
+            // prepare next iteration
+            loopInput = shellResult;
         }
-
         return fullTranscript.toString();
     }
 

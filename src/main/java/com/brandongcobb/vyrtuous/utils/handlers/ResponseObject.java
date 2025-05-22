@@ -456,6 +456,12 @@ public class ResponseObject extends MetadataContainer{
                     if ("local_shell_call".equals(type)) {
                         Object actionObj = outputItem.get("action");
                         if (actionObj instanceof Map<?, ?> action) {
+                            // capture the call ID
+                            Object idObj = outputItem.get("call_id");
+                            if (idObj instanceof String cid) {
+                                put(ToolHandler.LOCALSHELLTOOL_CALL_ID, cid);
+                            }
+                            // capture the shell command
                             Object commandObj = action.get("command");
                             if (commandObj instanceof List<?> cmdList) {
                                 @SuppressWarnings("unchecked")

@@ -289,6 +289,45 @@ public class AIManager {
                 return completeProcessRequest(body, endpoint);
             });
     }
+    /**
+     * Follow-up tool request: include tool_responses to supply output of previous tool call.
+     */
+    public CompletableFuture<ResponseObject> completeToolRequest(
+            String content,
+            String previousResponseId,
+            String model,
+            String requestType,
+            List<Map<String, Object>> toolResponses
+    ) {
+        // reuse vector store creation if needed
+        List<String> fileIds = List.of("file-ToDXSxedx12w7xAFJa1kdM");
+        return completeCreateVectorStore(fileIds)
+            .thenCompose(vectorInfo -> {
+                String vectorStoreId = (String) vectorInfo.get("id");
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("model", model);
+                List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
+                body.put("input", input);
+                if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                    body.put("previous_response_id", previousResponseId);
+                }
+                // Tools configuration: local_shell only
+                List<Map<String, Object>> tools = new ArrayList<>();
+                Map<String, Object> shellTool = new LinkedHashMap<>();
+                shellTool.put("type", "local_shell");
+                tools.add(shellTool);
+                body.put("tools", tools);
+                // supply tool_responses
+                if (toolResponses != null && !toolResponses.isEmpty()) {
+                    body.put("tool_responses", toolResponses);
+                }
+                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                }
+                String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
+                return completeProcessRequest(body, endpoint);
+            });
+    }
 
     public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
         return completeBuildRequestBody(content, previousResponseId, model, requestType)
