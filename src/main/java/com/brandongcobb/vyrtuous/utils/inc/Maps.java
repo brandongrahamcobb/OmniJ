@@ -159,7 +159,7 @@ public class Maps {
         Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("100,000"), true))
     );
 
-    public static final String OPENAI_RESPONSE_SYS_INPUT = null;
+    public static final String OPENAI_RESPONSE_SYS_INPUT = "You are Codex CLI, an agentic OpenAI API implementation running on a homebrew Macbook M4. Always check if a program is installed before trying to run it.";
 //    "You are Vyrtuous. This is your source" + String.join(" | ", Arrays.stream(Source.values())
 //        .map(source -> source.fileContent)
 //        .toArray(String[]::new));

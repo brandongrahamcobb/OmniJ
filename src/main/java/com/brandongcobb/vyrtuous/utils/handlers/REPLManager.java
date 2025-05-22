@@ -55,97 +55,81 @@ import net.dv8tion.jda.api.JDA;
 public class REPLManager {
     
     private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
-    private enum ApprovalMode {
-        FULL_AUTO,
-        EDIT_APPROVE_DESTRUCTIVE,
-        EDIT_APPROVE_ALL
-    }
-
-    private ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_DESTRUCTIVE;
+    
+    private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
     private final List<String> shellHistory = new ArrayList<>();
 
-    private String completeREPL(String message) {
-        if (message.startsWith(".")) {
-            if (message.equals(".exit")) {
-                return summarizeShellSession();
-            }
-            return null;
-        }
-
-        AIManager aim = new AIManager();
+    public REPLManager(ApprovalMode mode) {
+        setApprovalMode(mode);
+    }
+    
+    public void setApprovalMode(ApprovalMode mode) {
+        this.approvalMode = mode;
+    }
+    
+    private String completeREPL(String initialMessage) {
         long senderId = 1L;
+        AIManager aim = new AIManager();
         ResponseObject previousResponse = userResponseMap.get(senderId);
         boolean multimodal = false;
+        String loopInput = initialMessage;
+        StringBuilder fullTranscript = new StringBuilder();
+        boolean stopLoop = false;
 
-        try {
-            return Vyrtuous.completeGetInstance()
-                .thenCompose(vyr -> vyr.completeGetUserModelSettings())
-                .thenCompose(userModelSettings -> {
-                    String modelSetting = userModelSettings.getOrDefault(senderId,
-                        ModelRegistry.OPENAI_RESPONSE_MODEL.asString());
+        while (!stopLoop) {
+            try {
+                String modelSetting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+                String prevResponseId = previousResponse != null
+                        ? previousResponse.completeGetResponseId().join()
+                        : null;
 
-                    return aim.completeResolveModel(message, multimodal, modelSetting)
-                        .thenCompose(model -> {
-                            CompletableFuture<String> prevIdFut = (previousResponse != null)
-                                ? previousResponse.completeGetResponseId()
-                                : CompletableFuture.completedFuture(null);
+                // Request next step based on last command/output
+                ResponseObject response = aim
+                        .completeToolRequest(loopInput, prevResponseId, modelSetting, "response")
+                        .join();
 
-                            return prevIdFut.thenCompose(prevId ->
-                                aim.completeToolRequest(message, prevId, model, "response")
-                                    .thenCompose(responseObject -> {
-                                        CompletableFuture<Void> setPrevFut = (previousResponse != null)
-                                            ? previousResponse.completeGetPreviousResponseId()
-                                                .thenCompose(prevRespId -> responseObject.completeSetPreviousResponseId(prevRespId))
-                                            : responseObject.completeSetPreviousResponseId(null);
+                // Store this response as previous for the next loop
+                previousResponse = response;
+                userResponseMap.put(senderId, response);
+                String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
+                if (requiresApproval(command)) {
+                    System.out.println("🛑 Approval required for command: " + command);
+                    System.out.print("Approve? (y = yes, e = edit, a = always auto): ");
+                    String approval = new Scanner(System.in).nextLine().trim().toLowerCase();
+                    if (approval.equals("e")) {
+                        System.out.print("Edit command: ");
+                        command = new Scanner(System.in).nextLine();
+                        response.put(ToolHandler.LOCALSHELLTOOL_COMMAND, command);
+                    } else if (approval.equals("a")) {
+                        setApprovalMode(ApprovalMode.FULL_AUTO);
+                    } else if (!approval.equals("y")) {
+                        System.out.println("❌ Command not approved.");
+                        break;
+                    }
+                }
+                // Execute shell comman
+                String shellResult = runAndRecordCommand(response);
+                fullTranscript.append("🔁 Command:\n").append(loopInput)
+                              .append("\n📤 Output:\n").append(shellResult).append("\n\n");
 
-                                        return setPrevFut.thenCompose(v -> {
-                                            userResponseMap.put(senderId, responseObject);
+                // Exit condition? Model might tell us.
+                String summary = summarizeShellSession();
+                if (summary.toLowerCase().contains("exit") || summary.contains("🛑")) {
+                    stopLoop = true;
+                    fullTranscript.append("🧠 Summary of session:\n").append(summary);
+                    break;
+                }
 
-                                            String command = responseObject.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
-                                            if (command == null || command.isBlank()) return CompletableFuture.completedFuture("⚠️ No command to run.");
+                // Feed shell output as new input
+                loopInput = summary + "\nPrevious output:\n" + shellResult;
 
-                                            if (requiresApproval(command)) {
-                                                System.out.println("🛑 Destructive or unknown command detected: " + command);
-                                                System.out.println("Options:\n1. [e]dit\n2. [y]es\n3. [f]ull auto\n4. [a]lways ask");
-
-                                                Scanner scanner = new Scanner(System.in);
-                                                String userChoice = scanner.nextLine().trim().toLowerCase();
-
-                                                switch (userChoice) {
-                                                    case "e" -> {
-                                                        System.out.println("Edit command:");
-                                                        String edited = scanner.nextLine();
-                                                        return CompletableFuture.completedFuture(runAndRecordCommand(edited));
-                                                    }
-                                                    case "f" -> {
-                                                        approvalMode = ApprovalMode.FULL_AUTO;
-                                                        return CompletableFuture.completedFuture(runAndRecordCommand(command));
-                                                    }
-                                                    case "a" -> {
-                                                        approvalMode = ApprovalMode.EDIT_APPROVE_ALL;
-                                                        return CompletableFuture.completedFuture(runAndRecordCommand(command));
-                                                    }
-                                                    case "y", "" -> {
-                                                        return CompletableFuture.completedFuture(runAndRecordCommand(command));
-                                                    }
-                                                    default -> {
-                                                        return CompletableFuture.completedFuture("⚠️ Command canceled.");
-                                                    }
-                                                }
-                                            } else {
-                                                return CompletableFuture.completedFuture(runAndRecordCommand(command));
-                                            }
-                                        });
-                                    }));
-                        });
-                }).exceptionally(ex -> {
-                    ex.printStackTrace();
-                    return "Error during completion: " + ex.getMessage();
-                }).join();
-        } catch (CompletionException ce) {
-            ce.printStackTrace();
-            return "Unhandled exception: " + ce.getCause().getMessage();
+            } catch (Exception e) {
+                e.printStackTrace();
+                return "❌ REPL loop error: " + e.getMessage();
+            }
         }
+
+        return fullTranscript.toString();
     }
 
     private boolean requiresApproval(String command) {
@@ -159,13 +143,14 @@ public class REPLManager {
         };
     }
 
-    private String runAndRecordCommand(String command) {
+    private String runAndRecordCommand(ResponseObject responseObject) {
         ToolHandler th = new ToolHandler();
-        String result = th.executeShellCommand(command);
+        String result = th.executeShellCommand(responseObject);
+        String command = responseObject.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
         shellHistory.add("> " + command + "\n" + result);
         return result;
     }
-
+    
     private String summarizeShellSession() {
         if (shellHistory.isEmpty()) return "📝 No session activity to summarize.";
 

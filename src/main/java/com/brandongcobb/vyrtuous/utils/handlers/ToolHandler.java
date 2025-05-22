@@ -51,7 +51,8 @@ public class ToolHandler {
     public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
 
 
-    public String executeShellCommand(String command) {
+    public String executeShellCommand(ResponseObject responseObject) {
+        String command = responseObject.get(LOCALSHELLTOOL_COMMAND);
         if (command == null || command.isBlank()) return "⚠️ No shell command provided.";
 
         try {

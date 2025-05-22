@@ -57,20 +57,28 @@ public class Vyrtuous {
     private static Boolean isInputThreadRunning = false;
     private Map<Long, String> userModelSettings = new HashMap<>();
     private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
-
+    
     public static void main(String[] args) {
         app = new Vyrtuous();
         DiscordBot bot = new DiscordBot();
+        boolean isInputThreadRunning = false;
+
         if (!isInputThreadRunning) {
-            REPLManager repl = new REPLManager();
-            repl.startResponseInputThread();
+            // Optionally pass approval mode if your REPLManager supports it
+            ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_DESTRUCTIVE;
+
+            REPLManager repl = new REPLManager(approvalMode); // pass mode if constructor allows
+            repl.startResponseInputThread(); // starts REPL thread with enhanced AI loop
             isInputThreadRunning = true;
         }
+
+        // Keep main thread alive
         try {
             new CountDownLatch(1).await();
         } catch (InterruptedException ie) {
             ie.printStackTrace();
         }
+
     }
 
     public static CompletableFuture<Vyrtuous> completeGetInstance() {
