@@ -66,8 +66,18 @@ public class Vyrtuous {
         if (!isInputThreadRunning) {
             // Optionally pass approval mode if your REPLManager supports it
             ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_DESTRUCTIVE;
-
-            REPLManager repl = new REPLManager(approvalMode); // pass mode if constructor allows
+            // Optional session timeout (seconds) via env VYRTUOUS_TIMEOUT
+            String timeoutEnv = System.getenv("VYRTUOUS_TIMEOUT");
+            long timeoutMillis = 0L;
+            if (timeoutEnv != null) {
+                try {
+                    timeoutMillis = Long.parseLong(timeoutEnv) * 1000L;
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid VYRTUOUS_TIMEOUT, must be integer seconds.");
+                }
+            }
+            // initialize REPL with approval mode and optional timeout
+            REPLManager repl = new REPLManager(approvalMode, timeoutMillis);
             repl.startResponseInputThread(); // starts REPL thread with enhanced AI loop
             isInputThreadRunning = true;
         }

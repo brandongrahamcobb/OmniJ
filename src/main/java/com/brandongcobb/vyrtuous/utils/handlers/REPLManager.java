@@ -58,9 +58,23 @@ public class REPLManager {
     
     private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
     private final List<String> shellHistory = new ArrayList<>();
+    // maximum duration for a REPL session in milliseconds (0 = unlimited)
+    private final long maxSessionDurationMillis;
 
-    public REPLManager(ApprovalMode mode) {
+    /**
+     * Create a REPLManager with approval mode and optional time limit.
+     * @param mode approval mode for destructive commands
+     * @param maxSessionDurationMillis session timeout in milliseconds (0 = no limit)
+     */
+    public REPLManager(ApprovalMode mode, long maxSessionDurationMillis) {
         setApprovalMode(mode);
+        this.maxSessionDurationMillis = maxSessionDurationMillis;
+    }
+    /**
+     * Create a REPLManager with approval mode and no time limit.
+     */
+    public REPLManager(ApprovalMode mode) {
+        this(mode, 0L);
     }
     
     public void setApprovalMode(ApprovalMode mode) {
@@ -75,6 +89,8 @@ public class REPLManager {
         String loopInput = initialMessage;
         StringBuilder fullTranscript = new StringBuilder();
         boolean stopLoop = false;
+        // track session start for timeout
+        long startTime = System.currentTimeMillis();
 
         while (!stopLoop) {
             try {
@@ -114,7 +130,7 @@ public class REPLManager {
 
                 // Exit condition? Model might tell us.
                 String summary = summarizeShellSession();
-                if (summary.toLowerCase().contains("exit") || summary.contains("🛑")) {
+                if (summary != null && (summary.toLowerCase().contains("exit") || summary.contains("🛑"))) {
                     stopLoop = true;
                     fullTranscript.append("🧠 Summary of session:\n").append(summary);
                     break;
@@ -122,6 +138,12 @@ public class REPLManager {
 
                 // Feed shell output as new input
                 loopInput = summary + "\nPrevious output:\n" + shellResult;
+                // enforce session timeout if configured
+                if (maxSessionDurationMillis > 0
+                    && System.currentTimeMillis() - startTime >= maxSessionDurationMillis) {
+                    fullTranscript.append("⏲️ Time limit reached. Stopping session.\n");
+                    break;
+                }
 
             } catch (Exception e) {
                 e.printStackTrace();
