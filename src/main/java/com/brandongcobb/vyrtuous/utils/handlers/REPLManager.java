@@ -81,7 +81,7 @@ public class REPLManager {
         this.approvalMode = mode;
     }
     
-    private String completeREPL(String initialMessage) {
+    private String completeREPL(Scanner scanner, String initialMessage) {
         AIManager aim = new AIManager();
         StringBuilder fullTranscript = new StringBuilder();
         String modelSetting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
@@ -112,23 +112,21 @@ public class REPLManager {
                 System.out.println("\n⚠️ AI wants to run: " + command);
                 System.out.print("👉 Approve? (y = yes, e = edit, a = always auto): ");
 
-                Scanner scanner = new Scanner(System.in);
                 String approval = "";
 
                 try {
-                    if (scanner.hasNextLine()) {
-                        approval = scanner.nextLine().trim().toLowerCase();
-                    } else {
-                        System.out.println("❌ No input detected. Defaulting to cancel.");
-                        approval = "n"; // or set default
-                    }
+                    approval = scanner.nextLine().trim().toLowerCase();
                 } catch (Exception e) {
                     System.out.println("❌ Input error: " + e.getMessage());
                     approval = "n";
                 }
                 if (approval.equals("e")) {
                     System.out.print("Edit command: ");
-                    command = new Scanner(System.in).nextLine();
+                    try {
+                        command = scanner.nextLine();
+                    } catch (Exception ex) {
+                        System.out.println("❌ Input error: " + ex.getMessage());
+                    }
                     response.put(ToolHandler.LOCALSHELLTOOL_COMMAND, command);
                 } else if (approval.equals("a")) {
                     setApprovalMode(ApprovalMode.FULL_AUTO);
@@ -197,7 +195,7 @@ public class REPLManager {
                             System.out.println("Exiting response input thread.");
                             break;
                         }
-                        String response = completeREPL(input);
+                        String response = completeREPL(scanner, input);
                         System.out.println("Bot: " + response);
                     }
                 } catch (IllegalStateException e) {

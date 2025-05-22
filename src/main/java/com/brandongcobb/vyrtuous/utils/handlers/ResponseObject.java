@@ -606,10 +606,8 @@ public class ResponseObject extends MetadataContainer{
     }
 
     public CompletableFuture<String> completeGetOutput() {
-        return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<String> outputKey = new MetadataKey<>("output_content", Metadata.STRING);
-            return this.get(outputKey);
-        });
+        MetadataKey<String> outputKey = new MetadataKey<>("output_content", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.get(outputKey));
     }
 
     public CompletableFuture<Integer> completeGetPerplexity() {
