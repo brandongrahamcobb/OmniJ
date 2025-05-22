@@ -109,7 +109,23 @@ public class REPLManager {
             if (requiresApproval(command)) {
                 System.out.println("🛑 Approval required for command: " + command);
                 System.out.print("Approve? (y = yes, e = edit, a = always auto): ");
-                String approval = new Scanner(System.in).nextLine().trim().toLowerCase();
+                System.out.println("\n⚠️ AI wants to run: " + command);
+                System.out.print("👉 Approve? (y = yes, e = edit, a = always auto): ");
+
+                Scanner scanner = new Scanner(System.in);
+                String approval = "";
+
+                try {
+                    if (scanner.hasNextLine()) {
+                        approval = scanner.nextLine().trim().toLowerCase();
+                    } else {
+                        System.out.println("❌ No input detected. Defaulting to cancel.");
+                        approval = "n"; // or set default
+                    }
+                } catch (Exception e) {
+                    System.out.println("❌ Input error: " + e.getMessage());
+                    approval = "n";
+                }
                 if (approval.equals("e")) {
                     System.out.print("Edit command: ");
                     command = new Scanner(System.in).nextLine();

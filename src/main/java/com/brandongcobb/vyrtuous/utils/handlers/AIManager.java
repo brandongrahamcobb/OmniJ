@@ -38,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import net.dv8tion.jda.api.entities.Message;
@@ -258,36 +259,46 @@ public class AIManager {
             String model,
             String requestType
     ) {
-        // List of uploaded file IDs to use in vector store creation
-        List<String> fileIds = List.of("file-ToDXSxedx12w7xAFJa1kdM"); // provided file IDs
-        // Step 1: create or reuse a vector store
-        return completeCreateVectorStore(fileIds)
-            .thenCompose(vectorInfo -> {
-                String vectorStoreId = (String) vectorInfo.get("id");
-                // Build the request body
-                Map<String, Object> body = new LinkedHashMap<>();
-                body.put("model", model);
-                List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
-                body.put("input", input);
-                if (previousResponseId != null && !previousResponseId.isEmpty()) {
-                    body.put("previous_response_id", previousResponseId);
-                }
-                // Tools configuration
-                List<Map<String, Object>> tools = new ArrayList<>();
-                Map<String, Object> fsTool = new LinkedHashMap<>();
-                //fsTool.put("type", "file_search");
-                //fsTool.put("vector_store_ids", List.of(vectorStoreId));
-                //tools.add(fsTool);
-                Map<String, Object> shellTool = new LinkedHashMap<>();
-                shellTool.put("type", "local_shell");
-                tools.add(shellTool);
-                body.put("tools", tools);
-                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                }
-                String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
-                return completeProcessRequest(body, endpoint);
-            });
+        return CompletableFuture.supplyAsync(() -> {
+            // Build the request body
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("model", model);
+
+            List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
+            body.put("input", input);
+
+            if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                body.put("previous_response_id", previousResponseId);
+            }
+
+            // Configure tools
+            List<Map<String, Object>> tools = new ArrayList<>();
+
+            // Uncomment and configure file_search if needed
+            // Map<String, Object> fsTool = new LinkedHashMap<>();
+            // fsTool.put("type", "file_search");
+            // fsTool.put("vector_store_ids", List.of("your-vector-store-id"));
+            // tools.add(fsTool);
+
+            Map<String, Object> shellTool = new LinkedHashMap<>();
+            shellTool.put("type", "local_shell");
+            tools.add(shellTool);
+
+            body.put("tools", tools);
+
+            if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                body.put("metadata", Map.of("timestamp", LocalDateTime.now().toString()));
+            }
+
+            String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
+
+            // ⛔ Do not call join() here
+            try {
+                return completeProcessRequest(body, endpoint).join(); // You may refactor this to be fully async
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        });
     }
     /**
      * Follow-up tool request: include tool_responses to supply output of previous tool call.
