@@ -78,8 +78,9 @@ public class ToolHandler {
                 }
             }
 
-            // Prefer the unmodified original command for actual execution
-            ProcessBuilder builder = new ProcessBuilder("sh", "-c", originalCommand);
+            // Execute the cleaned (trimmed/quoted) command for actual execution
+            System.out.println("🛠️ Executing shell command: " + cleanedCommand);
+            ProcessBuilder builder = new ProcessBuilder("sh", "-c", cleanedCommand);
             builder.redirectErrorStream(true);
             Process process = builder.start();
 

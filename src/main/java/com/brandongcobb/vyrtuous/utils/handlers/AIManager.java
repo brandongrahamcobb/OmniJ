@@ -60,7 +60,7 @@ public class AIManager {
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(10_000)
             .setConnectionRequestTimeout(10_000)
-            .setSocketTimeout(60_000)
+            .setSocketTimeout(999_000)
             .build();
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
@@ -395,7 +395,7 @@ public class AIManager {
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
         }
-        return CompletableFuture.supplyAsync(() -> {
+        CompletableFuture<ResponseObject> future = CompletableFuture.supplyAsync(() -> {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
@@ -421,6 +421,22 @@ public class AIManager {
                 throw new RuntimeException(e);
             }
         });
+        return future
+            .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .handle((resp, ex) -> {
+                if (ex == null) {
+                    return CompletableFuture.completedFuture(resp);
+                }
+                Throwable cause = (ex instanceof java.util.concurrent.CompletionException && ex.getCause() != null)
+                        ? ex.getCause()
+                        : ex;
+                if (cause instanceof java.util.concurrent.TimeoutException) {
+                    System.err.println("⚠️ OpenAI request timed out after 30 seconds. Retrying...");
+                    return completeProcessRequest(requestBody, endpoint);
+                }
+                return CompletableFuture.<ResponseObject>failedFuture(cause);
+            })
+            .thenCompose(f -> f);
     }
     /**
      * Stub for searching a vector store or using OpenAI's built-in file_search tool.
