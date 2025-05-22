@@ -121,7 +121,9 @@ public class REPLManager {
                                         }
                                         return setPrevFut.thenCompose(v -> {
                                             userResponseMap.put(senderId, responseObject);
-                                            return responseObject.completeGetShellToolCommand();
+                                            ToolHandler th = new ToolHandler();
+                                            String output = th.executeShellCommand(responseObject);
+                                            return CompletableFuture.completedFuture(output);
                                         });
                                     })
                             );
