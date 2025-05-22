@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.List;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.File;
 
 public class ToolHandler {
 
@@ -61,11 +62,20 @@ public class ToolHandler {
             // Diagnostic log
             System.out.println("🔧 Original command: " + originalCommand);
 
-            // Execute the original command as received, without modification
-            String cleanedCommand = originalCommand;
-            System.out.println("🛠️ Executing shell command: " + cleanedCommand);
-            ProcessBuilder builder = new ProcessBuilder("sh", "-c", cleanedCommand);
+            // Execute the original command via bash login shell
+            String raw = originalCommand.trim();
+            String cmd;
+            if (raw.startsWith("bash -lc ")) {
+                cmd = raw.substring("bash -lc ".length()).trim();
+            } else {
+                cmd = raw;
+            }
+            System.out.println("🛠️ Executing shell command via bash -lc: " + cmd);
+            ProcessBuilder builder = new ProcessBuilder("bash", "-lc", cmd);
+            // Redirect stderr to stdout
             builder.redirectErrorStream(true);
+            // Prevent the subprocess from blocking on stdin (e.g., sed reading stdin) by redirecting to /dev/null
+            builder.redirectInput(new File("/dev/null"));
             Process process = builder.start();
 
             StringBuilder outputBuilder = new StringBuilder();
