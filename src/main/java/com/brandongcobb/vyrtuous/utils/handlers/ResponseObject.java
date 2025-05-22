@@ -369,23 +369,23 @@ public class ResponseObject extends MetadataContainer{
                                 if (toolMap.get("allowed_tools") instanceof List<?> allowedToolList)
                                     put(MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
 
-                                if (toolMap.get("allowed_tools") instanceof Map<?,?> allowedToolMap)
+                                if (toolMap.get("allowed_tools") instanceof Map<?, ?> allowedToolMap)
                                     put(MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
 
-                                if (toolMap.get("headers") instanceof Map<?,?> headersMap)
+                                if (toolMap.get("headers") instanceof Map<?, ?> headersMap)
                                     put(MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
 
                                 if (toolMap.get("require_approval") instanceof String approvalSetting)
                                     put(MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
 
-                                if (toolMap.get("require_approval") instanceof Map<?,?> approvalMap) {
-                                    Object always = ((Map<?,?>) approvalMap).get("always");
-                                    Object never  = ((Map<?,?>) approvalMap).get("never");
+                                if (toolMap.get("require_approval") instanceof Map<?, ?> approvalMap) {
+                                    Object always = ((Map<?, ?>) approvalMap).get("always");
+                                    Object never = ((Map<?, ?>) approvalMap).get("never");
 
-                                    if (always instanceof Map<?,?> alwaysMap)
+                                    if (always instanceof Map<?, ?> alwaysMap)
                                         put(MCPTOOL_REQUIRE_APPROVAL_ALWAYS, (Map<String, Object>) alwaysMap);
 
-                                    if (never instanceof Map<?,?> neverMap)
+                                    if (never instanceof Map<?, ?> neverMap)
                                         put(MCPTOOL_REQUIRE_APPROVAL_NEVER, (Map<String, Object>) neverMap);
                                 }
                             }
@@ -461,24 +461,23 @@ public class ResponseObject extends MetadataContainer{
                         }
                     }
                 }
+            } else {
+                outer:
+                for (Object outputItem : outputList) {
+                    if (!(outputItem instanceof Map<?, ?> messageMap)) continue;
+                    Object contentObj = messageMap.get("content");
+                    if (!(contentObj instanceof List<?> contentList)) continue;
+                    for (Object contentEntry : contentList) {
+                        if (!(contentEntry instanceof Map<?, ?> contentMap)) continue;
+                        Object text = contentMap.get("text");
+                        if (text instanceof String textStr && !textStr.isBlank()) {
+                            System.out.println(textStr);
+                            put(responsesOutputContentKey, textStr);
+                            break outer;
+                        }
+                    }
+                }
             }
-//            if (outputObj instanceof List<?> outputList) {
-//                outer:
-//                for (Object outputItem : outputList) {
-//                    if (!(outputItem instanceof Map<?, ?> messageMap)) continue;
-//                    Object contentObj = messageMap.get("content");
-//                    if (!(contentObj instanceof List<?> contentList)) continue;
-//                    for (Object contentEntry : contentList) {
-//                        if (!(contentEntry instanceof Map<?, ?> contentMap)) continue;
-//                        Object text = contentMap.get("text");
-//                        if (text instanceof String textStr && !textStr.isBlank()) {
-//                            System.out.println(textStr);
-//                            put(responsesOutputContentKey, textStr);
-//                            break outer;
-//                        }
-//                    }
-//                }
-//            }
         }
     }
 
