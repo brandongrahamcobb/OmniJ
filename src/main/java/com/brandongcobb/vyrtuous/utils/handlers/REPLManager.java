@@ -91,39 +91,36 @@ public class REPLManager {
         boolean stopLoop = false;
         // track session start for timeout
         long startTime = System.currentTimeMillis();
+        // chain context: previous response ID for tool calls
+        String previousResponseId = null;
 
         while (!stopLoop) {
             try {
                 String modelSetting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-                // Avoid using previous_response_id to prevent API errors when chaining tools
-                String prevResponseId = null;
+                // Use previous response id for chaining tool calls
+                String prevResponseId = previousResponseId;
+
+                // Build content with shell history
+                String contentToSend = loopInput;
+                if (!shellHistory.isEmpty()) {
+                    contentToSend = String.join("\n", shellHistory) + "\n" + loopInput;
+                }
 
                 // Request next step based on last command/output
                 ResponseObject response = aim
-                        .completeToolRequest(loopInput, prevResponseId, modelSetting, "response")
+                        .completeToolRequest(contentToSend, prevResponseId, modelSetting, "response")
                         .join();
-
-                // Store this response as previous for the next loop
-                previousResponse = response;
-                userResponseMap.put(senderId, response);
                 String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
 
                 if (command == null || command.isBlank()) {
-                    // No shell call present — just print model output and continue loop
+                    // No shell call present — just print model output and exit loop
                     String modelOutput = response.completeGetOutput().join();
                     if (modelOutput != null && !modelOutput.isBlank()) {
                         fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
-                        loopInput = modelOutput; // keep feeding response into loop
-                    } else if (modelOutput != null) {
-                        if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
-                            fullTranscript.append("🛑 Exit trigger detected.\n");
-                            stopLoop = true;
-                        }
-                    } else {
-                        fullTranscript.append("🤖 Model returned no output.\n");
-                        stopLoop = true; // only stop on truly empty message
                     }
-                    continue; // ✅ loop continues
+                    // End tool-chaining mode and wait for user
+                    previousResponseId = null;
+                    break;
                 }
                 if (requiresApproval(command)) {
                     System.out.println("🛑 Approval required for command: " + command);
@@ -140,13 +137,13 @@ public class REPLManager {
                         break;
                     }
                 }
-                // Execute shell comman
+                // Execute shell command
                 String shellResult = runAndRecordCommand(response);
                 fullTranscript.append("🔁 Command:\n").append(loopInput)
                               .append("\n📤 Output:\n").append(shellResult).append("\n\n");
-                // Prepare for next iteration: use shell output as input and clear previousResponse
+                // Prepare for next iteration: use shell output as input and set previousResponseId
                 loopInput = shellResult;
-                previousResponse = null;
+                previousResponseId = response.completeGetResponseId().join();
                 if (maxSessionDurationMillis > 0
                     && System.currentTimeMillis() - startTime >= maxSessionDurationMillis) {
                     fullTranscript.append("⏲️ Time limit reached. Stopping session.\n");
