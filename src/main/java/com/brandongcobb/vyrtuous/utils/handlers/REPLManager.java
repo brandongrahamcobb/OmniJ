@@ -84,14 +84,21 @@ public class REPLManager {
     private String completeREPL(Scanner scanner, String initialMessage) {
         AIManager aim = new AIManager();
         StringBuilder fullTranscript = new StringBuilder();
-        String modelSetting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+        String modelSetting = ModelRegistry.OPENAI_CODEX_MODEL.asString();
+        // Preserve the user's original instruction through the session
+        String directive = initialMessage;
         String loopInput = initialMessage;
         while (true) {
-            // build prompt including past shell history
-            String contentToSend = loopInput;
+            // build prompt: original directive, shell history, and latest input/result
+            StringBuilder prompt = new StringBuilder();
+            prompt.append(directive);
             if (!shellHistory.isEmpty()) {
-                contentToSend = String.join("\n", shellHistory) + "\n" + loopInput;
+                prompt.append("\n").append(String.join("\n", shellHistory));
             }
+            if (!loopInput.equals(directive)) {
+                prompt.append("\n").append(loopInput);
+            }
+            String contentToSend = prompt.toString();
             // ask model with shell tool available
             ResponseObject response;
             try {

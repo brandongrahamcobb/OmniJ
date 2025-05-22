@@ -38,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import net.dv8tion.jda.api.entities.Message;
@@ -48,10 +47,12 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.HttpEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.util.EntityUtils;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.CompletionException;
 
 public class AIManager {
 
@@ -277,6 +278,8 @@ public class AIManager {
         Map<String, Object> shellTool = new LinkedHashMap<>();
         shellTool.put("type", "local_shell");
         tools.add(shellTool);
+        //Map<String, Object> searchTool = new LinkedHashMap<>();
+        //shellTool.put("type", "web_search_preview");
         body.put("tools", tools);
         if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
             body.put("metadata", Map.of("timestamp", LocalDateTime.now().toString()));
@@ -342,13 +345,30 @@ public class AIManager {
     }
 
     public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
-        return completeBuildRequestBody(content, previousResponseId, model, requestType)
+        // Build and send request, with timeout retry preserving conversation context
+        CompletableFuture<ResponseObject> call = completeBuildRequestBody(content, previousResponseId, model, requestType)
                 .thenCompose(reqBody -> {
                     String endpoint = "moderation".equals(requestType)
                             ? moderationApiUrl
                             : responseApiUrl;
                     return completeProcessRequest(reqBody, endpoint);
                 });
+        return call
+            .orTimeout(30, TimeUnit.SECONDS)
+            .handle((resp, ex) -> {
+                if (ex == null) {
+                    return CompletableFuture.completedFuture(resp);
+                }
+                Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
+                        ? ex.getCause()
+                        : ex;
+                if (cause instanceof TimeoutException) {
+                    System.err.println("⚠️ AI request timed out after 30 seconds. Retrying...");
+                    return completeRequest(content, previousResponseId, model, requestType);
+                }
+                return CompletableFuture.<ResponseObject>failedFuture(cause);
+            })
+            .thenCompose(f -> f);
     }
 
     public CompletableFuture<Map<String, Object>> completeCreateVectorStore(List<String> fileIds) {
