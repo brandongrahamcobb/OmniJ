@@ -114,9 +114,11 @@ public class REPLManager {
                     if (modelOutput != null && !modelOutput.isBlank()) {
                         fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
                         loopInput = modelOutput; // keep feeding response into loop
-                    } else if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
-                        fullTranscript.append("🛑 Exit trigger detected.\n");
-                        stopLoop = true;
+                    } else if (modelOutput != null) {
+                        if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
+                            fullTranscript.append("🛑 Exit trigger detected.\n");
+                            stopLoop = true;
+                        }
                     } else {
                         fullTranscript.append("🤖 Model returned no output.\n");
                         stopLoop = true; // only stop on truly empty message
