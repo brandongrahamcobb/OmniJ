@@ -259,46 +259,23 @@ public class AIManager {
             String model,
             String requestType
     ) {
-        return CompletableFuture.supplyAsync(() -> {
-            // Build the request body
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("model", model);
-
-            List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
-            body.put("input", input);
-
-            if (previousResponseId != null && !previousResponseId.isEmpty()) {
-                body.put("previous_response_id", previousResponseId);
-            }
-
-            // Configure tools
-            List<Map<String, Object>> tools = new ArrayList<>();
-
-            // Uncomment and configure file_search if needed
-            // Map<String, Object> fsTool = new LinkedHashMap<>();
-            // fsTool.put("type", "file_search");
-            // fsTool.put("vector_store_ids", List.of("your-vector-store-id"));
-            // tools.add(fsTool);
-
-            Map<String, Object> shellTool = new LinkedHashMap<>();
-            shellTool.put("type", "local_shell");
-            tools.add(shellTool);
-
-            body.put("tools", tools);
-
-            if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-                body.put("metadata", Map.of("timestamp", LocalDateTime.now().toString()));
-            }
-
-            String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
-
-            // ⛔ Do not call join() here
-            try {
-                return completeProcessRequest(body, endpoint).join(); // You may refactor this to be fully async
-            } catch (Exception e) {
-                throw new CompletionException(e);
-            }
-        });
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
+        body.put("input", input);
+        if (previousResponseId != null && !previousResponseId.isEmpty()) {
+            body.put("previous_response_id", previousResponseId);
+        }
+        List<Map<String, Object>> tools = new ArrayList<>();
+        Map<String, Object> shellTool = new LinkedHashMap<>();
+        shellTool.put("type", "local_shell");
+        tools.add(shellTool);
+        body.put("tools", tools);
+        if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+            body.put("metadata", Map.of("timestamp", LocalDateTime.now().toString()));
+        }
+        String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
+        return completeProcessRequest(body, endpoint);
     }
     /**
      * Follow-up tool request: include tool_responses to supply output of previous tool call.
