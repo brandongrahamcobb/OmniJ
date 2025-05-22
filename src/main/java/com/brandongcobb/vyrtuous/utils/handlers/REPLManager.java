@@ -108,6 +108,21 @@ public class REPLManager {
                 previousResponse = response;
                 userResponseMap.put(senderId, response);
                 String command = response.get(ToolHandler.LOCALSHELLTOOL_COMMAND);
+
+                if (command == null || command.isBlank()) {
+                    // No shell call present — just a message or explanation
+                    String modelOutput = response.completeGetOutput().join();
+                    fullTranscript.append("🤖 Message:\n").append(modelOutput).append("\n\n");
+
+                    // Optionally: break out of loop if it's not tool-based
+                    if (modelOutput.toLowerCase().contains("exit") || modelOutput.contains("🛑")) {
+                        stopLoop = true;
+                        break;
+                    }
+
+                    loopInput = modelOutput;
+                    continue;
+                }
                 if (requiresApproval(command)) {
                     System.out.println("🛑 Approval required for command: " + command);
                     System.out.print("Approve? (y = yes, e = edit, a = always auto): ");
