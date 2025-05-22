@@ -133,6 +133,8 @@ public class REPLManager {
     }
 
     private boolean requiresApproval(String command) {
+        if (command == null) return false; // ⬅️ Prevents the crash
+
         List<String> dangerous = List.of("rm", "mv", "git", "patch", "shutdown", "reboot", "mvn compile");
         boolean isDangerous = dangerous.stream().anyMatch(command::contains);
 
