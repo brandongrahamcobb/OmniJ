@@ -61,24 +61,8 @@ public class ToolHandler {
             // Diagnostic log
             System.out.println("🔧 Original command: " + originalCommand);
 
-            // Attempt to reconstruct the command if it was accidentally split
-            String cleanedCommand = originalCommand.trim();
-
-            // If it looks like `rg Dockerfile -n` and fails due to arg parsing, add quotes
-            if (cleanedCommand.startsWith("rg ") && !cleanedCommand.contains("\"")) {
-                String[] parts = cleanedCommand.split("\\s+");
-                if (parts.length >= 2) {
-                    String pattern = parts[1];
-                    // Wrap pattern in quotes unless already present
-                    if (!pattern.startsWith("\"") && !pattern.endsWith("\"")) {
-                        parts[1] = "\"" + pattern + "\"";
-                        cleanedCommand = String.join(" ", parts);
-                        System.out.println("🧼 Auto-quoted rg pattern: " + cleanedCommand);
-                    }
-                }
-            }
-
-            // Execute the cleaned (trimmed/quoted) command for actual execution
+            // Execute the original command as received, without modification
+            String cleanedCommand = originalCommand;
             System.out.println("🛠️ Executing shell command: " + cleanedCommand);
             ProcessBuilder builder = new ProcessBuilder("sh", "-c", cleanedCommand);
             builder.redirectErrorStream(true);

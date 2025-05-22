@@ -116,21 +116,27 @@ public class REPLManager {
             }
             // approval if needed
             if (requiresApproval(command)) {
-                System.out.println("🛑 Approval required for command: " + command);
-                System.out.print("Approve? (y = yes, e = edit, a = always auto): ");
-                System.out.println("\n⚠️ AI wants to run: " + command);
-                System.out.print("👉 Approve? (y = yes, e = edit, a = always auto): ");
-
+                System.out.println("🛑 Approval required for shell command:");
+                System.out.println(command);
                 String approval = "";
-
-                try {
-                    approval = scanner.nextLine().trim().toLowerCase();
-                } catch (Exception e) {
-                    System.out.println("❌ Input error: " + e.getMessage());
-                    approval = "n";
+                // prompt until valid input
+                while (true) {
+                    System.out.print("Approve? (y = yes, e = edit, a = always auto, n = no): ");
+                    System.out.flush();
+                    try {
+                        approval = scanner.nextLine().trim().toLowerCase();
+                    } catch (Exception e) {
+                        System.out.println("❌ Input error: " + e.getMessage());
+                        approval = "n";
+                    }
+                    if (approval.equals("y") || approval.equals("e") || approval.equals("a") || approval.equals("n")) {
+                        break;
+                    }
+                    System.out.println("Invalid input. Please enter 'y', 'e', 'a', or 'n'.");
                 }
                 if (approval.equals("e")) {
                     System.out.print("Edit command: ");
+                    System.out.flush();
                     try {
                         command = scanner.nextLine();
                     } catch (Exception ex) {
