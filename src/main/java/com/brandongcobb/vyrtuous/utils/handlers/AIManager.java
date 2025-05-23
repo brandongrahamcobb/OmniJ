@@ -62,7 +62,7 @@ public class AIManager {
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(10_000)
             .setConnectionRequestTimeout(10_000)
-            .setSocketTimeout(30_000)
+            .setSocketTimeout(600_000)
             .build();
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
@@ -344,32 +344,23 @@ public class AIManager {
             return completeProcessRequest(body, endpoint);
         }
         // Otherwise perform vector store creation for file_search
-        List<String> fileIds = List.of("file-ToDXSxedx12w7xAFJa1kdM");
-        return completeCreateVectorStore(fileIds)
-            .orTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-            .exceptionally(ex -> {
-                System.err.println("⚠️ Vector store creation failed or timed out: " + ex.getMessage());
-                return java.util.Collections.emptyMap();
-            })
-            .thenCompose(vectorInfo -> {
-                String vectorStoreId = (String) vectorInfo.get("id");
-                Map<String, Object> body = new LinkedHashMap<>();
-                body.put("model", model);
-                List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
-                body.put("input", input);
-                if (previousResponseId != null && !previousResponseId.isEmpty()) {
-                    body.put("previous_response_id", previousResponseId);
-                }
-                List<Map<String, Object>> tools = new ArrayList<>();
-                tools.add(Map.of("type", "local_shell"));
-                body.put("tools", tools);
-                body.put("tool_responses", toolResponses);
-                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                }
-                String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
-                return completeProcessRequest(body, endpoint);
-            });
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        List<Map<String, Object>> input = List.of(Map.of("role", "user", "content", content));
+        body.put("input", input);
+        if (previousResponseId != null && !previousResponseId.isEmpty()) {
+            body.put("previous_response_id", previousResponseId);
+        }
+        List<Map<String, Object>> tools = new ArrayList<>();
+        tools.add(Map.of("type", "local_shell"));
+        body.put("tools", tools);
+        body.put("tool_responses", toolResponses);
+        if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+            body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+        }
+        String endpoint = "moderation".equals(requestType) ? moderationApiUrl : responseApiUrl;
+        return completeProcessRequest(body, endpoint);
     }
 
     public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
@@ -381,62 +372,47 @@ public class AIManager {
                             : responseApiUrl;
                     return completeProcessRequest(reqBody, endpoint);
                 });
-        return call
-            .orTimeout(30, TimeUnit.SECONDS)
-            .handle((resp, ex) -> {
-                if (ex == null) {
-                    return CompletableFuture.completedFuture(resp);
-                }
-                Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
-                        ? ex.getCause()
-                        : ex;
-                if (cause instanceof TimeoutException) {
-                    System.err.println("⚠️ AI request timed out after 30 seconds. Retrying...");
-                    return completeRequest(content, previousResponseId, model, requestType);
-                }
-                return CompletableFuture.<ResponseObject>failedFuture(cause);
-            })
-            .thenCompose(f -> f);
+        return call;
     }
 
-    public CompletableFuture<Map<String, Object>> completeCreateVectorStore(List<String> fileIds) {
-        String apiKey = System.getenv("OPENAI_API_KEY");
-        if (apiKey == null || apiKey.isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            try (CloseableHttpClient client = HttpClients.custom()
-                    .setDefaultRequestConfig(REQUEST_CONFIG)
-                    .build()) {
-                HttpPost post = new HttpPost("https://api.openai.com/v1/vector_stores");
-
-                post.setHeader("Authorization", "Bearer " + apiKey);
-                post.setHeader("Content-Type", "application/json");
-
-                ObjectMapper mapper = new ObjectMapper();
-                Map<String, Object> body = Map.of("file_ids", fileIds);
-                String json = mapper.writeValueAsString(body);
-
-                post.setEntity(new StringEntity(json));
-
-                try (CloseableHttpResponse resp = client.execute(post)) {
-                    int code = resp.getStatusLine().getStatusCode();
-                    String respBody = EntityUtils.toString(resp.getEntity(), "UTF-8");
-
-                    System.out.println("📦 Vector Store Response:\n" + respBody);
-
-                    if (code >= 200 && code < 300) {
-                        return mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
-                    } else {
-                        throw new IOException("HTTP " + code + ": " + respBody);
-                    }
-                }
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to create vector store", e);
-            }
-        });
-    }
+//    public CompletableFuture<Map<String, Object>> completeCreateVectorStore(List<String> fileIds) {
+//        String apiKey = System.getenv("OPENAI_API_KEY");
+//        if (apiKey == null || apiKey.isEmpty()) {
+//            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
+//        }
+//
+//        return CompletableFuture.supplyAsync(() -> {
+//            try (CloseableHttpClient client = HttpClients.custom()
+//                    .setDefaultRequestConfig(REQUEST_CONFIG)
+//                    .build()) {
+//                HttpPost post = new HttpPost("https://api.openai.com/v1/vector_stores");
+//
+//                post.setHeader("Authorization", "Bearer " + apiKey);
+//                post.setHeader("Content-Type", "application/json");
+//
+//                ObjectMapper mapper = new ObjectMapper();
+//                Map<String, Object> body = Map.of("file_ids", fileIds);
+//                String json = mapper.writeValueAsString(body);
+//
+//                post.setEntity(new StringEntity(json));
+//
+//                try (CloseableHttpResponse resp = client.execute(post)) {
+//                    int code = resp.getStatusLine().getStatusCode();
+//                    String respBody = EntityUtils.toString(resp.getEntity(), "UTF-8");
+//
+//                    System.out.println("📦 Vector Store Response:\n" + respBody);
+//
+//                    if (code >= 200 && code < 300) {
+//                        return mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
+//                    } else {
+//                        throw new IOException("HTTP " + code + ": " + respBody);
+//                    }
+//                }
+//            } catch (Exception e) {
+//                throw new RuntimeException("Failed to create vector store", e);
+//            }
+//        });
+//    }
 
     private CompletableFuture<ResponseObject> completeProcessRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENAI_API_KEY");
@@ -469,22 +445,7 @@ public class AIManager {
                 throw new RuntimeException(e);
             }
         });
-        return future
-            .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .handle((resp, ex) -> {
-                if (ex == null) {
-                    return CompletableFuture.completedFuture(resp);
-                }
-                Throwable cause = (ex instanceof java.util.concurrent.CompletionException && ex.getCause() != null)
-                        ? ex.getCause()
-                        : ex;
-                if (cause instanceof java.util.concurrent.TimeoutException) {
-                    System.err.println("⚠️ OpenAI request timed out after 30 seconds. Retrying...");
-                    return completeProcessRequest(requestBody, endpoint);
-                }
-                return CompletableFuture.<ResponseObject>failedFuture(cause);
-            })
-            .thenCompose(f -> f);
+        return future;
     }
     /**
      * Stub for searching a vector store or using OpenAI's built-in file_search tool.

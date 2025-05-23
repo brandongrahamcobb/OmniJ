@@ -51,6 +51,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.NoSuchElementException;
 import net.dv8tion.jda.api.JDA;
+import java.util.function.Supplier;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 
 public class REPLManager {
     
@@ -102,9 +106,9 @@ public class REPLManager {
             // ask model with shell tool available
             ResponseObject response;
             try {
-                response = aim
-                        .completeToolRequest(contentToSend, null, modelSetting, "response")
-                        .join();
+                response = response = awaitWithTimeoutRetry(() ->
+                        aim.completeToolRequest(contentToSend, null, modelSetting, "response")
+                ).join();
             } catch (CompletionException e) {
                 String msg = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
                 fullTranscript.append("⚠️ AI request failed: ").append(msg).append("\n");
@@ -167,6 +171,21 @@ public class REPLManager {
         return fullTranscript.toString();
     }
 
+    private CompletableFuture<ResponseObject> awaitWithTimeoutRetry(Supplier<CompletableFuture<ResponseObject>> supplier) {
+        return supplier.get()
+                .orTimeout(10, TimeUnit.SECONDS)
+                .handle((resp, ex) -> {
+                    if (ex == null) return CompletableFuture.completedFuture(resp);
+                    Throwable cause = (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
+                    if (cause instanceof TimeoutException) {
+                        System.err.println("?? OpenAI request timed out after 30 seconds. Retrying...");
+                        return awaitWithTimeoutRetry(supplier);
+                    }
+                    return CompletableFuture.<ResponseObject>failedFuture(cause);
+                })
+                .thenCompose(f -> f);
+    }
+
     private boolean requiresApproval(String command) {
         if (command == null) return false; // ⬅️ Prevents the crash
 
@@ -187,17 +206,27 @@ public class REPLManager {
         shellHistory.add("> " + command + "\n" + result);
         return result;
     }
-    
-    private String summarizeShellSession() {
-        if (shellHistory.isEmpty()) return "📝 No session activity to summarize.";
+
+    private CompletableFuture<String> summarizeShellSession() {
+        if (shellHistory.isEmpty())
+            return CompletableFuture.completedFuture("? No session activity to summarize.");
 
         String context = String.join("\n", shellHistory);
         AIManager aim = new AIManager();
 
-        return aim.completeRequest(context, null, ModelRegistry.OPENAI_RESPONSE_MODEL.asString(), "response")
-            .thenCompose(resp -> resp.completeGetOutput())
-            .exceptionally(ex -> "⚠️ Error summarizing session: " + ex.getMessage())
-            .join();
+        // Use awaitWithTimeoutRetry and map result to String
+        return awaitWithTimeoutRetry(() ->
+                aim.completeRequest(
+                        context,
+                        null,
+                        ModelRegistry.OPENAI_RESPONSE_MODEL.asString(),
+                        "response"
+                )
+        ).thenCompose(resp ->
+                resp.completeGetOutput()
+        ).exceptionally(ex ->
+                "?? Error summarizing session: " + ex.getMessage()
+        );
     }
     
     public void startResponseInputThread() {

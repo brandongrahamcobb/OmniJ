@@ -71,7 +71,7 @@ public class ToolHandler {
                 cmd = raw;
             }
             System.out.println("🛠️ Executing shell command via bash -lc: " + cmd);
-            ProcessBuilder builder = new ProcessBuilder("bash", "-lc", cmd);
+            ProcessBuilder builder = new ProcessBuilder("gtimeout", "5s", "bash", "-lc", cmd);
             // Redirect stderr to stdout
             builder.redirectErrorStream(true);
             // Prevent the subprocess from blocking on stdin (e.g., sed reading stdin) by redirecting to /dev/null
