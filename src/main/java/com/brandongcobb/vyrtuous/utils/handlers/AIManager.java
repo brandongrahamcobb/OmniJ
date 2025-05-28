@@ -437,12 +437,11 @@ public class AIManager {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8); // for debugging
-                    System.out.println("🔄 Raw response body:\n" + respBody);
-
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         Map<String, Object> message = (Map<String, Object>) outer.get("message");
                         String content = (String) message.get("content");
+        
                         String jsonContent = content.replaceAll("^```json\\s*", "").replaceAll("\\s*```$", "");
                         Map<String, Object> inner = mapper.readValue(jsonContent, Map.class);
                         return new ResponseObject(inner);

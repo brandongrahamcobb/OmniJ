@@ -13,6 +13,7 @@ import java.util.List;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.File;
+import java.util.concurrent.CompletableFuture;
 
 public class ToolHandler {
 
@@ -54,51 +55,71 @@ public class ToolHandler {
     public static final MetadataKey<String> LOCALSHELLTOOL_CALL_ID = new MetadataKey<>("localshelltool_call_id", Metadata.STRING);
 
 
-    public String executeShellCommand(ResponseObject responseObject) {
+    public CompletableFuture<String> executeShellCommandAsync(ResponseObject responseObject) {
         String originalCommand = responseObject.get(LOCALSHELLTOOL_COMMAND);
-        if (originalCommand == null || originalCommand.isBlank()) return "⚠️ No shell command provided.";
-
-        try {
-            // Diagnostic log
-            System.out.println("🔧 Original command: " + originalCommand);
-
-            // Execute the original command via bash login shell
-            String raw = originalCommand.trim();
-            String cmd;
-            if (raw.startsWith("bash -lc ")) {
-                cmd = raw.substring("bash -lc ".length()).trim();
-            } else {
-                cmd = raw;
-            }
-            System.out.println("🛠️ Executing shell command via bash -lc: " + cmd);
-            ProcessBuilder builder = new ProcessBuilder("gtimeout", "5s", "bash", "-lc", cmd);
-            // Redirect stderr to stdout
-            builder.redirectErrorStream(true);
-            // Prevent the subprocess from blocking on stdin (e.g., sed reading stdin) by redirecting to /dev/null
-            builder.redirectInput(new File("/dev/null"));
-            Process process = builder.start();
-
-            StringBuilder outputBuilder = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    System.out.println(line);
-                    outputBuilder.append(line).append("\n");
-                }
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode == 0) {
-                return outputBuilder.toString();
-            } else {
-                return "❌ Shell command exited with code " + exitCode + ":\n" + outputBuilder;
-            }
-
-        } catch (Exception e) {
-            return "⚠️ Shell execution failed: " + e.getMessage();
+        if (originalCommand == null || originalCommand.isBlank()) {
+            return CompletableFuture.completedFuture("⚠️ No shell command provided.");
         }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                System.out.println("🔧 Original command: " + originalCommand);
+
+                String raw = originalCommand.trim();
+                String cmd;
+                if (raw.startsWith("bash -lc ")) {
+                    cmd = raw.substring("bash -lc ".length()).trim();
+                } else {
+                    cmd = raw;
+                }
+
+                System.out.println("🛠️ Executing shell command via bash -lc: " + cmd);
+
+                // Create separate processes for input/output/error
+                ProcessBuilder builder = new ProcessBuilder("gtimeout", "5s", "bash", "-lc", cmd);
+
+                builder.redirectErrorStream(false); // Keep error stream separate
+                Process process = builder.start();
+
+                StringBuilder outputBuilder = new StringBuilder();
+                StringBuilder errorBuilder = new StringBuilder();
+
+                // Read output stream
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        outputBuilder.append(line).append("\n");
+                    }
+                }
+
+                // Read error stream
+                try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = errorReader.readLine()) != null) {
+                        errorBuilder.append(line).append("\n");
+                    }
+                }
+
+                int exitCode = process.waitFor();
+                
+                if (exitCode == 0) {
+                    if (outputBuilder.length() == 0) {
+                        return "Command executed successfully with no output.";
+                    }
+                    return outputBuilder.toString();
+                } else {
+                    String errorMessage = errorBuilder.toString();
+                    if (errorMessage.isEmpty()) {
+                        errorMessage = "No error message available";
+                    }
+                    return "❌ Shell command exited with code " + exitCode + ":\n" + errorMessage;
+                }
+            } catch (Exception e) {
+                return "⚠️ Shell execution failed: " + e.getMessage();
+            }
+        });
     }
+
     
     public static List<String> executeFileSearch(ResponseObject responseObject, String query) {
         String type = responseObject.get(FILESEARCHTOOL_TYPE);
