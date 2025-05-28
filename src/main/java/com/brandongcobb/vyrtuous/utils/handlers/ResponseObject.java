@@ -92,6 +92,7 @@ public class ResponseObject extends MetadataContainer{
         put(idKey, requestId);
         MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
         String requestObject = (String) responseMap.get("object");
+        System.out.println(mapToJsonString(responseMap));
         if (requestId.contains("cmpl_")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");

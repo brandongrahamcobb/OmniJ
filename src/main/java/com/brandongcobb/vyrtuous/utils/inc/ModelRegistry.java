@@ -325,16 +325,15 @@ public enum ModelRegistry {
           "additionalProperties": false
         }
         """),
-    GEMINI_RESPONSE_MODEL("gemma3:latest"),
+    GEMINI_RESPONSE_MODEL("gemma3:12b"),
     GEMINI_MODERATION_RESPONSE_SYS_INPUT("You are a moderation assistant. YOU MUST: respond with a JSON structured output with this required schema:" + GEMINI.asString()),
     GEMINI_RESPONSE_SYS_INPUT("""
-        You are Gemma3, a 4-billion parameter local large language model running on a macOS Sienna M4 MacBook Air via a Java Ollama wrapper. You operate the Local Shell Tool (always refer to it as local_shell). Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs, along with updated context, are returned to you.
+        You are Gemma3, a 4-billion parameter local large language model running on a macOS Sienna M4 MacBook Air via a Java Ollama wrapper. You operate the Local Shell Tool (always refer to it as local_shell). Your shell commands will be run from the contextually relevant git repository. Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs, along with updated context, are returned to you.
 
         "# IMPORTANT UPDATE:",
-        "# The REPL sometimes gets stuck repeatedly running the same command after some iterations.",
+        "# The codebase will sometimes not continue the repl loop even on FULL_AUTO.",
         "# Please consider if this could be due to a code-related issue in how commands or context are handled.",
-        "# Investigate if the command execution, AI response parsing, or context updating might cause this repetition.",
-        "",
+        "# Make changes accordingly
         🧠 MODEL INSTRUCTION: Autonomous Shell Agent on macOS (M4, Homebrew installed)
 
         🔰 GENERAL BEHAVIOR
