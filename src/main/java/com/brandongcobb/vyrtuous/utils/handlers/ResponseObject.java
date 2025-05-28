@@ -538,6 +538,11 @@ public class ResponseObject extends MetadataContainer{
         return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_VECTOR_STORE_IDS));
     }
 
+    public CompletableFuture<String> completeGetLocalShellToolSummary() {
+        MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.get(responsesReasoningSummaryKey));
+    }
+    
     public CompletableFuture<Map<String, Object>> completeGetFileSearchToolFilters() {
         return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_FILTERS));
     }

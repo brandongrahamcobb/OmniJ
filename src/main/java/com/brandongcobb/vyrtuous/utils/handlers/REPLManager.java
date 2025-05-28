@@ -66,11 +66,12 @@ public class REPLManager {
      * Main REPL process loop with AI calls and shell command execution.
      */
     private CompletableFuture<String> runReplLoop(
-            String input,
-            AIManager aim,
-            StringBuilder transcript,
-            Scanner scanner,
-            String modelSetting
+        String input,
+        AIManager aim,
+        StringBuilder transcript,
+        Scanner scanner,
+        String modelSetting,
+        ApprovalMode approvalMode
     ) {
         // STEP 1: Store user input in structured context
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, input));
@@ -83,40 +84,38 @@ public class REPLManager {
             .thenCompose(response -> {
                 System.out.println("[DEBUG] Received AI response");
 
-                return response.completeGetShellToolCommand()
-                    .thenCompose(aiText -> {
-                        System.out.println("[DEBUG] AI output: " + aiText);
-                        transcript.append("AI: ").append(aiText).append("\n");
-                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, aiText));
+                return response.completeGetShellToolFinished()
+                    .thenCompose(isFinished -> {
+                        System.out.println("[DEBUG] Shell finished flag: " + isFinished);
+                        if (isFinished) {
+                            return CompletableFuture.completedFuture(transcript.toString());
+                        }
 
-                        return response.completeGetShellToolFinished()
-                            .thenCompose(isFinished -> {
-                                System.out.println("[DEBUG] Shell finished flag: " + isFinished);
-                                if (isFinished) {
-                                    return CompletableFuture.completedFuture(transcript.toString());
+                        String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
+                        if (shellCommand == null || shellCommand.isBlank()) {
+                            return CompletableFuture.completedFuture(transcript.toString());
+                        }
+
+                        System.out.println("AI suggests running: " + shellCommand);
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, shellCommand));
+
+                        ToolHandler toolHandler = new ToolHandler();
+                        return toolHandler.executeShellCommandAsync(response)
+                            .thenCompose(output -> {
+                                System.out.println("[DEBUG] Shell output: " + output);
+                                transcript.append("> ").append(shellCommand).append("\n");
+                                transcript.append(output).append("\n");
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, output));
+
+                                if (approvalMode == ApprovalMode.FULL_AUTO) {
+                                    // Automatically continue without waiting for input
+                                    return runReplLoop("", aim, transcript, scanner, modelSetting, approvalMode);
+                                } else {
+                                    // Ask for next user input
+                                    System.out.print("> ");
+                                    String nextInput = scanner.nextLine();
+                                    return runReplLoop(nextInput, aim, transcript, scanner, modelSetting, approvalMode);
                                 }
-
-                                String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
-                                if (shellCommand == null || shellCommand.isBlank()) {
-                                    return CompletableFuture.completedFuture(transcript.toString());
-                                }
-
-                                System.out.println("AI suggests running: " + shellCommand);
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, shellCommand));
-
-                                ToolHandler toolHandler = new ToolHandler();
-                                return toolHandler.executeShellCommandAsync(response)
-                                    .thenCompose(output -> {
-                                        System.out.println("[DEBUG] Shell output: " + output);
-                                        transcript.append("> ").append(shellCommand).append("\n");
-                                        transcript.append(output).append("\n");
-                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, output));
-
-                                        // Ask for next user input
-                                        System.out.print("> ");
-                                        String nextInput = scanner.nextLine();
-                                        return runReplLoop(nextInput, aim, transcript, scanner, modelSetting);
-                                    });
                             });
                     });
             });
@@ -194,9 +193,10 @@ public class REPLManager {
         AIManager aim = new AIManager();
         StringBuilder transcript = new StringBuilder();
         String model = ModelRegistry.GEMINI_RESPONSE_MODEL.asString();
+        ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
 
         // Kick off the loop with initial input
-        return runReplLoop(initialMessage, aim, transcript, scanner, model);
+        return runReplLoop(initialMessage, aim, transcript, scanner, model, approvalMode);
     }
 
 }
