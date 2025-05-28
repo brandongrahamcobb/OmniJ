@@ -53,9 +53,13 @@ public class ToolHandler {
     public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
     // Metadata key for shell call identifier
     public static final MetadataKey<String> LOCALSHELLTOOL_CALL_ID = new MetadataKey<>("localshelltool_call_id", Metadata.STRING);
+    public static final MetadataKey<Integer> SHELL_EXIT_CODE = new MetadataKey<>("shell.exit_code", Metadata.INTEGER);
+    public static final MetadataKey<String> SHELL_STDOUT = new MetadataKey<>("shell.stdout", Metadata.STRING);
+    public static final MetadataKey<String> SHELL_STDERR = new MetadataKey<>("shell.stderr", Metadata.STRING);
 
 
-    public CompletableFuture<String> executeShellCommandAsync(ResponseObject responseObject) {
+
+    public CompletableFuture<String> executeShellCommandAsync(MetadataContainer responseObject) {
         String originalCommand = responseObject.get(LOCALSHELLTOOL_COMMAND);
         if (originalCommand == null || originalCommand.isBlank()) {
             return CompletableFuture.completedFuture("⚠️ No shell command provided.");
@@ -66,25 +70,17 @@ public class ToolHandler {
                 System.out.println("🔧 Original command: " + originalCommand);
 
                 String raw = originalCommand.trim();
-                String cmd;
-                if (raw.startsWith("bash -lc ")) {
-                    cmd = raw.substring("bash -lc ".length()).trim();
-                } else {
-                    cmd = raw;
-                }
+                String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
 
                 System.out.println("🛠️ Executing shell command via bash -lc: " + cmd);
 
-                // Create separate processes for input/output/error
                 ProcessBuilder builder = new ProcessBuilder("bash", "-lc", cmd);
-
-                builder.redirectErrorStream(false); // Keep error stream separate
+                builder.redirectErrorStream(false);
                 Process process = builder.start();
 
                 StringBuilder outputBuilder = new StringBuilder();
                 StringBuilder errorBuilder = new StringBuilder();
 
-                // Read output stream
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -92,7 +88,6 @@ public class ToolHandler {
                     }
                 }
 
-                // Read error stream
                 try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                     String line;
                     while ((line = errorReader.readLine()) != null) {
@@ -101,24 +96,31 @@ public class ToolHandler {
                 }
 
                 int exitCode = process.waitFor();
-                
+                String stdout = outputBuilder.toString().trim();
+                String stderr = errorBuilder.toString().trim();
+
+                // Store in MetadataContainer
+                responseObject.put(SHELL_EXIT_CODE, exitCode);
+                responseObject.put(SHELL_STDOUT, stdout);
+                responseObject.put(SHELL_STDERR, stderr);
+
                 if (exitCode == 0) {
-                    if (outputBuilder.length() == 0) {
-                        return "Command executed successfully with no output.";
-                    }
-                    return outputBuilder.toString();
+                    return stdout.isEmpty() ? "✅ Command executed successfully with no output." : stdout;
                 } else {
-                    String errorMessage = errorBuilder.toString();
-                    if (errorMessage.isEmpty()) {
-                        errorMessage = "No error message available";
-                    }
+                    String errorMessage = stderr.isEmpty() ? "No error message available." : stderr;
                     return "❌ Shell command exited with code " + exitCode + ":\n" + errorMessage;
                 }
+
             } catch (Exception e) {
+                responseObject.put(SHELL_EXIT_CODE, 999);
+                responseObject.put(SHELL_STDOUT, "");
+                responseObject.put(SHELL_STDERR, e.getMessage());
                 return "⚠️ Shell execution failed: " + e.getMessage();
             }
         });
     }
+    
+    
 
     
     public static List<String> executeFileSearch(ResponseObject responseObject, String query) {

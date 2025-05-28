@@ -65,7 +65,7 @@ public class Vyrtuous {
 
         if (!isInputThreadRunning) {
             // Optionally pass approval mode if your REPLManager supports it
-            ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_DESTRUCTIVE;
+            ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
             // Optional session timeout (seconds) via env VYRTUOUS_TIMEOUT
             String timeoutEnv = System.getenv("VYRTUOUS_TIMEOUT");
             long timeoutMillis = 0L;
