@@ -31,54 +31,65 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ResponseObject extends MetadataContainer{
     
-    private static final MetadataType<List<String>> LIST = new MetadataList(Metadata.STRING);
-    public static final MetadataKey<String> FILESEARCHTOOL_TYPE = new MetadataKey<>("filesearchtool_type", Metadata.STRING);
-    public static final MetadataKey<List<String>> FILESEARCHTOOL_VECTOR_STORE_IDS = new MetadataKey<>("filesearchtool_vector_store_ids", Metadata.LIST_STRING);
-    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTERS = new MetadataKey<>("filesearchtool_filters", Metadata.MAP);
-    public static final MetadataKey<Integer> FILESEARCHTOOL_MAX_NUM_RESULTS = new MetadataKey<>("filesearchtool_max_num_results", Metadata.INTEGER);
-    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_RANKING_OPTIONS = new MetadataKey<>("filesearchtool_ranking_options", Metadata.MAP);
-    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTER_COMPARISON = new MetadataKey<>("filesearchtool_filter_comparison", Metadata.MAP);
-    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTER_COMPOUND = new MetadataKey<>("filesearchtool_filter_compound", Metadata.MAP);
-    public static final MetadataKey<List<Map<String, Object>>> FILESEARCHTOOL_FILTER_COMPOUND_LIST = new MetadataKey<>("filesearchtool_filter_compound_list", Metadata.LIST_MAP);
-    public static final MetadataKey<String> TOOLCHOICE_MODE = new MetadataKey<>("toolChoice_mode", Metadata.STRING);
-    public static final MetadataKey<String> TOOLCHOICE_TYPE = new MetadataKey<>("toolChoice_type", Metadata.STRING);
-    public static final MetadataKey<String> TOOLCHOICE_NAME = new MetadataKey<>("toolChoice_name", Metadata.STRING);
-    public static final MetadataKey<String> WEBSEARCHTOOL_TYPE = new MetadataKey<>("webSearchTool_type", Metadata.STRING);
-    public static final MetadataKey<String> WEBSEARCHTOOL_CONTEXT_SIZE = new MetadataKey<>("webSearchTool_context_size", Metadata.STRING);
-    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_TYPE = new MetadataKey<>("webSearchTool_location_type", Metadata.STRING);
-    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_CITY = new MetadataKey<>("webSearchTool_location_city", Metadata.STRING);
-    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_COUNTRY = new MetadataKey<>("webSearchTool_location_country", Metadata.STRING);
-    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_REGION = new MetadataKey<>("webSearchTool_location_region", Metadata.STRING);
-    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_TIMEZONE = new MetadataKey<>("webSearchTool_location_timezone", Metadata.STRING);
-    public static final MetadataKey<String> COMPUTERTOOL_TYPE = new MetadataKey<>("computertool_type", Metadata.STRING);
-    public static final MetadataKey<Integer> COMPUTERTOOL_DISPLAY_HEIGHT = new MetadataKey<>("computertool_display_height", Metadata.INTEGER);
-    public static final MetadataKey<Integer> COMPUTERTOOL_DISPLAY_WIDTH = new MetadataKey<>("computertool_display_width", Metadata.INTEGER);
-    public static final MetadataKey<String> COMPUTERTOOL_ENVIRONMENT = new MetadataKey<>("computertool_environment", Metadata.STRING);
-    public static final MetadataKey<String> MCPTOOL_TYPE = new MetadataKey<>("mcptool_type", Metadata.STRING);
-    public static final MetadataKey<String> MCPTOOL_SERVER_LABEL = new MetadataKey<>("mcptool_server_label", Metadata.STRING);
-    public static final MetadataKey<String> MCPTOOL_SERVER_URL = new MetadataKey<>("mcptool_server_url", Metadata.STRING);
-    public static final MetadataKey<List<String>> MCPTOOL_ALLOWED_TOOLS = new MetadataKey<>("mcptool_allowed_tools", new MetadataList<>(Metadata.STRING));
-    public static final MetadataKey<Map<String, Object>> MCPTOOL_ALLOWED_TOOLS_FILTER = new MetadataKey<>("mcptool_allowed_tools_filter", Metadata.MAP);
-    public static final MetadataKey<Map<String, Object>> MCPTOOL_HEADERS = new MetadataKey<>("mcptool_headers", Metadata.MAP);
-    public static final MetadataKey<String> MCPTOOL_REQUIRE_APPROVAL_MODE = new MetadataKey<>("mcptool_require_approval_mode", Metadata.STRING);
-    public static final MetadataKey<Map<String, Object>> MCPTOOL_REQUIRE_APPROVAL_ALWAYS = new MetadataKey<>("mcptool_require_approval_always", Metadata.MAP);
-    public static final MetadataKey<Map<String, Object>> MCPTOOL_REQUIRE_APPROVAL_NEVER = new MetadataKey<>("mcptool_require_approval_never", Metadata.MAP);
-    public static final MetadataKey<String> CODEINTERPRETERTOOL_TYPE = new MetadataKey<>("codeinterpretertool_type", Metadata.STRING);
-    public static final MetadataKey<String> CODEINTERPRETERTOOL_CONTAINER_ID = new MetadataKey<>("codeinterpretertool_container_id", Metadata.STRING);
-    public static final MetadataKey<Map<String, Object>> CODEINTERPRETERTOOL_CONTAINER_MAP = new MetadataKey<>("codeinterpretertool_container_map", Metadata.MAP);
-    public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
-    public static final MetadataKey<String> LOCALSHELLTOOL_COMMAND = new MetadataKey<>("localshelltool_command", Metadata.STRING);
+//    private static final MetadataType<List<String>> LIST = new MetadataList(Metadata.STRING);
+//    public static final MetadataKey<String> FILESEARCHTOOL_TYPE = new MetadataKey<>("filesearchtool_type", Metadata.STRING);
+//    public static final MetadataKey<List<String>> FILESEARCHTOOL_VECTOR_STORE_IDS = new MetadataKey<>("filesearchtool_vector_store_ids", Metadata.LIST_STRING);
+//    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTERS = new MetadataKey<>("filesearchtool_filters", Metadata.MAP);
+//    public static final MetadataKey<Integer> FILESEARCHTOOL_MAX_NUM_RESULTS = new MetadataKey<>("filesearchtool_max_num_results", Metadata.INTEGER);
+//    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_RANKING_OPTIONS = new MetadataKey<>("filesearchtool_ranking_options", Metadata.MAP);
+//    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTER_COMPARISON = new MetadataKey<>("filesearchtool_filter_comparison", Metadata.MAP);
+//    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTER_COMPOUND = new MetadataKey<>("filesearchtool_filter_compound", Metadata.MAP);
+//    public static final MetadataKey<List<Map<String, Object>>> FILESEARCHTOOL_FILTER_COMPOUND_LIST = new MetadataKey<>("filesearchtool_filter_compound_list", Metadata.LIST_MAP);
+//    public static final MetadataKey<String> TOOLCHOICE_MODE = new MetadataKey<>("toolChoice_mode", Metadata.STRING);
+//    public static final MetadataKey<String> TOOLCHOICE_TYPE = new MetadataKey<>("toolChoice_type", Metadata.STRING);
+//    public static final MetadataKey<String> TOOLCHOICE_NAME = new MetadataKey<>("toolChoice_name", Metadata.STRING);
+//    public static final MetadataKey<String> WEBSEARCHTOOL_TYPE = new MetadataKey<>("webSearchTool_type", Metadata.STRING);
+//    public static final MetadataKey<String> WEBSEARCHTOOL_CONTEXT_SIZE = new MetadataKey<>("webSearchTool_context_size", Metadata.STRING);
+//    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_TYPE = new MetadataKey<>("webSearchTool_location_type", Metadata.STRING);
+//    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_CITY = new MetadataKey<>("webSearchTool_location_city", Metadata.STRING);
+//    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_COUNTRY = new MetadataKey<>("webSearchTool_location_country", Metadata.STRING);
+//    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_REGION = new MetadataKey<>("webSearchTool_location_region", Metadata.STRING);
+//    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_TIMEZONE = new MetadataKey<>("webSearchTool_location_timezone", Metadata.STRING);
+//    public static final MetadataKey<String> COMPUTERTOOL_TYPE = new MetadataKey<>("computertool_type", Metadata.STRING);
+//    public static final MetadataKey<Integer> COMPUTERTOOL_DISPLAY_HEIGHT = new MetadataKey<>("computertool_display_height", Metadata.INTEGER);
+//    public static final MetadataKey<Integer> COMPUTERTOOL_DISPLAY_WIDTH = new MetadataKey<>("computertool_display_width", Metadata.INTEGER);
+//    public static final MetadataKey<String> COMPUTERTOOL_ENVIRONMENT = new MetadataKey<>("computertool_environment", Metadata.STRING);
+//    public static final MetadataKey<String> MCPTOOL_TYPE = new MetadataKey<>("mcptool_type", Metadata.STRING);
+//    public static final MetadataKey<String> MCPTOOL_SERVER_LABEL = new MetadataKey<>("mcptool_server_label", Metadata.STRING);
+//    public static final MetadataKey<String> MCPTOOL_SERVER_URL = new MetadataKey<>("mcptool_server_url", Metadata.STRING);
+//    public static final MetadataKey<List<String>> MCPTOOL_ALLOWED_TOOLS = new MetadataKey<>("mcptool_allowed_tools", new MetadataList<>(Metadata.STRING));
+//    public static final MetadataKey<Map<String, Object>> MCPTOOL_ALLOWED_TOOLS_FILTER = new MetadataKey<>("mcptool_allowed_tools_filter", Metadata.MAP);
+//    public static final MetadataKey<Map<String, Object>> MCPTOOL_HEADERS = new MetadataKey<>("mcptool_headers", Metadata.MAP);
+//    public static final MetadataKey<String> MCPTOOL_REQUIRE_APPROVAL_MODE = new MetadataKey<>("mcptool_require_approval_mode", Metadata.STRING);
+//    public static final MetadataKey<Map<String, Object>> MCPTOOL_REQUIRE_APPROVAL_ALWAYS = new MetadataKey<>("mcptool_require_approval_always", Metadata.MAP);
+//    public static final MetadataKey<Map<String, Object>> MCPTOOL_REQUIRE_APPROVAL_NEVER = new MetadataKey<>("mcptool_require_approval_never", Metadata.MAP);
+//    public static final MetadataKey<String> CODEINTERPRETERTOOL_TYPE = new MetadataKey<>("codeinterpretertool_type", Metadata.STRING);
+//    public static final MetadataKey<String> CODEINTERPRETERTOOL_CONTAINER_ID = new MetadataKey<>("codeinterpretertool_container_id", Metadata.STRING);
+//    public static final MetadataKey<Map<String, Object>> CODEINTERPRETERTOOL_CONTAINER_MAP = new MetadataKey<>("codeinterpretertool_container_map", Metadata.MAP);
+//    public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
+//    public static final MetadataKey<String> LOCALSHELLTOOL_COMMAND = new MetadataKey<>("localshelltool_command", Metadata.STRING);
 
+    public static String mapToJsonString(Map<String, Object> map) {
+        try {
+            return new ObjectMapper().writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to convert map to JSON string", e);
+        }
+    }
+    
     public ResponseObject(Map<String, Object> responseMap) {
         MetadataKey<String> idKey = new MetadataKey<>("id", Metadata.STRING);
         String requestId = (String) responseMap.get("id");
         put(idKey, requestId);
-        if (requestId.startsWith("responsecmpl")) {
-            MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
-            String requestObject = (String) responseMap.get("object");
+        MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
+        String requestObject = (String) responseMap.get("object");
+        System.out.println(mapToJsonString(responseMap));
+        if (requestObject.contains("cmpl_")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
             }
@@ -120,9 +131,7 @@ public class ResponseObject extends MetadataContainer{
             }
         }
 
-        else if (requestId.startsWith("models")) {
-            MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
-            String requestObject = (String) responseMap.get("object");
+        else if (requestObject.contains("models")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
             }
@@ -135,7 +144,305 @@ public class ResponseObject extends MetadataContainer{
             put(ownerCreatedKey, ownerCreated);
         }
 
-        else if (requestId.startsWith("modr")) {
+        
+        else if (requestObject.contains("resp_")) {
+            if (requestObject == null) {
+                throw new NullPointerException("The response map is missing the mandatory 'object' field.");
+            }
+            put(objectKey, requestObject);
+            MetadataKey<String> responsesIdKey = new MetadataKey<>("id", Metadata.STRING);
+            String responsesId = (String) responseMap.get("id");
+            put(responsesIdKey, responsesId);
+            MetadataKey<String> responsesObjectKey = new MetadataKey<>("object", Metadata.STRING);
+            String responsesObject = (String) responseMap.get("object");
+            put(responsesObjectKey, responsesObject);
+            MetadataKey<Integer> responsesCreatedAtKey = new MetadataKey<>("created_at", Metadata.INTEGER);
+            Integer responsesCreatedAt = (Integer) responseMap.get("created_at");
+            put(responsesCreatedAtKey, responsesCreatedAt);
+            MetadataKey<String> responsesStatusKey = new MetadataKey<>("status", Metadata.STRING);
+            String responsesStatus = (String) responseMap.get("status");
+            put(responsesStatusKey, responsesStatus);
+            MetadataKey<String> responsesErrorKey = new MetadataKey<>("error", Metadata.STRING);
+            String responsesError = (String) responseMap.get("error");
+            put(responsesErrorKey, responsesError);
+            MetadataKey<String> responsesIncompleteDetailsReasonKey = new MetadataKey<>("reason", Metadata.STRING);
+            Map<String, String> responsesIncompleteDetails = (Map<String, String>) responseMap.get("incomplete_details");
+            String reason = responsesIncompleteDetails != null ? responsesIncompleteDetails.get("reason") : null;
+            put(responsesIncompleteDetailsReasonKey, reason);
+            MetadataKey<String> responsesInstructionsKey = new MetadataKey<>("instructions", Metadata.STRING);
+            String responsesInstructions = (String) responseMap.get("instructions");
+            put(responsesInstructionsKey, responsesInstructions);
+            MetadataKey<Integer> responsesMaxOutputTokensKey = new MetadataKey<>("max_output_tokens", Metadata.INTEGER);
+            Integer responsesMaxOutputTokens = (Integer) responseMap.get("max_output_tokens");
+            put(responsesMaxOutputTokensKey, responsesMaxOutputTokens);
+            MetadataKey<String> responsesModelKey = new MetadataKey<>("model", Metadata.STRING);
+            String responsesModel = (String) responseMap.get("model");
+            put(responsesModelKey, responsesModel);
+            MetadataKey<Boolean> responsesParallelToolCallsKey = new MetadataKey<>("parallel_tool_calls", Metadata.BOOLEAN);
+            Boolean responsesParallelToolCalls = (Boolean) responseMap.get("parallel_tool_calls");
+            put(responsesParallelToolCallsKey, responsesParallelToolCalls);
+            MetadataKey<String> responsesPreviousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
+            String responsesPreviousResponseId = (String) responseMap.get("previous_response_id");
+            put(responsesPreviousResponseIdKey, responsesPreviousResponseId);
+            MetadataKey<String> responsesReasoningEffortKey = new MetadataKey<>("effort", Metadata.STRING);
+            MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
+            Map<String, String> responsesReasoning = (Map<String, String>) responseMap.get("reasoning");
+            if (responsesReasoning != null) {
+                String responsesReasoningEffort = responsesReasoning.get("effort");
+                put(responsesReasoningEffortKey, responsesReasoningEffort);
+                String responsesReasoningSummary = responsesReasoning.get("summary");
+                put(responsesReasoningSummaryKey, responsesReasoningSummary);
+            }
+            MetadataKey<Double> responsesTemperatureKey = new MetadataKey<>("temperature", Metadata.DOUBLE);
+            Double responsesTemperature = (Double) responseMap.get("temperature");
+            put(responsesTemperatureKey, responsesTemperature);
+            MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
+            Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
+            put(responsesTextFormatKey, responsesTextFormat);
+            // Parse tool calls from 'output' array for local_shell_call
+//            if (responseMap.containsKey("output") && responseMap.get("output") instanceof List<?> outputArray) {
+//                @SuppressWarnings("unchecked")
+//                List<Map<String, Object>> outputs = (List<Map<String, Object>>) outputArray;
+//                for (Map<String, Object> entry : outputs) {
+//                    Object typeObj = entry.get("type");
+//                    if ("local_shell_call".equals(typeObj)) {
+//                        // extract call ID for chaining
+//                        Object callIdObj = entry.get("call_id");
+//                        if (callIdObj instanceof String callId) {
+//                            put(ToolHandler.LOCALSHELLTOOL_CALL_ID, callId);
+//                        }
+//                        Object actionObj = entry.get("action");
+//                        if (actionObj instanceof Map<?, ?> action) {
+//                            Object cmdObj = action.get("command");
+//                            String cmdString = null;
+//                            if (cmdObj instanceof List<?> cmdList) {
+//                                cmdString = cmdList.stream().map(Object::toString).collect(Collectors.joining(" "));
+//                            } else if (cmdObj != null) {
+//                                cmdString = cmdObj.toString();
+//                            }
+//                            if (cmdString != null) {
+//                                put(LOCALSHELLTOOL_COMMAND, cmdString);
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", LIST);
+//            List<Map<String, Object>> toolsList = (List<Map<String, Object>>) responseMap.get("tools");
+//            put(toolsKey, toolsList);
+//            if (responseMap.containsKey("tools")) {
+//                for (Map<String, Object> toolMap : toolsList) {
+//                    if (toolMap.get("type") instanceof String type) {
+//                        switch (type) {
+//                            case "file_search" -> {
+//                                put(FILESEARCHTOOL_TYPE, type);
+//                                if (List.of("file-ToDXSxedx12w7xAFJa1kdM") instanceof List<?> vsIds)
+//                                    put(FILESEARCHTOOL_VECTOR_STORE_IDS, (List<String>) vsIds);
+//                                Object filtersObj = toolMap.get("filters");
+//                                if (filtersObj instanceof Map filterMap) {
+//                                    put(FILESEARCHTOOL_FILTERS, filterMap); // General flat storage
+//
+//                                    // Detect Comparison Filter
+//                                    if (filterMap.containsKey("key") && filterMap.containsKey("type") && filterMap.containsKey("value")) {
+//                                        put(FILESEARCHTOOL_FILTER_COMPARISON, filterMap);
+//                                    }
+//
+//                                    // Detect Compound Filter
+//                                    if ("and".equals(filterMap.get("type")) || "or".equals(filterMap.get("type"))) {
+//                                        put(FILESEARCHTOOL_FILTER_COMPOUND, filterMap);
+//
+//                                        Object subFilters = filterMap.get("filters");
+//                                        if (subFilters instanceof List<?> subList) {
+//                                            @SuppressWarnings("unchecked")
+//                                            List<Map<String, Object>> casted = (List<Map<String, Object>>) subList;
+//                                            put(FILESEARCHTOOL_FILTER_COMPOUND_LIST, casted);
+//                                        }
+//                                    }
+//                                }
+//                                if (toolMap.get("max_num_results") instanceof Number num)
+//                                    put(FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
+//                                if (toolMap.get("ranking_options") instanceof Map<?, ?> rankingOpts)
+//                                    put(FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingOpts);
+//                            }
+//                            case "web_search_preview", "web_search_preview_2025_03_11" -> {
+//                                put(WEBSEARCHTOOL_TYPE, type);
+//                                if (toolMap.get("search_context_size") instanceof String size)
+//                                    put(WEBSEARCHTOOL_CONTEXT_SIZE, size);
+//
+//                                Object locObj = toolMap.get("user_location");
+//                                if (locObj instanceof Map<?, ?> loc) {
+//                                    if (loc.get("type") instanceof String locType)
+//                                        put(WEBSEARCHTOOL_LOCATION_TYPE, locType);
+//                                    if (loc.get("city") instanceof String city)
+//                                        put(WEBSEARCHTOOL_LOCATION_CITY, city);
+//                                    if (loc.get("country") instanceof String country)
+//                                        put(WEBSEARCHTOOL_LOCATION_COUNTRY, country);
+//                                    if (loc.get("region") instanceof String region)
+//                                        put(WEBSEARCHTOOL_LOCATION_REGION, region);
+//                                    if (loc.get("timezone") instanceof String tz)
+//                                        put(WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
+//                                }
+//                            }
+//                            case "computer_use_preview" -> {
+//                                put(COMPUTERTOOL_TYPE, type);
+//                                if (toolMap.get("display_height") instanceof Number height)
+//                                    put(COMPUTERTOOL_DISPLAY_HEIGHT, height.intValue());
+//                                if (toolMap.get("display_width") instanceof Number width)
+//                                    put(COMPUTERTOOL_DISPLAY_WIDTH, width.intValue());
+//                                if (toolMap.get("environment") instanceof String env)
+//                                    put(COMPUTERTOOL_ENVIRONMENT, env);
+//                            }
+//                            case "mcp" -> {
+//                                put(MCPTOOL_TYPE, type);
+//
+//                                if (toolMap.get("server_label") instanceof String serverLabel)
+//                                    put(MCPTOOL_SERVER_LABEL, serverLabel);
+//
+//                                if (toolMap.get("server_url") instanceof String serverUrl)
+//                                    put(MCPTOOL_SERVER_URL, serverUrl);
+//
+//                                if (toolMap.get("allowed_tools") instanceof List<?> allowedToolList)
+//                                    put(MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
+//
+//                                if (toolMap.get("allowed_tools") instanceof Map<?, ?> allowedToolMap)
+//                                    put(MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
+//
+//                                if (toolMap.get("headers") instanceof Map<?, ?> headersMap)
+//                                    put(MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
+//
+//                                if (toolMap.get("require_approval") instanceof String approvalSetting)
+//                                    put(MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
+//
+//                                if (toolMap.get("require_approval") instanceof Map<?, ?> approvalMap) {
+//                                    Object always = ((Map<?, ?>) approvalMap).get("always");
+//                                    Object never = ((Map<?, ?>) approvalMap).get("never");
+//
+//                                    if (always instanceof Map<?, ?> alwaysMap)
+//                                        put(MCPTOOL_REQUIRE_APPROVAL_ALWAYS, (Map<String, Object>) alwaysMap);
+//
+//                                    if (never instanceof Map<?, ?> neverMap)
+//                                        put(MCPTOOL_REQUIRE_APPROVAL_NEVER, (Map<String, Object>) neverMap);
+//                                }
+//                            }
+//                            case "code_interpreter" -> {
+//                                put(CODEINTERPRETERTOOL_TYPE, type);
+//
+//                                Object containerObj = toolMap.get("container");
+//
+//                                if (containerObj instanceof String containerId) {
+//                                    put(CODEINTERPRETERTOOL_CONTAINER_ID, containerId);
+//                                } else if (containerObj instanceof Map<?, ?> containerMap) {
+//                                    // Store the raw container object (e.g., uploaded files or other settings)
+//                                    put(CODEINTERPRETERTOOL_CONTAINER_MAP, (Map<String, Object>) containerMap);
+//                                }
+//                            }
+//                            case "local_shell" -> {
+//                                put(LOCALSHELLTOOL_TYPE, type);
+//                                // Capture the shell command if provided
+//                                Object cmdObj = toolMap.get("command");
+//                                if (cmdObj instanceof String cmd) {
+//                                    put(LOCALSHELLTOOL_COMMAND, cmd);
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//
+//// Handl    e `tool_choice` root-level object
+//            if (responseMap.containsKey("tool_choice") && responseMap.get("tool_choice") instanceof Map<?, ?> toolChoice) {
+//                if (toolChoice.get("mode") instanceof String mode) {
+//                    put(TOOLCHOICE_MODE, mode);
+//                }
+//                if (toolChoice.get("type") instanceof String type) {
+//                    put(TOOLCHOICE_TYPE, type);
+//                    if ("function".equals(type) && toolChoice.get("name") instanceof String name) {
+//                        put(TOOLCHOICE_NAME, name);
+//                    }
+//                }
+//            }
+            MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", Metadata.DOUBLE);
+            Double responsesTopP = (Double) responseMap.get("top_p");
+            put(responsesTopPKey, responsesTopP);
+            MetadataKey<String> responsesTruncationKey = new MetadataKey<>("truncation", Metadata.STRING);
+            String responsesTruncation = (String) responseMap.get("truncation");
+            put(responsesTruncationKey, responsesTruncation);
+            MetadataKey<Integer> responsesTotalTokensKey = new MetadataKey<>("total_tokens", Metadata.INTEGER);
+            Map<String, Object> responsesUsage = (Map<String, Object>) responseMap.get("usage");
+            if (responsesUsage != null) {
+                Integer responsesTotalTokens = (Integer) responsesUsage.get("total_tokens");
+                put(responsesTotalTokensKey, responsesTotalTokens);
+            }
+            MetadataKey<String> responsesUserKey = new MetadataKey<>("user", Metadata.STRING);
+            String responsesUser = (String) responseMap.get("user");
+            put(responsesUserKey, responsesUser);
+            MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("metadata", Metadata.MAP);
+            Map<String, Object> responsesMetadata = (Map<String, Object>) responseMap.get("metadata");
+            put(responsesMetadataKey, responsesMetadata);
+            MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
+            Object outputObj = responseMap.get("output");
+            if (outputObj instanceof List<?> outputList) {
+                for (Object outputItemObj : outputList) {
+                    if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
+
+                    Object contentObj = outputItem.get("content");
+                    if (contentObj instanceof List<?> contentList) {
+                        for (Object contentItemObj : contentList) {
+                            if (!(contentItemObj instanceof Map<?, ?> contentItem)) continue;
+                            Object text = contentItem.get("text");
+                            if (text instanceof String textStr && !textStr.isBlank()) {
+                                System.out.println(textStr);
+                                put(responsesOutputContentKey, textStr);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+//            if (outputObj instanceof List<?> outputList) {
+           // for (Object outputItemObj : outputList) {
+//                    if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
+//
+//                    // Handle local shell tool calls
+//                    String type = (String) outputItem.get("type");
+//                    if ("local_shell_call".equals(type)) {
+//                        Object actionObj = outputItem.get("action");
+//                        if (actionObj instanceof Map<?, ?> action) {
+//                            // capture the call ID
+//                            Object idObj = outputItem.get("call_id");
+//                            if (idObj instanceof String cid) {
+//                                put(ToolHandler.LOCALSHELLTOOL_CALL_ID, cid);
+//                            }
+//                            // capture the shell command
+//                            Object commandObj = action.get("command");
+//                            if (commandObj instanceof List<?> cmdList) {
+//                                @SuppressWarnings("unchecked")
+//                                List<String> commandParts = (List<String>) cmdList;
+//                                String joinedCommand = String.join(" ", commandParts);
+//                                put(ToolHandler.LOCALSHELLTOOL_COMMAND, joinedCommand);
+//                            }
+//                        }
+//                    }
+
+                    // Handle assistant messages (text output)
+                //if ("message".equals(type)) {
+//
+//                        Object contentObj = outputItem.get("content");
+//                        if (contentObj instanceof List<?> contentList) {
+//                            for (Object contentEntry : contentList) {
+//                                if (!(contentEntry instanceof Map<?, ?> contentMap)) continue;
+//                                Object text = contentMap.get("text");
+//                                if (text instanceof String textStr && !textStr.isBlank()) {
+//                                    System.out.println(textStr);
+//                                    put(responsesOutputContentKey, textStr);
+//                                    break;
+//                                }
+//                            }
+//                        }
+//                    }
+                
+            
+        } else {
             MetadataKey<Integer> moderationCreatedKey = new MetadataKey<>("created", Metadata.INTEGER);
             Integer moderationCreated = (Integer) responseMap.get("created");
             put(moderationCreatedKey, moderationCreated);
@@ -236,316 +543,34 @@ public class ResponseObject extends MetadataContainer{
             }
         }
 
-        else if (requestId.startsWith("resp")) {
-            MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
-            String requestObject = (String) responseMap.get("object");
-            if (requestObject == null) {
-                throw new NullPointerException("The response map is missing the mandatory 'object' field.");
-            }
-            put(objectKey, requestObject);
-            MetadataKey<String> responsesIdKey = new MetadataKey<>("id", Metadata.STRING);
-            String responsesId = (String) responseMap.get("id");
-            put(responsesIdKey, responsesId);
-            MetadataKey<String> responsesObjectKey = new MetadataKey<>("object", Metadata.STRING);
-            String responsesObject = (String) responseMap.get("object");
-            put(responsesObjectKey, responsesObject);
-            MetadataKey<Integer> responsesCreatedAtKey = new MetadataKey<>("created_at", Metadata.INTEGER);
-            Integer responsesCreatedAt = (Integer) responseMap.get("created_at");
-            put(responsesCreatedAtKey, responsesCreatedAt);
-            MetadataKey<String> responsesStatusKey = new MetadataKey<>("status", Metadata.STRING);
-            String responsesStatus = (String) responseMap.get("status");
-            put(responsesStatusKey, responsesStatus);
-            MetadataKey<String> responsesErrorKey = new MetadataKey<>("error", Metadata.STRING);
-            String responsesError = (String) responseMap.get("error");
-            put(responsesErrorKey, responsesError);
-            MetadataKey<String> responsesIncompleteDetailsReasonKey = new MetadataKey<>("reason", Metadata.STRING);
-            Map<String, String> responsesIncompleteDetails = (Map<String, String>) responseMap.get("incomplete_details");
-            String reason = responsesIncompleteDetails != null ? responsesIncompleteDetails.get("reason") : null;
-            put(responsesIncompleteDetailsReasonKey, reason);
-            MetadataKey<String> responsesInstructionsKey = new MetadataKey<>("instructions", Metadata.STRING);
-            String responsesInstructions = (String) responseMap.get("instructions");
-            put(responsesInstructionsKey, responsesInstructions);
-            MetadataKey<Integer> responsesMaxOutputTokensKey = new MetadataKey<>("max_output_tokens", Metadata.INTEGER);
-            Integer responsesMaxOutputTokens = (Integer) responseMap.get("max_output_tokens");
-            put(responsesMaxOutputTokensKey, responsesMaxOutputTokens);
-            MetadataKey<String> responsesModelKey = new MetadataKey<>("model", Metadata.STRING);
-            String responsesModel = (String) responseMap.get("model");
-            put(responsesModelKey, responsesModel);
-            MetadataKey<Boolean> responsesParallelToolCallsKey = new MetadataKey<>("parallel_tool_calls", Metadata.BOOLEAN);
-            Boolean responsesParallelToolCalls = (Boolean) responseMap.get("parallel_tool_calls");
-            put(responsesParallelToolCallsKey, responsesParallelToolCalls);
-            MetadataKey<String> responsesPreviousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
-            String responsesPreviousResponseId = (String) responseMap.get("previous_response_id");
-            put(responsesPreviousResponseIdKey, responsesPreviousResponseId);
-            MetadataKey<String> responsesReasoningEffortKey = new MetadataKey<>("effort", Metadata.STRING);
-            MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
-            Map<String, String> responsesReasoning = (Map<String, String>) responseMap.get("reasoning");
-            if (responsesReasoning != null) {
-                String responsesReasoningEffort = responsesReasoning.get("effort");
-                put(responsesReasoningEffortKey, responsesReasoningEffort);
-                String responsesReasoningSummary = responsesReasoning.get("summary");
-                put(responsesReasoningSummaryKey, responsesReasoningSummary);
-            }
-            MetadataKey<Double> responsesTemperatureKey = new MetadataKey<>("temperature", Metadata.DOUBLE);
-            Double responsesTemperature = (Double) responseMap.get("temperature");
-            put(responsesTemperatureKey, responsesTemperature);
-            MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
-            Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
-            put(responsesTextFormatKey, responsesTextFormat);
-            // Parse tool calls from 'output' array for local_shell_call
-            if (responseMap.containsKey("output") && responseMap.get("output") instanceof List<?> outputArray) {
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> outputs = (List<Map<String, Object>>) outputArray;
-                for (Map<String, Object> entry : outputs) {
-                    Object typeObj = entry.get("type");
-                    if ("local_shell_call".equals(typeObj)) {
-                        // extract call ID for chaining
-                        Object callIdObj = entry.get("call_id");
-                        if (callIdObj instanceof String callId) {
-                            put(ToolHandler.LOCALSHELLTOOL_CALL_ID, callId);
-                        }
-                        Object actionObj = entry.get("action");
-                        if (actionObj instanceof Map<?, ?> action) {
-                            Object cmdObj = action.get("command");
-                            String cmdString = null;
-                            if (cmdObj instanceof List<?> cmdList) {
-                                cmdString = cmdList.stream().map(Object::toString).collect(Collectors.joining(" "));
-                            } else if (cmdObj != null) {
-                                cmdString = cmdObj.toString();
-                            }
-                            if (cmdString != null) {
-                                put(LOCALSHELLTOOL_COMMAND, cmdString);
-                            }
-                        }
-                    }
-                }
-            }
-            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", LIST);
-            List<Map<String, Object>> toolsList = (List<Map<String, Object>>) responseMap.get("tools");
-            put(toolsKey, toolsList);
-            if (responseMap.containsKey("tools")) {
-                for (Map<String, Object> toolMap : toolsList) {
-                    if (toolMap.get("type") instanceof String type) {
-                        switch (type) {
-                            case "file_search" -> {
-                                put(FILESEARCHTOOL_TYPE, type);
-                                if (List.of("file-ToDXSxedx12w7xAFJa1kdM") instanceof List<?> vsIds)
-                                    put(FILESEARCHTOOL_VECTOR_STORE_IDS, (List<String>) vsIds);
-                                Object filtersObj = toolMap.get("filters");
-                                if (filtersObj instanceof Map filterMap) {
-                                    put(FILESEARCHTOOL_FILTERS, filterMap); // General flat storage
-
-                                    // Detect Comparison Filter
-                                    if (filterMap.containsKey("key") && filterMap.containsKey("type") && filterMap.containsKey("value")) {
-                                        put(FILESEARCHTOOL_FILTER_COMPARISON, filterMap);
-                                    }
-
-                                    // Detect Compound Filter
-                                    if ("and".equals(filterMap.get("type")) || "or".equals(filterMap.get("type"))) {
-                                        put(FILESEARCHTOOL_FILTER_COMPOUND, filterMap);
-
-                                        Object subFilters = filterMap.get("filters");
-                                        if (subFilters instanceof List<?> subList) {
-                                            @SuppressWarnings("unchecked")
-                                            List<Map<String, Object>> casted = (List<Map<String, Object>>) subList;
-                                            put(FILESEARCHTOOL_FILTER_COMPOUND_LIST, casted);
-                                        }
-                                    }
-                                }
-                                if (toolMap.get("max_num_results") instanceof Number num)
-                                    put(FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
-                                if (toolMap.get("ranking_options") instanceof Map<?, ?> rankingOpts)
-                                    put(FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingOpts);
-                            }
-                            case "web_search_preview", "web_search_preview_2025_03_11" -> {
-                                put(WEBSEARCHTOOL_TYPE, type);
-                                if (toolMap.get("search_context_size") instanceof String size)
-                                    put(WEBSEARCHTOOL_CONTEXT_SIZE, size);
-
-                                Object locObj = toolMap.get("user_location");
-                                if (locObj instanceof Map<?, ?> loc) {
-                                    if (loc.get("type") instanceof String locType)
-                                        put(WEBSEARCHTOOL_LOCATION_TYPE, locType);
-                                    if (loc.get("city") instanceof String city)
-                                        put(WEBSEARCHTOOL_LOCATION_CITY, city);
-                                    if (loc.get("country") instanceof String country)
-                                        put(WEBSEARCHTOOL_LOCATION_COUNTRY, country);
-                                    if (loc.get("region") instanceof String region)
-                                        put(WEBSEARCHTOOL_LOCATION_REGION, region);
-                                    if (loc.get("timezone") instanceof String tz)
-                                        put(WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
-                                }
-                            }
-                            case "computer_use_preview" -> {
-                                put(COMPUTERTOOL_TYPE, type);
-                                if (toolMap.get("display_height") instanceof Number height)
-                                    put(COMPUTERTOOL_DISPLAY_HEIGHT, height.intValue());
-                                if (toolMap.get("display_width") instanceof Number width)
-                                    put(COMPUTERTOOL_DISPLAY_WIDTH, width.intValue());
-                                if (toolMap.get("environment") instanceof String env)
-                                    put(COMPUTERTOOL_ENVIRONMENT, env);
-                            }
-                            case "mcp" -> {
-                                put(MCPTOOL_TYPE, type);
-
-                                if (toolMap.get("server_label") instanceof String serverLabel)
-                                    put(MCPTOOL_SERVER_LABEL, serverLabel);
-
-                                if (toolMap.get("server_url") instanceof String serverUrl)
-                                    put(MCPTOOL_SERVER_URL, serverUrl);
-
-                                if (toolMap.get("allowed_tools") instanceof List<?> allowedToolList)
-                                    put(MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
-
-                                if (toolMap.get("allowed_tools") instanceof Map<?, ?> allowedToolMap)
-                                    put(MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
-
-                                if (toolMap.get("headers") instanceof Map<?, ?> headersMap)
-                                    put(MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
-
-                                if (toolMap.get("require_approval") instanceof String approvalSetting)
-                                    put(MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
-
-                                if (toolMap.get("require_approval") instanceof Map<?, ?> approvalMap) {
-                                    Object always = ((Map<?, ?>) approvalMap).get("always");
-                                    Object never = ((Map<?, ?>) approvalMap).get("never");
-
-                                    if (always instanceof Map<?, ?> alwaysMap)
-                                        put(MCPTOOL_REQUIRE_APPROVAL_ALWAYS, (Map<String, Object>) alwaysMap);
-
-                                    if (never instanceof Map<?, ?> neverMap)
-                                        put(MCPTOOL_REQUIRE_APPROVAL_NEVER, (Map<String, Object>) neverMap);
-                                }
-                            }
-                            case "code_interpreter" -> {
-                                put(CODEINTERPRETERTOOL_TYPE, type);
-
-                                Object containerObj = toolMap.get("container");
-
-                                if (containerObj instanceof String containerId) {
-                                    put(CODEINTERPRETERTOOL_CONTAINER_ID, containerId);
-                                } else if (containerObj instanceof Map<?, ?> containerMap) {
-                                    // Store the raw container object (e.g., uploaded files or other settings)
-                                    put(CODEINTERPRETERTOOL_CONTAINER_MAP, (Map<String, Object>) containerMap);
-                                }
-                            }
-                            case "local_shell" -> {
-                                put(LOCALSHELLTOOL_TYPE, type);
-                                // Capture the shell command if provided
-                                Object cmdObj = toolMap.get("command");
-                                if (cmdObj instanceof String cmd) {
-                                    put(LOCALSHELLTOOL_COMMAND, cmd);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-// Handl    e `tool_choice` root-level object
-            if (responseMap.containsKey("tool_choice") && responseMap.get("tool_choice") instanceof Map<?, ?> toolChoice) {
-                if (toolChoice.get("mode") instanceof String mode) {
-                    put(TOOLCHOICE_MODE, mode);
-                }
-                if (toolChoice.get("type") instanceof String type) {
-                    put(TOOLCHOICE_TYPE, type);
-                    if ("function".equals(type) && toolChoice.get("name") instanceof String name) {
-                        put(TOOLCHOICE_NAME, name);
-                    }
-                }
-            }
-            MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", Metadata.DOUBLE);
-            Double responsesTopP = (Double) responseMap.get("top_p");
-            put(responsesTopPKey, responsesTopP);
-            MetadataKey<String> responsesTruncationKey = new MetadataKey<>("truncation", Metadata.STRING);
-            String responsesTruncation = (String) responseMap.get("truncation");
-            put(responsesTruncationKey, responsesTruncation);
-            MetadataKey<Integer> responsesTotalTokensKey = new MetadataKey<>("total_tokens", Metadata.INTEGER);
-            Map<String, Object> responsesUsage = (Map<String, Object>) responseMap.get("usage");
-            if (responsesUsage != null) {
-                Integer responsesTotalTokens = (Integer) responsesUsage.get("total_tokens");
-                put(responsesTotalTokensKey, responsesTotalTokens);
-            }
-            MetadataKey<String> responsesUserKey = new MetadataKey<>("user", Metadata.STRING);
-            String responsesUser = (String) responseMap.get("user");
-            put(responsesUserKey, responsesUser);
-            MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("metadata", Metadata.MAP);
-            Map<String, Object> responsesMetadata = (Map<String, Object>) responseMap.get("metadata");
-            put(responsesMetadataKey, responsesMetadata);
-            MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
-            Object outputObj = responseMap.get("output");
-
-            if (outputObj instanceof List<?> outputList) {
-                for (Object outputItemObj : outputList) {
-                    if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
-
-                    // Handle local shell tool calls
-                    String type = (String) outputItem.get("type");
-                    if ("local_shell_call".equals(type)) {
-                        Object actionObj = outputItem.get("action");
-                        if (actionObj instanceof Map<?, ?> action) {
-                            // capture the call ID
-                            Object idObj = outputItem.get("call_id");
-                            if (idObj instanceof String cid) {
-                                put(ToolHandler.LOCALSHELLTOOL_CALL_ID, cid);
-                            }
-                            // capture the shell command
-                            Object commandObj = action.get("command");
-                            if (commandObj instanceof List<?> cmdList) {
-                                @SuppressWarnings("unchecked")
-                                List<String> commandParts = (List<String>) cmdList;
-                                String joinedCommand = String.join(" ", commandParts);
-                                put(ToolHandler.LOCALSHELLTOOL_COMMAND, joinedCommand);
-                            }
-                        }
-                    }
-
-                    // Handle assistant messages (text output)
-                    if ("message".equals(type)) {
-                        Object contentObj = outputItem.get("content");
-                        if (contentObj instanceof List<?> contentList) {
-                            for (Object contentEntry : contentList) {
-                                if (!(contentEntry instanceof Map<?, ?> contentMap)) continue;
-                                Object text = contentMap.get("text");
-                                if (text instanceof String textStr && !textStr.isBlank()) {
-                                    System.out.println(textStr);
-                                    put(responsesOutputContentKey, textStr);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /*
      *    Getters
      */
-    public CompletableFuture<String> completeGetFileSearchToolType() {
-        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_TYPE));
-    }
-
-    public CompletableFuture<List<String>> completeGetFileSearchToolVectorStoreIds() {
-        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_VECTOR_STORE_IDS));
-    }
-
-    public CompletableFuture<Map<String, Object>> completeGetFileSearchToolFilters() {
-        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_FILTERS));
-    }
-
-    public CompletableFuture<Integer> completeGetFileSearchToolMaxNumResults() {
-        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_MAX_NUM_RESULTS));
-    }
-
-    public CompletableFuture<Map<String, Object>> completeGetFileSearchToolRankingOptions() {
-        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_RANKING_OPTIONS));
-    }
-
-    public CompletableFuture<String> completeGetShellToolCommand() {
-        return CompletableFuture.completedFuture(this.get(LOCALSHELLTOOL_COMMAND));
-    }
+//    public CompletableFuture<String> completeGetFileSearchToolType() {
+//        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_TYPE));
+//    }
+//
+//    public CompletableFuture<List<String>> completeGetFileSearchToolVectorStoreIds() {
+//        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_VECTOR_STORE_IDS));
+//    }
+//
+//    public CompletableFuture<Map<String, Object>> completeGetFileSearchToolFilters() {
+//        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_FILTERS));
+//    }
+//
+//    public CompletableFuture<Integer> completeGetFileSearchToolMaxNumResults() {
+//        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_MAX_NUM_RESULTS));
+//    }
+//
+//    public CompletableFuture<Map<String, Object>> completeGetFileSearchToolRankingOptions() {
+//        return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_RANKING_OPTIONS));
+//    }
+//
+//    public CompletableFuture<String> completeGetShellToolCommand() {
+//        return CompletableFuture.completedFuture(this.get(LOCALSHELLTOOL_COMMAND));
+//    }
     
     public CompletableFuture<Boolean> completeGetFlagged() {
         return CompletableFuture.supplyAsync(() -> {
@@ -555,40 +580,40 @@ public class ResponseObject extends MetadataContainer{
         });
     }
     
-    public CompletableFuture<String> completeGetToolChoice() {
-        return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<String> toolChoiceKey = new MetadataKey<>("tool_choice", Metadata.STRING);
-            Object toolChoiceObj = this.get(toolChoiceKey);
-            return toolChoiceObj != null ? String.valueOf(toolChoiceObj) : null;
-        });
-    }
+//    public CompletableFuture<String> completeGetToolChoice() {
+//        return CompletableFuture.supplyAsync(() -> {
+//            MetadataKey<String> toolChoiceKey = new MetadataKey<>("tool_choice", Metadata.STRING);
+//            Object toolChoiceObj = this.get(toolChoiceKey);
+//            return toolChoiceObj != null ? String.valueOf(toolChoiceObj) : null;
+//        });
+//    }
 
-    public CompletableFuture<List<Map<String, Object>>> completeGetTools() {
-        return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", LIST);
-            Object toolsObj = this.get(toolsKey);
-            if (toolsObj instanceof List) {
-                return (List<Map<String, Object>>) toolsObj;
-            } else {
-                return Collections.emptyList();
-            }
-        });
-    }
+//    public CompletableFuture<List<Map<String, Object>>> completeGetTools() {
+//        return CompletableFuture.supplyAsync(() -> {
+//            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", LIST);
+//            Object toolsObj = this.get(toolsKey);
+//            if (toolsObj instanceof List) {
+//                return (List<Map<String, Object>>) toolsObj;
+//            } else {
+//                return Collections.emptyList();
+//            }
+//        });
+//    }
     
-    public CompletableFuture<Map<String, Object>> completeGetToolByName(String toolName) {
-        return completeGetTools().thenApply(tools -> {
-            for (Map<String, Object> tool : tools) {
-                Object functionObj = tool.get("function");
-                if (functionObj instanceof Map) {
-                    Map<String, Object> functionMap = (Map<String, Object>) functionObj;
-                    if (toolName.equals(functionMap.get("name"))) {
-                        return tool;
-                    }
-                }
-            }
-            return null;
-        });
-    }
+//    public CompletableFuture<Map<String, Object>> completeGetToolByName(String toolName) {
+//        return completeGetTools().thenApply(tools -> {
+//            for (Map<String, Object> tool : tools) {
+//                Object functionObj = tool.get("function");
+//                if (functionObj instanceof Map) {
+//                    Map<String, Object> functionMap = (Map<String, Object>) functionObj;
+//                    if (toolName.equals(functionMap.get("name"))) {
+//                        return tool;
+//                    }
+//                }
+//            }
+//            return null;
+//        });
+//    }
 
     public CompletableFuture<Map<String, Boolean>> completeGetFlaggedReasons() {
         return CompletableFuture.supplyAsync(() -> {

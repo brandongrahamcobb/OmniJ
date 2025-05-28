@@ -113,6 +113,161 @@ public class Maps {
         format.put("name", "colorize");
         return format;
     }
+    
+    public static final Map<String, Object> GEMINI_RESPONSE_FORMAT = createResponsesApiSchema();
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> createResponsesApiSchema() {
+        Map<String, Object> rootProperties = new HashMap<>();
+
+        // Top-level primitive fields
+        rootProperties.put("id", Map.of("type", "string"));
+        rootProperties.put("object", Map.of("type", "string"));
+        rootProperties.put("created_at", Map.of("type", "integer"));
+        rootProperties.put("status", Map.of("type", "string"));
+        rootProperties.put("error", Map.of("type", List.of("null", "object"))); // can be null or object
+        rootProperties.put("incomplete_details", Map.of("type", List.of("null", "object")));
+        rootProperties.put("instructions", Map.of("type", List.of("null", "object")));
+        rootProperties.put("max_output_tokens", Map.of("type", List.of("null", "integer")));
+        rootProperties.put("model", Map.of("type", "string"));
+        rootProperties.put("parallel_tool_calls", Map.of("type", "boolean"));
+        rootProperties.put("previous_response_id", Map.of("type", List.of("null", "string")));
+        rootProperties.put("store", Map.of("type", "boolean"));
+        rootProperties.put("temperature", Map.of("type", "number"));
+        rootProperties.put("tool_choice", Map.of("type", "string"));
+        rootProperties.put("top_p", Map.of("type", "number"));
+        rootProperties.put("truncation", Map.of("type", "string"));
+        rootProperties.put("user", Map.of("type", List.of("null", "object")));
+        rootProperties.put("metadata", Map.of("type", "object"));
+
+        // reasoning object
+        Map<String, Object> reasoningProperties = new HashMap<>();
+        reasoningProperties.put("effort", Map.of("type", List.of("null", "string")));
+        reasoningProperties.put("summary", Map.of("type", List.of("null", "string")));
+        Map<String, Object> reasoningSchema = new HashMap<>();
+        reasoningSchema.put("type", "object");
+        reasoningSchema.put("properties", reasoningProperties);
+        reasoningSchema.put("required", List.of("effort", "summary"));
+        reasoningSchema.put("additionalProperties", false);
+        rootProperties.put("reasoning", reasoningSchema);
+
+        // text object
+        Map<String, Object> textFormatProperties = new HashMap<>();
+        textFormatProperties.put("type", "string");
+        Map<String, Object> textFormatSchema = new HashMap<>();
+        textFormatSchema.put("type", "object");
+        textFormatSchema.put("properties", textFormatProperties);
+        textFormatSchema.put("required", List.of("type"));
+        textFormatSchema.put("additionalProperties", false);
+
+        Map<String, Object> textProperties = new HashMap<>();
+        textProperties.put("format", textFormatSchema);
+        Map<String, Object> textSchema = new HashMap<>();
+        textSchema.put("type", "object");
+        textSchema.put("properties", textProperties);
+        textSchema.put("required", List.of("format"));
+        textSchema.put("additionalProperties", false);
+        rootProperties.put("text", textSchema);
+
+        // usage object
+        Map<String, Object> inputTokensDetailsProperties = Map.of(
+            "cached_tokens", Map.of("type", "integer")
+        );
+        Map<String, Object> inputTokensDetailsSchema = Map.of(
+            "type", "object",
+            "properties", inputTokensDetailsProperties,
+            "required", List.of("cached_tokens"),
+            "additionalProperties", false
+        );
+
+        Map<String, Object> outputTokensDetailsProperties = Map.of(
+            "reasoning_tokens", Map.of("type", "integer")
+        );
+        Map<String, Object> outputTokensDetailsSchema = Map.of(
+            "type", "object",
+            "properties", outputTokensDetailsProperties,
+            "required", List.of("reasoning_tokens"),
+            "additionalProperties", false
+        );
+
+        Map<String, Object> usageProperties = new HashMap<>();
+        usageProperties.put("input_tokens", Map.of("type", "integer"));
+        usageProperties.put("input_tokens_details", inputTokensDetailsSchema);
+        usageProperties.put("output_tokens", Map.of("type", "integer"));
+        usageProperties.put("output_tokens_details", outputTokensDetailsSchema);
+        usageProperties.put("total_tokens", Map.of("type", "integer"));
+        Map<String, Object> usageSchema = new HashMap<>();
+        usageSchema.put("type", "object");
+        usageSchema.put("properties", usageProperties);
+        usageSchema.put("required", List.of(
+            "input_tokens", "input_tokens_details", "output_tokens", "output_tokens_details", "total_tokens"
+        ));
+        usageSchema.put("additionalProperties", false);
+        rootProperties.put("usage", usageSchema);
+
+        // tools array (empty array in example)
+        Map<String, Object> toolsSchema = Map.of(
+            "type", "array",
+            "items", Map.of("type", "object") // generic object, can be detailed more
+        );
+        rootProperties.put("tools", toolsSchema);
+
+        // output array (list of message objects)
+        // Define content inside each message's content array
+        Map<String, Object> outputTextContentProperties = new HashMap<>();
+        outputTextContentProperties.put("type", Map.of("type", "string"));
+        outputTextContentProperties.put("text", Map.of("type", "string"));
+        outputTextContentProperties.put("annotations", Map.of("type", "array")); // array of annotations (can be empty)
+
+        Map<String, Object> outputTextContentSchema = new HashMap<>();
+        outputTextContentSchema.put("type", "object");
+        outputTextContentSchema.put("properties", outputTextContentProperties);
+        outputTextContentSchema.put("required", List.of("type", "text", "annotations"));
+        outputTextContentSchema.put("additionalProperties", false);
+
+        Map<String, Object> messageContentArraySchema = Map.of(
+            "type", "array",
+            "items", outputTextContentSchema
+        );
+
+        Map<String, Object> messageProperties = new HashMap<>();
+        messageProperties.put("type", Map.of("type", "string"));
+        messageProperties.put("id", Map.of("type", "string"));
+        messageProperties.put("status", Map.of("type", "string"));
+        messageProperties.put("role", Map.of("type", "string"));
+        messageProperties.put("content", messageContentArraySchema);
+
+        Map<String, Object> messageSchema = new HashMap<>();
+        messageSchema.put("type", "object");
+        messageSchema.put("properties", messageProperties);
+        messageSchema.put("required", List.of("type", "id", "status", "role", "content"));
+        messageSchema.put("additionalProperties", false);
+
+        Map<String, Object> outputSchema = Map.of(
+            "type", "array",
+            "items", messageSchema
+        );
+        rootProperties.put("output", outputSchema);
+
+        // Assemble root schema
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", rootProperties);
+        schema.put("required", List.of(
+            "id", "object", "created_at", "status", "model", "output", "parallel_tool_calls", "store",
+            "temperature", "tool_choice", "top_p", "truncation", "usage", "tools", "text", "reasoning", "metadata"
+        ));
+        schema.put("additionalProperties", false);
+
+        Map<String, Object> format = new HashMap<>();
+        format.put("type", "json_schema");
+        format.put("strict", true);
+        format.put("schema", schema);
+        format.put("name", "responses_api");
+
+        return format;
+    }
+
     public static final Map<String, Object> OPENAI_RESPONSE_FORMAT_PERPLEXITY = createPerplexitySchema();
     @SuppressWarnings("unchecked")
     public static Map<String, Object> createPerplexitySchema() {
