@@ -76,7 +76,7 @@ public class ToolHandler {
                 System.out.println("🛠️ Executing shell command via bash -lc: " + cmd);
 
                 // Create separate processes for input/output/error
-                ProcessBuilder builder = new ProcessBuilder("gtimeout", "5s", "bash", "-lc", cmd);
+                ProcessBuilder builder = new ProcessBuilder("bash", "-lc", cmd);
 
                 builder.redirectErrorStream(false); // Keep error stream separate
                 Process process = builder.start();

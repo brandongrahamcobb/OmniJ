@@ -26,7 +26,8 @@ public class REPLManager {
     private final long maxSessionDurationMillis;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
-
+    private static final long TIMEOUT_MILLIS = 30_000;
+    
     /**
      * Constructor with approval mode and optional session timeout.
      */
@@ -52,7 +53,7 @@ public class REPLManager {
     private CompletableFuture<Boolean> requestApprovalAsync(String command, Scanner scanner, ResponseObject response) {
         return CompletableFuture.supplyAsync(() -> {
             System.out.println("Approval required for command: " + command);
-            System.out.print("Approve? (yes/no): ");
+            System.out.print("Approve? g(yes/no): ");
             while (true) {
                 String input = scanner.nextLine().trim().toLowerCase();
                 if (input.equals("yes") || input.equals("y")) return true;
@@ -71,8 +72,17 @@ public class REPLManager {
         StringBuilder transcript,
         Scanner scanner,
         String modelSetting,
-        ApprovalMode approvalMode
+        ApprovalMode approvalMode,
+        long startTimeMillis
     ) {
+        if (maxSessionDurationMillis > 0) {
+            long elapsed = System.currentTimeMillis() - startTimeMillis;
+            if (elapsed > maxSessionDurationMillis) {
+                System.out.println("[DEBUG] Timeout reached after " + (maxSessionDurationMillis / 1000) + " seconds. Ending REPL.");
+                transcript.append("\n⏰ REPL session timed out after ").append(maxSessionDurationMillis / 1000).append(" seconds.\n");
+                return CompletableFuture.completedFuture(transcript.toString());
+            }
+        }
         // STEP 1: Store user input in structured context
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, input));
 
@@ -109,12 +119,12 @@ public class REPLManager {
 
                                 if (approvalMode == ApprovalMode.FULL_AUTO) {
                                     // Automatically continue without waiting for input
-                                    return runReplLoop("", aim, transcript, scanner, modelSetting, approvalMode);
+                                    return runReplLoop("", aim, transcript, scanner, modelSetting, approvalMode, startTimeMillis);
                                 } else {
                                     // Ask for next user input
                                     System.out.print("> ");
                                     String nextInput = scanner.nextLine();
-                                    return runReplLoop(nextInput, aim, transcript, scanner, modelSetting, approvalMode);
+                                    return runReplLoop(nextInput, aim, transcript, scanner, modelSetting, approvalMode, startTimeMillis);
                                 }
                             });
                     });
@@ -194,9 +204,8 @@ public class REPLManager {
         StringBuilder transcript = new StringBuilder();
         String model = ModelRegistry.GEMINI_RESPONSE_MODEL.asString();
         ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
-
         // Kick off the loop with initial input
-        return runReplLoop(initialMessage, aim, transcript, scanner, model, approvalMode);
+        return runReplLoop(initialMessage, aim, transcript, scanner, model, approvalMode, System.currentTimeMillis());
     }
 
 }
