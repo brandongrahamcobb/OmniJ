@@ -21,6 +21,7 @@ public class REPLManager {
     public REPLManager(ApprovalMode mode, long maxSessionDurationMillis) {
         setApprovalMode(mode);
         this.maxSessionDurationMillis = maxSessionDurationMillis;
+        LOGGER.setLevel(Level.INFO);
         LOGGER.info("REPLManager initialized with mode " + mode + " and max duration " + maxSessionDurationMillis + "ms");
     }
 

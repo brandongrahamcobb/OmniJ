@@ -67,12 +67,11 @@ public class ToolHandler {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("🔧 Original command: " + originalCommand);
 
                 String raw = originalCommand.trim();
                 String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
 
-                System.out.println("🛠️ Executing shell command via bash -lc: " + cmd);
+                System.out.println("bash -lc " + cmd);
 
                 ProcessBuilder builder = new ProcessBuilder("bash", "-lc", cmd);
                 builder.redirectErrorStream(false);

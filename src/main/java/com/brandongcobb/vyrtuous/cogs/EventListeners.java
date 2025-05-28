@@ -83,7 +83,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
         fullContentFuture
             .thenCompose(fullContent -> {
-                return aim.completeLocalRequest(fullContent, null, "gemma3:latest", "moderation")
+                return aim.completeRequest(fullContent, null, "gemma3:12b", "moderation")
                     .thenCompose(moderationResponseObject -> moderationResponseObject.completeGetFlagged()
                         .thenCompose(flagged -> {
                             if (flagged) {
@@ -108,7 +108,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                     : CompletableFuture.completedFuture(null);
 
                                                 return prevIdFut.thenCompose(previousResponseId ->
-                                                    aim.completeLocalRequest(fullContent, previousResponseId, "gemma3:latest", "completion")
+                                                    aim.completeRequest(fullContent, previousResponseId, "gemma3:12b", "completion")
                                                         .thenCompose(responseObject -> {
                                                             CompletableFuture<Void> setPrevFut;
 

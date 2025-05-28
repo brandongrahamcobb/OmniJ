@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.CompletionException;
 import java.nio.charset.StandardCharsets;
+import org.apache.http.entity.ContentType;
 
 public class AIManager {
 
@@ -404,7 +405,7 @@ public class AIManager {
 
         String instructions = switch (requestType) {
             case "completion" -> ModelRegistry.GEMINI_RESPONSE_SYS_INPUT.asString();
-            case "moderation" -> ModelRegistry.OPENAI_MODERATION_RESPONSE_SYS_INPUT.asString();
+            case "moderation" -> ModelRegistry.GEMINI_MODERATION_RESPONSE_SYS_INPUT.asString();
             case "response" -> ""; // or provide appropriate default
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
@@ -509,34 +510,56 @@ public class AIManager {
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
         }
-        CompletableFuture<ResponseObject> future = CompletableFuture.supplyAsync(() -> {
+
+        return CompletableFuture.supplyAsync(() -> {
+            ObjectMapper mapper = new ObjectMapper();
+
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
+
                 HttpPost post = new HttpPost(endpoint);
                 post.setHeader("Authorization", "Bearer " + apiKey);
                 post.setHeader("Content-Type", "application/json");
-                ObjectMapper mapper = new ObjectMapper();
+
                 String json = mapper.writeValueAsString(requestBody);
-                post.setEntity(new StringEntity(json));
-                try (CloseableHttpResponse resp = client.execute(post)) {
-                    int code = resp.getStatusLine().getStatusCode();
-                    String respBody = EntityUtils.toString(resp.getEntity(), "UTF-8");
-                    System.out.println(respBody);
-                    if (code >= 200 && code < 300) {
-                        Map<String, Object> respMap = mapper.readValue(respBody, new TypeReference<>() {});
-                        ResponseObject rObject = new ResponseObject(respMap);
-                        return new ResponseObject(respMap);
+                post.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
+
+                try (CloseableHttpResponse response = client.execute(post)) {
+                    int statusCode = response.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+
+                    if (statusCode >= 200 && statusCode < 300) {
+                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
+                        Object messageObj = outer.get("message");
+
+                        if (!(messageObj instanceof Map)) {
+                            throw new IllegalStateException("Unexpected response format: 'message' is not an object");
+                        }
+
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> message = (Map<String, Object>) messageObj;
+
+                        String content = (String) message.get("content");
+
+                        // Strip triple-backtick JSON wrappers
+                        String jsonContent = content
+                            .replaceFirst("^```json\\s*", "")
+                            .replaceFirst("\\s*```$", "")
+                            .trim();
+
+                        Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+                        return new ResponseObject(inner);
                     } else {
-                        throw new IOException("HTTP " + code + ": " + respBody);
+                        throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);
                     }
                 }
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                throw new CompletionException(e); // ensures exception is correctly wrapped for async
             }
         });
-        return future;
     }
+
     /**
      * Stub for searching a vector store or using OpenAI's built-in file_search tool.
      * Replace this stub with a call to your chosen file_search API or client helper.
