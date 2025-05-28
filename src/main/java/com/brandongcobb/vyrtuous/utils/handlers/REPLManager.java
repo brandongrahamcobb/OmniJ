@@ -18,7 +18,7 @@ import com.brandongcobb.vyrtuous.utils.inc.*;
 public class REPLManager {
     
     private final ShellCommandExecutor executor = new ShellCommandExecutor();
-
+    private String originalDirective;
     private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
     private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
     private final ContextManager contextManager = new ContextManager(50);
@@ -93,7 +93,7 @@ public class REPLManager {
         return aim.completeLocalRequest(prompt, null, modelSetting, "completion")
             .thenCompose(response -> {
                 System.out.println("[DEBUG] Received AI response");
-
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, response.completeGetLocalShellToolSummary().join()));
                 return response.completeGetShellToolFinished()
                     .thenCompose(isFinished -> {
                         System.out.println("[DEBUG] Shell finished flag: " + isFinished);
@@ -115,11 +115,12 @@ public class REPLManager {
                                 System.out.println("[DEBUG] Shell output: " + output);
                                 transcript.append("> ").append(shellCommand).append("\n");
                                 transcript.append(output).append("\n");
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, output));
 
                                 if (approvalMode == ApprovalMode.FULL_AUTO) {
-                                    // Automatically continue without waiting for input
-                                    return runReplLoop("", aim, transcript, scanner, modelSetting, approvalMode, startTimeMillis);
+                                    // Sustain the original directive by repeating the user goal, letting AI continue planning
+                                    String followupInput = "Continue executing steps to: " + originalDirective;
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, followupInput));
+                                    return runReplLoop(followupInput, aim, transcript, scanner, modelSetting, approvalMode, startTimeMillis);
                                 } else {
                                     // Ask for next user input
                                     System.out.print("> ");
@@ -200,6 +201,8 @@ public class REPLManager {
 
     // Placeholder for your REPL async completion method.
     private CompletableFuture<String> completeREPLAsync(Scanner scanner, String initialMessage) {
+        this.originalDirective = initialMessage;
+        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, initialMessage));
         AIManager aim = new AIManager();
         StringBuilder transcript = new StringBuilder();
         String model = ModelRegistry.GEMINI_RESPONSE_MODEL.asString();

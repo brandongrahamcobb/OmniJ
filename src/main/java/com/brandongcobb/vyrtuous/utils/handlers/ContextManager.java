@@ -32,10 +32,6 @@ public class ContextManager {
     }
     
     private void summarizeOldEntries() {
-        // Example: summarize first half entries into one summary entry,
-        // then remove those entries and add summary at the front.
-        // This requires integration with AIManager or summarization model.
-        // For now, simple discard oldest half:
         int removeCount = entries.size() / 2;
         for (int i = 0; i < removeCount; i++) entries.remove(0);
     }
