@@ -1,112 +1,201 @@
-//        private CompletableFuture<String> processLoop(
-            String initialMessage,
+package com.brandongcobb.vyrtuous.utils.handlers;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
+import com.brandongcobb.vyrtuous.utils.inc.*;
+
+public class REPLManager {
+    
+    private final ShellCommandExecutor executor = new ShellCommandExecutor();
+
+    private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
+    private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
+    private final ContextManager contextManager = new ContextManager(50);
+    private final List<String> shellHistory = new ArrayList<>();
+    private final long maxSessionDurationMillis;
+    private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
+
+    /**
+     * Constructor with approval mode and optional session timeout.
+     */
+    public REPLManager(ApprovalMode mode, long maxSessionDurationMillis) {
+        setApprovalMode(mode);
+        this.maxSessionDurationMillis = maxSessionDurationMillis;
+    }
+
+    /**
+     * Constructor with approval mode and no timeout.
+     */
+    public REPLManager(ApprovalMode mode) {
+        this(mode, 0L);
+    }
+    
+    public void setApprovalMode(ApprovalMode mode) {
+        this.approvalMode = mode;
+    }
+
+    /**
+     * Requests async approval from user on destructive commands.
+     */
+    private CompletableFuture<Boolean> requestApprovalAsync(String command, Scanner scanner, ResponseObject response) {
+        return CompletableFuture.supplyAsync(() -> {
+            System.out.println("Approval required for command: " + command);
+            System.out.print("Approve? (yes/no): ");
+            while (true) {
+                String input = scanner.nextLine().trim().toLowerCase();
+                if (input.equals("yes") || input.equals("y")) return true;
+                if (input.equals("no") || input.equals("n")) return false;
+                System.out.print("Please type 'yes' or 'no': ");
+            }
+        });
+    }
+
+    /**
+     * Main REPL process loop with AI calls and shell command execution.
+     */
+    private CompletableFuture<String> runReplLoop(
             String input,
             AIManager aim,
-            StringBuilder fullTranscript,
+            StringBuilder transcript,
             Scanner scanner,
             String modelSetting
     ) {
         return aim.completeLocalRequest(input, null, modelSetting, "completion")
             .thenCompose(response -> {
                 System.out.println("[DEBUG] Received AI response");
-                
-                // Get AI output
-                String aiText = response.get("content");
-                if (aiText != null) {
-                    fullTranscript.append("AI: ").append(aiText).append("\n");
-                }
+                return response.completeGetShellToolCommand()
+                    .thenCompose(aiText -> {
+                        System.out.println("[DEBUG] AI output: " + aiText);
+                        transcript.append("AI: ").append(aiText).append("\n");
 
-                // Check if shell command is finished
-                return response.completeGetShellToolFinished()
-                    .thenCompose(isFinished -> {
-                        System.out.println("[DEBUG] Shell finished flag: " + isFinished);
-                        if (Boolean.TRUE.equals(isFinished)) {
-                            System.out.println("[DEBUG] REPL finished, returning transcript");
-                            return CompletableFuture.completedFuture(fullTranscript.toString());
-                        }
-
-                        // Get shell command
-                        return response.completeGetShellToolCommand()
-                            .thenCompose(shellCommand -> {
-                                if (shellCommand == null || shellCommand.trim().isEmpty()) {
-                                    System.out.println("[DEBUG] No shell command, continuing transcript");
-                                    return CompletableFuture.completedFuture(fullTranscript.toString());
+                        return response.completeGetShellToolFinished()
+                            .thenCompose(isFinished -> {
+                                System.out.println("[DEBUG] Shell finished flag: " + isFinished);
+                                if (isFinished) {
+                                    System.out.println("[DEBUG] REPL finished, returning transcript");
+                                    return CompletableFuture.completedFuture(transcript.toString());
                                 }
 
-                                System.out.println("[DEBUG] Shell command: " + shellCommand);
-                                fullTranscript.append("\n> ").append(shellCommand).append("\n");
-
-                                // Execute shell command
-                                ToolHandler toolHandler = new ToolHandler();
-                                return toolHandler.executeShellCommandAsync(response)
-                                    .thenCompose(output -> {
-                                        if (output != null && !output.trim().isEmpty()) {
-                                            System.out.println("[DEBUG] Shell command output: " + output);
-                                            fullTranscript.append("Command output:\n").append(output).append("\n");
-                                        } else {
-                                            fullTranscript.append("Command executed with no output\n");
+                                return response.completeGetShellToolCommand()
+                                    .thenCompose(shellCommand -> {
+                                        System.out.println("[DEBUG] Shell command: " + shellCommand);
+                                        if (shellCommand == null || shellCommand.isBlank()) {
+                                            System.out.println("[DEBUG] No shell command, continuing transcript");
+                                            return CompletableFuture.completedFuture(transcript.toString());
                                         }
 
-                                        // Recursive call with updated context
-                                        String context = fullTranscript.toString();
-                                        System.out.println("[DEBUG] Recursing with updated context...");
-                                        return processLoop(initialMessage, context, aim, fullTranscript, scanner, modelSetting);
-                                    })
-                                    .exceptionally(throwable -> {
-                                        String errorMessage = "⚠️ Shell command failed: " + throwable.getMessage();
-                                        System.err.println(errorMessage);
-                                        fullTranscript.append(errorMessage).append("\n");
-                                        return processLoop(initialMessage, fullTranscript.toString(), aim, fullTranscript, scanner, modelSetting);
+                                        System.out.println("AI suggests running: " + shellCommand);
+
+                                        // Skipping approval for now to simplify debugging
+                                        ToolHandler toolHandler = new ToolHandler();
+
+                                        return toolHandler.executeShellCommandAsync(response)
+                                            .thenCompose(output -> {
+                                                System.out.println("[DEBUG] Shell command output: " + output);
+                                                transcript.append("> ").append(shellCommand).append("\n");
+                                                transcript.append(output).append("\n");
+
+                                                // Recursive call
+                                                String context = transcript.toString();
+                                                System.out.println("[DEBUG] Recursing with updated context...");
+                                                return runReplLoop(context, aim, transcript, scanner, modelSetting);
+                                            });
                                     });
                             });
                     });
-            })
-            .exceptionally(throwable -> {
-                String errorMessage = "⚠️ AI request failed: " + throwable.getMessage();
-                System.err.println(errorMessage);
-                fullTranscript.append(errorMessage).append("\n");
-                return CompletableFuture.completedFuture(fullTranscript.toString());
             });
     }
-/*
- * Vyrtuous.java
- * The primary purpose of this class is to integrate Discord, LinkedIn, OpenAI, Patreon, Twitch, and many more into one hub.
- *
- * Copyright (C) 2025  github.com/brandongrahamcobb
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-package com.brandongcobb.vyrtuous.utils.handlers;
 
-import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.bots.DiscordBot;
-import com.brandongcobb.metadata.MetadataContainer;
-import com.brandongcobb.vyrtuous.utils.inc.*;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import net.dv8tion.jda.api.JDA;
 
-/**
- * Manages a REPL loop integrating AI calls, shell command execution, and user approval.
- */
-sys
+
+
+
+    /**
+     * Await AI completion with timeout and retry on failure.
+     */
+    private CompletableFuture<ResponseObject> awaitWithTimeoutRetry(Supplier<CompletableFuture<ResponseObject>> supplier) {
+        return supplier.get()
+                .orTimeout(600, TimeUnit.SECONDS)
+                .handle((resp, ex) -> {
+                    if (ex == null) return CompletableFuture.completedFuture(resp);
+                    Throwable cause = (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
+                    if (cause instanceof TimeoutException) {
+                        System.err.println("?? OpenAI request timed out after 600 seconds. Retrying...");
+                        return awaitWithTimeoutRetry(supplier);
+                    }
+                    return CompletableFuture.<ResponseObject>failedFuture(cause);
+                })
+                .thenCompose(f -> f);
+    }
+
+    /**
+     * Checks if a shell command requires user approval.
+     */
+    private boolean requiresApproval(String command) {
+        if (command == null) return false;
+
+        List<String> dangerous = List.of("rm", "mv", "git", "patch", "shutdown", "reboot", "mvn compile");
+        boolean isDangerous = dangerous.stream().anyMatch(command::contains);
+
+        return switch (approvalMode) {
+            case FULL_AUTO -> false;
+            case EDIT_APPROVE_ALL -> true;
+            case EDIT_APPROVE_DESTRUCTIVE -> isDangerous;
+        };
+    }
+    
+    /**
+     * Starts the thread listening for user input for the REPL.
+     */
+    public void startResponseInputThread() {
+        inputExecutor.submit(() -> {
+            try (Scanner scanner = new Scanner(System.in)) {
+                System.out.println("Response input thread started. Type your messages:");
+                while (true) {
+                    System.out.print("> ");
+                    String input;
+                    try {
+                        input = scanner.nextLine();
+                    } catch (NoSuchElementException e) {
+                        System.out.println("Input stream closed.");
+                        break;
+                    }
+
+                    if (input.equalsIgnoreCase(".exit") || input.equalsIgnoreCase(".quit")) {
+                        System.out.println("Exiting response input thread.");
+                        break;
+                    }
+
+                    completeREPLAsync(scanner, input)
+                        .thenAcceptAsync(response -> System.out.println("Bot: " + response), replExecutor);
+                }
+            } catch (IllegalStateException e) {
+                System.out.println("System.in is unavailable.");
+            }
+        });
+    }
+
+    // Placeholder for your REPL async completion method.
+    private CompletableFuture<String> completeREPLAsync(Scanner scanner, String initialMessage) {
+        AIManager aim = new AIManager();
+        StringBuilder transcript = new StringBuilder();
+        String model = ModelRegistry.GEMINI_RESPONSE_MODEL.asString();
+
+        // Kick off the loop with initial input
+        return runReplLoop(initialMessage, aim, transcript, scanner, model);
+    }
+
+}
+
