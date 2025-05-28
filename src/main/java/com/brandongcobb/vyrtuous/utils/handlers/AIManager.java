@@ -69,49 +69,6 @@ public class AIManager {
     private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
     private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
 
-    public CompletableFuture<String> handleAI(String message, long senderId) {
-        MessageManager mem = new MessageManager();
-        ResponseObject previousResponse = userResponseMap.get(senderId);
-
-        return CompletableFuture.completedFuture(message)
-                .thenCompose(fullContent ->
-                        completeRequest(fullContent, null, null, "moderation")
-                                .thenCompose(moderationResponseObject ->
-                                        moderationResponseObject.completeGetFlagged()
-                                                .thenCompose(flagged -> {
-                                                    if (flagged) {
-                                                        return moderationResponseObject
-                                                                .completeGetFormatFlaggedReasons(); // return reason string
-                                                    } else {
-                                                        CompletableFuture<String> prevIdFut = (previousResponse != null)
-                                                                ? previousResponse.completeGetResponseId()
-                                                                : CompletableFuture.completedFuture(null);
-
-                                                        return prevIdFut.thenCompose(previousResponseId ->
-                                                                completeRequest(fullContent, previousResponseId, ModelRegistry.OPENAI_RESPONSE_MODEL.asString(), "response")
-                                                                        .thenCompose(responseObject -> {
-                                                                            CompletableFuture<Void> setPrevFut = (previousResponse != null)
-                                                                                    ? previousResponse
-                                                                                    .completeGetPreviousResponseId()
-                                                                                    .thenCompose(prevRespId -> responseObject.completeSetPreviousResponseId(prevRespId))
-                                                                                    : responseObject.completeSetPreviousResponseId(null);
-
-                                                                            return setPrevFut.thenCompose(v -> {
-                                                                                userResponseMap.put(senderId, responseObject);
-                                                                                return responseObject.completeGetOutput(); // returns output string
-                                                                            });
-                                                                        })
-                                                        );
-                                                    }
-                                                })
-                                )
-                ).exceptionally(ex -> {
-                    ex.printStackTrace();
-                    return "⚠️ AI Assistant Error: " + ex.getMessage();
-                });
-    }
-
-
     private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
         String content,
         String previousResponseId,
@@ -480,6 +437,7 @@ public class AIManager {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8); // for debugging
+                    System.out.println("🔄 Raw response body:\n" + respBody);
 
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
@@ -493,7 +451,7 @@ public class AIManager {
                     }
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Local request failed", e);
+                throw new RuntimeException("Local request failed" + e.getMessage(), e);
             }
         });
     }
@@ -574,16 +532,16 @@ public class AIManager {
      * Stub for searching a vector store or using OpenAI's built-in file_search tool.
      * Replace this stub with a call to your chosen file_search API or client helper.
      */
-//    public List<String> searchVectorStore(
-//            String vectorStoreId,
-//            String query,
-//            Integer maxResults,
-//            Map<String, Object> filters,
-//            Map<String, Object> rankingOptions
-//    ) {
-//        // TODO: implement vector store/file_search lookup
-//        return List.of();
-//    }
+    public List<String> searchVectorStore(
+            String vectorStoreId,
+            String query,
+            Integer maxResults,
+            Map<String, Object> filters,
+            Map<String, Object> rankingOptions
+    ) {
+        // TODO: implement vector store/file_search lookup
+        return List.of();
+    }
 
 
     public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) {

@@ -61,33 +61,33 @@ public class Vyrtuous {
     public static void main(String[] args) {
         app = new Vyrtuous();
         DiscordBot bot = new DiscordBot();
-//        boolean isInputThreadRunning = false;
-//
-//        if (!isInputThreadRunning) {
-//            // Optionally pass approval mode if your REPLManager supports it
-//            ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_DESTRUCTIVE;
-//            // Optional session timeout (seconds) via env VYRTUOUS_TIMEOUT
-//            String timeoutEnv = System.getenv("VYRTUOUS_TIMEOUT");
-//            long timeoutMillis = 0L;
-//            if (timeoutEnv != null) {
-//                try {
-//                    timeoutMillis = Long.parseLong(timeoutEnv) * 1000L;
-//                } catch (NumberFormatException e) {
-//                    System.err.println("Invalid VYRTUOUS_TIMEOUT, must be integer seconds.");
-//                }
-//            }
-//            // initialize REPL with approval mode and optional timeout
-//            REPLManager repl = new REPLManager(approvalMode, timeoutMillis);
-//            repl.startResponseInputThread(); // starts REPL thread with enhanced AI loop
-//            isInputThreadRunning = true;
-//        }
+        boolean isInputThreadRunning = false;
 
-//        // Keep main thread alive
-//        try {
-//            new CountDownLatch(1).await();
-//        } catch (InterruptedException ie) {
-//            ie.printStackTrace();
-//        }
+        if (!isInputThreadRunning) {
+            // Optionally pass approval mode if your REPLManager supports it
+            ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_DESTRUCTIVE;
+            // Optional session timeout (seconds) via env VYRTUOUS_TIMEOUT
+            String timeoutEnv = System.getenv("VYRTUOUS_TIMEOUT");
+            long timeoutMillis = 0L;
+            if (timeoutEnv != null) {
+                try {
+                    timeoutMillis = Long.parseLong(timeoutEnv) * 1000L;
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid VYRTUOUS_TIMEOUT, must be integer seconds.");
+                }
+            }
+            // initialize REPL with approval mode and optional timeout
+            REPLManager repl = new REPLManager(approvalMode, timeoutMillis);
+            repl.startResponseInputThread(); // starts REPL thread with enhanced AI loop
+            isInputThreadRunning = true;
+        }
+
+        // Keep main thread alive
+        try {
+            new CountDownLatch(1).await();
+        } catch (InterruptedException ie) {
+            ie.printStackTrace();
+        }
 
     }
 
