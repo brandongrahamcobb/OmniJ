@@ -92,8 +92,7 @@ public class ResponseObject extends MetadataContainer{
         put(idKey, requestId);
         MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
         String requestObject = (String) responseMap.get("object");
-        System.out.println(mapToJsonString(responseMap));
-        if (requestObject.contains("cmpl_")) {
+        if (requestId.contains("cmpl_")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
             }
@@ -135,7 +134,7 @@ public class ResponseObject extends MetadataContainer{
             }
         }
 
-        else if (requestObject.contains("models")) {
+        else if (requestId.contains("models")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
             }
@@ -149,7 +148,7 @@ public class ResponseObject extends MetadataContainer{
         }
 
         
-        else if (requestObject.contains("resp_")) {
+        else if (requestId.contains("resp_")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
             }

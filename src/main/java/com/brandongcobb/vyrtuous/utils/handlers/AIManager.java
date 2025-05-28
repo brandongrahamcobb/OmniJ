@@ -440,11 +440,21 @@ public class AIManager {
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         Map<String, Object> message = (Map<String, Object>) outer.get("message");
+
                         String content = (String) message.get("content");
-        
-                        String jsonContent = content.replaceAll("^```json\\s*", "").replaceAll("\\s*```$", "");
-                        Map<String, Object> inner = mapper.readValue(jsonContent, Map.class);
-                        return new ResponseObject(inner);
+
+                        // Step 2: Strip the ```json ... ``` wrappers
+                        String jsonContent = content
+                            .replaceFirst("^```json\\s*", "")   // remove ```json + any space or newline
+                            .replaceFirst("\\s*```$", "")       // remove ending ```, possibly preceded by whitespace
+                            .trim();                            // remove extra space
+
+                        // Step 3: Parse the inner JSON string
+                        Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+
+                        // Optionally wrap in your domain object
+                        ResponseObject response = new ResponseObject(inner);
+                        return response;
                     } else {
                         throw new IOException("HTTP " + code + ": " + respBody);
                     }

@@ -72,53 +72,55 @@ public class REPLManager {
             Scanner scanner,
             String modelSetting
     ) {
-        return aim.completeLocalRequest(input, null, modelSetting, "completion")
+        // STEP 1: Store user input in structured context
+        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, input));
+
+        // STEP 2: Build structured prompt
+        String prompt = contextManager.buildPromptContext();
+
+        // STEP 3: Send structured prompt to the AI
+        return aim.completeLocalRequest(prompt, null, modelSetting, "completion")
             .thenCompose(response -> {
                 System.out.println("[DEBUG] Received AI response");
+
                 return response.completeGetShellToolCommand()
                     .thenCompose(aiText -> {
                         System.out.println("[DEBUG] AI output: " + aiText);
                         transcript.append("AI: ").append(aiText).append("\n");
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, aiText));
 
                         return response.completeGetShellToolFinished()
                             .thenCompose(isFinished -> {
                                 System.out.println("[DEBUG] Shell finished flag: " + isFinished);
                                 if (isFinished) {
-                                    System.out.println("[DEBUG] REPL finished, returning transcript");
                                     return CompletableFuture.completedFuture(transcript.toString());
                                 }
 
-                                return response.completeGetShellToolCommand()
-                                    .thenCompose(shellCommand -> {
-                                        System.out.println("[DEBUG] Shell command: " + shellCommand);
-                                        if (shellCommand == null || shellCommand.isBlank()) {
-                                            System.out.println("[DEBUG] No shell command, continuing transcript");
-                                            return CompletableFuture.completedFuture(transcript.toString());
-                                        }
+                                String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
+                                if (shellCommand == null || shellCommand.isBlank()) {
+                                    return CompletableFuture.completedFuture(transcript.toString());
+                                }
 
-                                        System.out.println("AI suggests running: " + shellCommand);
+                                System.out.println("AI suggests running: " + shellCommand);
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, shellCommand));
 
-                                        // Skipping approval for now to simplify debugging
-                                        ToolHandler toolHandler = new ToolHandler();
+                                ToolHandler toolHandler = new ToolHandler();
+                                return toolHandler.executeShellCommandAsync(response)
+                                    .thenCompose(output -> {
+                                        System.out.println("[DEBUG] Shell output: " + output);
+                                        transcript.append("> ").append(shellCommand).append("\n");
+                                        transcript.append(output).append("\n");
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, output));
 
-                                        return toolHandler.executeShellCommandAsync(response)
-                                            .thenCompose(output -> {
-                                                System.out.println("[DEBUG] Shell command output: " + output);
-                                                transcript.append("> ").append(shellCommand).append("\n");
-                                                transcript.append(output).append("\n");
-
-                                                // Recursive call
-                                                String context = transcript.toString();
-                                                System.out.println("[DEBUG] Recursing with updated context...");
-                                                return runReplLoop(context, aim, transcript, scanner, modelSetting);
-                                            });
+                                        // Ask for next user input
+                                        System.out.print("> ");
+                                        String nextInput = scanner.nextLine();
+                                        return runReplLoop(nextInput, aim, transcript, scanner, modelSetting);
                                     });
                             });
                     });
             });
     }
-
-
 
 
 
