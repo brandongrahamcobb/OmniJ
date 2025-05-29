@@ -176,7 +176,7 @@ public class AIManager {
         });
     }
 
-    public CompletableFuture<ResponseObject> completeLocalRequest(String content, String previousResponseId, String model, String requestType) {
+    public CompletableFuture<MetadataContainer> completeLocalRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
             ? moderationApiUrl
@@ -214,7 +214,7 @@ public class AIManager {
                 .thenCompose(reqBody -> completeProcessRequest(reqBody, endpoint));
     }
     
-    private CompletableFuture<ResponseObject> completeProcessLocalRequest(Map<String, Object> requestBody, String endpoint) {
+    private CompletableFuture<MetadataContainer> completeProcessLocalRequest(Map<String, Object> requestBody, String endpoint) {
         return CompletableFuture.supplyAsync(() -> {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
@@ -229,8 +229,8 @@ public class AIManager {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
+                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         if (endpoint.contains("response")) {
-                            Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             Map<String, Object> message = (Map<String, Object>) outer.get("message");
                             String content = (String) message.get("content");
                             String jsonContent = content
@@ -239,14 +239,11 @@ public class AIManager {
                             .trim();
                             Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                             ResponseObject response = new ResponseObject(inner);
-                            return response;
+                            return (MetadataContainer) response;
                         }
                         else {
-                            Map<String, Object> completionMap = new HashMap<>();
-                            completionMap.put("id", "chatcmpl");
-                            completionMap.put("content", respBody);
-                            ResponseObject response = new ResponseObject(completionMap);
-                            return response;
+                            ChatObject response = new ChatObject(outer);
+                            return (MetadataContainer) response;
                         }
                         
                     } else {

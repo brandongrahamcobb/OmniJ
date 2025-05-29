@@ -5,6 +5,7 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.brandongcobb.metadata.*;
 
 public class REPLManager {
     private static final Logger LOGGER = Logger.getLogger(REPLManager.class.getName());
@@ -95,7 +96,7 @@ public class REPLManager {
     }
 
     private CompletableFuture<String> processResponseLoop(
-        ResponseObject response,
+        MetadataContainer response,
         AIManager aim,
         StringBuilder transcript,
         Scanner scanner,
@@ -104,14 +105,15 @@ public class REPLManager {
     ) {
         List<String> shellCommands = response.get(ResponseObject.LOCALSHELLTOOL_COMMANDS);
         LOGGER.fine("Shell commands received: " + shellCommands);
-        String summary = response.completeGetLocalShellToolSummary().join();
+        ResponseUtils ru = new ResponseUtils(response);
+        String summary = ru.completeGetLocalShellToolSummary().join();
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]: " + summary + "\n");
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
             LOGGER.fine("Model summary: " + summary);
         }
 
-        return response.completeGetShellToolFinished().thenCompose(finished -> {
+        return ru.completeGetShellToolFinished().thenCompose(finished -> {
             if (Boolean.TRUE.equals(finished)) {
                 LOGGER.fine("AI indicated task is finished.");
                 System.out.println("✅ Task complete.");
@@ -122,7 +124,7 @@ public class REPLManager {
            // List<String> shellCommands = r"tesponse.get(ResponseObject.LOCALSHELLTOOL_COMMANDS);
             if (shellCommands == null || shellCommands.isEmpty()) {
                 LOGGER.warning("No shell commands received. Asking user for clarification.");
-                String plainText = response.completeGetOutput().join();
+                String plainText = ru.completeGetOutput().join();
                 System.out.println("[Model]: I need clarification before proceeding. " + plainText);
                 System.out.print("> ");
                 String userInput = scanner.nextLine();
@@ -132,7 +134,7 @@ public class REPLManager {
 
             String element = shellCommands.get(0); // Assume only the first for now
             LOGGER.fine("Received shell command: " + element);
-            String plainText = response.completeGetOutput().join();
+            String plainText = ru.completeGetOutput().join();
 
             if (element == null || element.isBlank()) {
                 LOGGER.warning("Shell command is blank. Asking for clarification.");
@@ -165,7 +167,7 @@ public class REPLManager {
 
 
     private CompletableFuture<String> executeCommandAndContinue(
-        ResponseObject response,
+        MetadataContainer response,
         AIManager aim,
         StringBuilder transcript,
         Scanner scanner,
@@ -187,7 +189,7 @@ public class REPLManager {
             List<String> commands,
             int index,
             ToolHandler toolHandler,
-            ResponseObject response,
+            MetadataContainer response,
             AIManager aim,
             StringBuilder transcript,
             Scanner scanner,

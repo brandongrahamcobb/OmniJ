@@ -23,6 +23,7 @@ import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.bots.DiscordBot;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.brandongcobb.metadata.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +38,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class EventListeners extends ListenerAdapter implements Cog {
     
-    private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
+    private final Map<Long, MetadataContainer> userResponseMap = new ConcurrentHashMap<>();
     private JDA api;
     private DiscordBot bot;
     
@@ -60,7 +61,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
         User sender = event.getAuthor();
         long senderId = sender.getIdLong();
         List<Attachment> attachments = message.getAttachments();
-        ResponseObject previousResponse = userResponseMap.get(senderId);
+        MetadataContainer previousResponse = userResponseMap.get(senderId);
         final boolean[] multimodal = new boolean[]{false};
         
         String content = messageContent.replace("@Vyrtuous", "");
@@ -69,46 +70,49 @@ public class EventListeners extends ListenerAdapter implements Cog {
         
         if (attachments != null && !attachments.isEmpty()) {
             fullContentFuture = mem.completeProcessAttachments(attachments)
-            .thenApply(attachmentContentList -> {
-                multimodal[0] = true;
-                return String.join("\n", attachmentContentList) + "\n" + content;
-            });
+                .thenApply(attachmentContentList -> {
+                    multimodal[0] = true;
+                    return String.join("\n", attachmentContentList) + "\n" + content;
+                });
         } else {
             fullContentFuture = CompletableFuture.completedFuture(content);
         }
         
         fullContentFuture
-        .thenCompose(fullContent -> {
-            if (true) { //TODO
-                return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
-            }
-            
-            return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
-            .thenCompose(moderationResponseObject -> moderationResponseObject.completeGetFlagged()
-                         .thenCompose(flagged -> {
-                             if (flagged) {
-                                 ModerationManager mom = new ModerationManager();
-                                 return moderationResponseObject
-                                 .completeGetFormatFlaggedReasons()
-                                 .thenCompose(reason -> mom.completeHandleModeration(message, reason)
-                                              .thenApply(ignored -> null));
-                             } else {
-                                 return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
-                             }
-                         })
-                         );
-        })
-        .exceptionally(ex -> {
-            ex.printStackTrace();
-            return null;
-        });
+            .thenCompose(fullContent -> {
+                if (true) { //TODO: moderation logic here later
+                    return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
+                }
+                
+                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
+                    .thenCompose(moderationResponseObject -> {
+                        ResponseUtils ru = new ResponseUtils(moderationResponseObject);
+                        // <-- Return this chain!
+                        return ru.completeGetFlagged()
+                            .thenCompose(flagged -> {
+                                if (flagged) {
+                                    ModerationManager mom = new ModerationManager();
+                                    return ru.completeGetFormatFlaggedReasons()
+                                        .thenCompose(reason -> mom.completeHandleModeration(message, reason)
+                                            .thenApply(ignored -> null));
+                                } else {
+                                    return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
+                                }
+                            });
+                    });
+            })
+            .exceptionally(ex -> {
+                ex.printStackTrace();
+                return null;
+            });
     }
+
     
     private CompletableFuture<Void> handleNormalFlow(
         AIManager aim,
         MessageManager mem,
         long senderId,
-        ResponseObject previousResponse,
+        MetadataContainer previousResponse,
         Message message,
         String fullContent,
         boolean multimodal
@@ -123,21 +127,29 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 return aim.completeResolveModel(fullContent, multimodal, setting)
                     .thenCompose(model -> {
                         CompletableFuture<String> prevIdFut = previousResponse != null
-                            ? previousResponse.completeGetResponseId()
+                            ? new ResponseUtils(previousResponse).completeGetResponseId()
                             : CompletableFuture.completedFuture(null);
 
                         return prevIdFut.thenCompose(previousResponseId ->
                             aim.completeLocalRequest(fullContent, previousResponseId, model, "completion")
                                 .thenCompose(responseObject -> {
-                                    CompletableFuture<Void> setPrevFut = previousResponse != null
-                                        ? previousResponse.completeGetPreviousResponseId()
+                                    ResponseUtils ru = new ResponseUtils(responseObject);
+
+                                    CompletableFuture<Void> setPrevFut;
+                                    if (previousResponse != null) {
+                                        ResponseUtils ruPrevious = new ResponseUtils(previousResponse);
+                                        setPrevFut = ruPrevious.completeGetPreviousResponseId()
                                             .thenCompose(prevRespId ->
-                                                responseObject.completeSetPreviousResponseId(prevRespId))
-                                        : responseObject.completeSetPreviousResponseId(null);
+                                                ru.completeSetPreviousResponseId(prevRespId));
+                                    } else {
+                                        setPrevFut = ru.completeSetPreviousResponseId(null);
+                                    }
 
                                     return setPrevFut.thenCompose(v -> {
                                         userResponseMap.put(senderId, responseObject);
-                                        return responseObject.completeGetContent()
+
+                                        ChatUtils cu = new ChatUtils(responseObject);
+                                        return cu.completeGetContent()
                                             .thenCompose(outputContent ->
                                                 mem.completeSendResponse(message, outputContent)
                                                     .thenApply(ignored -> null));
