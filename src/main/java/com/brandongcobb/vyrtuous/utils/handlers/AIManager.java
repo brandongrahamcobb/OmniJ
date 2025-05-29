@@ -421,7 +421,7 @@ public class AIManager {
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
 
-                HttpPost post = new HttpPost("http://localhost:1234/api/v0/chat/completions");
+                HttpPost post = new HttpPost("http://localhost:11434/api/chat");
 
                 // Optional: remove if Ollama doesn't need it
                 // post.setHeader("Authorization", "Bearer dummy");

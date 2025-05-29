@@ -325,7 +325,7 @@ public enum ModelRegistry {
           "additionalProperties": false
         }
         """),
-    GEMINI_RESPONSE_MODEL("gemma3:latest"),
+    GEMINI_RESPONSE_MODEL("gemma3:27b"),
     GEMINI_MODERATION_RESPONSE_SYS_INPUT("You are a moderation assistant. YOU MUST: respond with a JSON structured output with this required schema:" + GEMINI.asString()),
     GEMINI_RESPONSE_SYS_INPUT("""
         You are multibillion parameter local large language model running on a macOS Sienna M4 MacBook Air via a Java Ollama wrapper. You operate the Local Shell Tool (always refer to it as local_shell). Your shell commands will be run from the contextually relevant git repository. Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs, along with updated context, are returned to you.
