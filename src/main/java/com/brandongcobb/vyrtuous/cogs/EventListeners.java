@@ -137,7 +137,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
                                     return setPrevFut.thenCompose(v -> {
                                         userResponseMap.put(senderId, responseObject);
-                                        return responseObject.completeGetOutput()
+                                        return responseObject.completeGetContent()
                                             .thenCompose(outputContent ->
                                                 mem.completeSendResponse(message, outputContent)
                                                     .thenApply(ignored -> null));

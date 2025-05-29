@@ -58,6 +58,7 @@ import org.apache.http.entity.ContentType;
 
 public class AIManager {
 
+    private String completionApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("completions");
     private String moderationApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("moderations");
     private String responseApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("responses");
     // Align HTTP socket timeout with our application-level 30s timeout to avoid unbounded hangs
@@ -178,7 +179,9 @@ public class AIManager {
     public CompletableFuture<ResponseObject> completeLocalRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
-                ? moderationApiUrl
+            ? moderationApiUrl
+            : "completion".equals(requestType)
+                ? completionApiUrl
                 : responseApiUrl;
 
         String instructions = switch (requestType) {
@@ -195,7 +198,9 @@ public class AIManager {
     public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
-                ? moderationApiUrl
+            ? moderationApiUrl
+            : "completion".equals(requestType)
+                ? completionApiUrl
                 : responseApiUrl;
 
         String instructions = switch (requestType) {
@@ -224,8 +229,8 @@ public class AIManager {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         if (endpoint.contains("response")) {
+                            Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             Map<String, Object> message = (Map<String, Object>) outer.get("message");
                             String content = (String) message.get("content");
                             String jsonContent = content
@@ -237,7 +242,10 @@ public class AIManager {
                             return response;
                         }
                         else {
-                            ResponseObject response = new ResponseObject(outer);
+                            Map<String, Object> completionMap = new HashMap<>();
+                            completionMap.put("id", "chatcmpl");
+                            completionMap.put("content", respBody);
+                            ResponseObject response = new ResponseObject(completionMap);
                             return response;
                         }
                         

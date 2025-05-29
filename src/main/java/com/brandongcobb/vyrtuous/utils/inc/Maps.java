@@ -30,7 +30,7 @@ public class Maps {
     public static final Map<String, String> OPENAI_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("audio", "https://api.openai.com/v1/audio/speech"),
         Map.entry("batch", "https://api.openai.com/v1/audio/batches"),
-        Map.entry("response", "https://api.openai.com/v1/response/completions"),
+        Map.entry("completions", "https://api.openai.com/v1/completions"),
         Map.entry("embeddings", "https://api.openai.com/v1/embeddings"),
         Map.entry("files", "https://api.openai.com/v1/files"),
         Map.entry("fine-tuning", "https://api.openai.com/v1/fine_tuning/jobs"),

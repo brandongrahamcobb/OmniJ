@@ -93,7 +93,7 @@ public class ResponseObject extends MetadataContainer{
         put(idKey, requestId);
         MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
         String requestObject = (String) responseMap.get("object");
-        if (requestId.contains("cmpl_")) {
+        if (requestId.contains("chatcmpl_")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
             }
@@ -134,7 +134,6 @@ public class ResponseObject extends MetadataContainer{
                 put(completionCompletionTokensKey, completionCompletionTokens);
             }
         }
-
         else if (requestId.contains("models")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
@@ -442,7 +441,7 @@ public class ResponseObject extends MetadataContainer{
                     put(TOOLCHOICE_ARGUMENTS, (Map<String, Object>) argsMap);
                 }
             }
-        } else {
+        } else if (requestId.contains("modr")){
             MetadataKey<Integer> moderationCreatedKey = new MetadataKey<>("created", Metadata.INTEGER);
             Integer moderationCreated = (Integer) responseMap.get("created");
             put(moderationCreatedKey, moderationCreated);
@@ -542,7 +541,11 @@ public class ResponseObject extends MetadataContainer{
                 }
             }
         }
-
+        else {
+            MetadataKey<String> completionContentKey = new MetadataKey<>("content", Metadata.STRING);
+            String completionContent = (String) responseMap.get("content");
+            put(completionContentKey, completionContent);
+        }
     }
 
     /*
@@ -671,6 +674,11 @@ public class ResponseObject extends MetadataContainer{
     public CompletableFuture<String> completeGetOutput() {
         MetadataKey<String> outputKey = new MetadataKey<>("output_content", Metadata.STRING);
         return CompletableFuture.completedFuture(this.get(outputKey));
+    }
+
+    public CompletableFuture<String> completeGetContent() {
+        MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.get(contentKey));
     }
 
     public CompletableFuture<Integer> completeGetPerplexity() {
