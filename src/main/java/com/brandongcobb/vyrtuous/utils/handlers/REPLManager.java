@@ -117,10 +117,11 @@ public class REPLManager {
 
             String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
             LOGGER.fine("Received shell command: " + shellCommand);
+            String plainText = response.completeGetOutput().join();
 
             if (shellCommand == null || shellCommand.isBlank()) {
                 LOGGER.warning("AI response did not include a shell command. Asking user for clarification.");
-                System.out.println("[Model]: I need clarification before proceeding.");
+                System.out.println("[Model]: I need clarification before proceeding. " + plainText);
                 System.out.print("> ");
                 String userInput = scanner.nextLine();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
@@ -128,7 +129,7 @@ public class REPLManager {
             }
 
             long tokens = contextManager.getContextTokenCount();
-            LOGGER.fine("Current context token count: " + tokens);
+            System.out.println("Current context token count: " + tokens);
 
             if (requiresApproval(shellCommand)) {
                 return requestApprovalAsync(shellCommand, scanner).thenCompose(approved -> {
@@ -164,7 +165,6 @@ public class REPLManager {
         return toolHandler.executeShellCommandAsync(response).thenCompose(output -> {
             transcript.append("> ").append(shellCommand).append("\n").append(output).append("\n");
             System.out.println("> " + shellCommand);
-            System.out.println(output);
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
             LOGGER.fine("Shell command output: " + output);
 

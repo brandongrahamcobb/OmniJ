@@ -41,9 +41,9 @@ public enum ModelRegistry {
             "parallel_tool_calls": { "type": "boolean" },
             "previous_response_id": { "type": ["null", "string"] },
             "store": { "type": "boolean" },
-            "temperature": { "type": "double" },
+            "temperature": { "type": "number" },
             "tool_choice": { "type": "string" },
-            "top_p": { "type": "double" },
+            "top_p": { "type": "numberp" },
             "truncation": { "type": "string" },
             "user": { "type": ["null", "object"] },
             "metadata": { "type": "object" },
@@ -325,10 +325,150 @@ public enum ModelRegistry {
           "additionalProperties": false
         }
         """),
-    GEMINI_RESPONSE_MODEL("gemma3:27b"),
+    GEMINI_RESPONSE_MODEL("gemma3:latest"),
     GEMINI_MODERATION_RESPONSE_SYS_INPUT("You are a moderation assistant. YOU MUST: respond with a JSON structured output with this required schema:" + GEMINI.asString()),
+    GEMINI_COMPLETION_SYS_INPUT("""
+        You must respond with a JSON, putting the reply content into the "content" field of the following json schema:
+        {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string", "pattern": ["^resp_"] }
+          "created_at": { "type": "integer" },
+          "status": { "type": "string" },
+          "error": { "type": ["null", "object"] },
+          "incomplete_details": { "type": ["null", "object"] },
+          "instructions": { "type": ["null", "object"] },
+          "max_output_tokens": { "type": ["null", "integer"] },
+          "model": { "type": "string" },
+          "parallel_tool_calls": { "type": "boolean" },
+          "previous_response_id": { "type": ["null", "string"] },
+          "store": { "type": "boolean" },
+          "temperature": { "type": "number" },
+          "tool_choice": { "type": "string" },
+          "top_p": { "type": "number" },
+          "truncation": { "type": "string" },
+          "user": { "type": ["null", "object"] },
+          "metadata": { "type": "object"},
+          "reasoning": {
+            "type": "object",
+            "properties": {
+              "effort": { "type": ["null", "string"] },
+              "summary": { "type": ["null", "string"] }
+            },
+            "required": ["effort", "summary"],
+            "additionalProperties": false
+          },
+          "text": {
+            "type": "object",
+            "properties": {
+              "format": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" }
+                },
+                "required": ["type"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["format"],
+            "additionalProperties": false
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "input_tokens": { "type": "integer" },
+              "input_tokens_details": {
+                "type": "object",
+                "properties": {
+                  "cached_tokens": { "type": "integer" }
+                },
+                "required": ["cached_tokens"],
+                "additionalProperties": false
+              },
+              "output_tokens": { "type": "integer" },
+              "output_tokens_details": {
+                "type": "object",
+                "properties": {
+                  "reasoning_tokens": { "type": "integer" }
+                },
+                "required": ["reasoning_tokens"],
+                "additionalProperties": false
+              },
+              "total_tokens": { "type": "integer" }
+            },
+            "required": ["input_tokens", "input_tokens_details", "output_tokens", "output_tokens_details", "total_tokens"],
+            "additionalProperties": false
+          },
+          "tools": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "output": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string" },
+                "id": { "type": "string" },
+                "status": { "type": "string" },
+                "role": { "type": "string" },
+                "call_id": { "type": "string" },
+                "action": {
+                  "type": "object",
+                  "properties": {
+                    "command": {
+                      "oneOf": [
+                        { "type": "array", "items": { "type": "string" } },
+                        { "type": "string" }
+                      ]
+                    }
+                  },
+                  "required": ["command"],
+                  "additionalProperties": false
+                },
+                "content": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string" },
+                      "text": { "type": "string" },
+                      "annotations": { "type": "array" }
+                    },
+                    "required": ["type", "text", "annotations"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["type", "id", "status", "role", "content"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "created_at",
+          "status",
+          "model",
+          "output",
+          "parallel_tool_calls",
+          "store",
+          "temperature",
+          "tool_choice",
+          "top_p",
+          "truncation",
+          "usage",
+          "tools",
+          "text",
+          "reasoning",
+          "metadata"
+        ],
+        "additionalProperties": false
+        }"""),
     GEMINI_RESPONSE_SYS_INPUT("""
-        You are multibillion parameter local large language model running on a macOS Sienna M4 MacBook Air via a Java Ollama wrapper. You operate the Local Shell Tool (always refer to it as local_shell). Your shell commands will be run from the contextually relevant git repository. Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs, along with updated context, are returned to you.
+        You are multibillion parameter local large language model running on a macOS Sienna M4 MacBook Air via a Java Ollama wrapper. You operate the Local Shell Tool (always refer to it as local_shell). Your shell commands will be run from the contextually relevant git repository. Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs, along with updated context, are returned to you. 
 
         🧠 MODEL INSTRUCTION: Autonomous Shell Agent on macOS (M4, Homebrew installed)
 

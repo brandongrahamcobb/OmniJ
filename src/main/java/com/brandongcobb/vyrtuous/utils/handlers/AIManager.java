@@ -397,23 +397,22 @@ public class AIManager {
         return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions)
                 .thenCompose(reqBody -> completeProcessLocalRequest(reqBody, endpoint));
     }
-    
+
     public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
         String endpoint = "moderation".equals(requestType)
                 ? moderationApiUrl
                 : responseApiUrl;
 
         String instructions = switch (requestType) {
-            case "completion" -> ModelRegistry.GEMINI_RESPONSE_SYS_INPUT.asString();
+            case "completion" -> ModelRegistry.GEMINI_COMPLETION_SYS_INPUT.asString();
             case "moderation" -> ModelRegistry.GEMINI_MODERATION_RESPONSE_SYS_INPUT.asString();
             case "response" -> ""; // or provide appropriate default
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
 
         return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions)
-                .thenCompose(reqBody -> completeProcessRequest(reqBody, endpoint));
+                .thenCompose(reqBody -> completeProcessLocalRequest(reqBody, endpoint));
     }
-
     
     private CompletableFuture<ResponseObject> completeProcessLocalRequest(Map<String, Object> requestBody, String endpoint) {
         return CompletableFuture.supplyAsync(() -> {
@@ -451,6 +450,7 @@ public class AIManager {
                             .trim();                            // remove extra space
 
                         // Step 3: Parse the inner JSON string
+                        System.out.println(jsonContent);
                         Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
 
                         // Optionally wrap in your domain object
@@ -505,60 +505,60 @@ public class AIManager {
 //        });
 //    }
 
-    private CompletableFuture<ResponseObject> completeProcessRequest(Map<String, Object> requestBody, String endpoint) {
-        String apiKey = System.getenv("OPENAI_API_KEY");
-        if (apiKey == null || apiKey.isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            ObjectMapper mapper = new ObjectMapper();
-
-            try (CloseableHttpClient client = HttpClients.custom()
-                    .setDefaultRequestConfig(REQUEST_CONFIG)
-                    .build()) {
-
-                HttpPost post = new HttpPost(endpoint);
-                post.setHeader("Authorization", "Bearer " + apiKey);
-                post.setHeader("Content-Type", "application/json");
-
-                String json = mapper.writeValueAsString(requestBody);
-                post.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
-
-                try (CloseableHttpResponse response = client.execute(post)) {
-                    int statusCode = response.getStatusLine().getStatusCode();
-                    String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-
-                    if (statusCode >= 200 && statusCode < 300) {
-                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
-                        Object messageObj = outer.get("message");
-
-                        if (!(messageObj instanceof Map)) {
-                            throw new IllegalStateException("Unexpected response format: 'message' is not an object");
-                        }
-
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> message = (Map<String, Object>) messageObj;
-
-                        String content = (String) message.get("content");
-
-                        // Strip triple-backtick JSON wrappers
-                        String jsonContent = content
-                            .replaceFirst("^```json\\s*", "")
-                            .replaceFirst("\\s*```$", "")
-                            .trim();
-
-                        Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                        return new ResponseObject(inner);
-                    } else {
-                        throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);
-                    }
-                }
-            } catch (Exception e) {
-                throw new CompletionException(e); // ensures exception is correctly wrapped for async
-            }
-        });
-    }
+//    private CompletableFuture<ResponseObject> completeProcessRequest(Map<String, Object> requestBody, String endpoint) {
+//        String apiKey = System.getenv("OPENAI_API_KEY");
+//        if (apiKey == null || apiKey.isEmpty()) {
+//            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
+//        }
+//
+//        return CompletableFuture.supplyAsync(() -> {
+//            ObjectMapper mapper = new ObjectMapper();
+//
+//            try (CloseableHttpClient client = HttpClients.custom()
+//                    .setDefaultRequestConfig(REQUEST_CONFIG)
+//                    .build()) {
+//
+//                HttpPost post = new HttpPost(endpoint);
+//                post.setHeader("Authorization", "Bearer " + apiKey);
+//                post.setHeader("Content-Type", "application/json");
+//
+//                String json = mapper.writeValueAsString(requestBody);
+//                post.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
+//
+//                try (CloseableHttpResponse response = client.execute(post)) {
+//                    int statusCode = response.getStatusLine().getStatusCode();
+//                    String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+//
+//                    if (statusCode >= 200 && statusCode < 300) {
+//                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
+//                        Object messageObj = outer.get("message");
+//
+//                        if (!(messageObj instanceof Map)) {
+//                            throw new IllegalStateException("Unexpected response format: 'message' is not an object");
+//                        }
+//
+//                        @SuppressWarnings("unchecked")
+//                        Map<String, Object> message = (Map<String, Object>) messageObj;
+//
+//                        String content = (String) message.get("content");
+//
+//                        // Strip triple-backtick JSON wrappers
+//                        String jsonContent = content
+//                            .replaceFirst("^```json\\s*", "")
+//                            .replaceFirst("\\s*```$", "")
+//                            .trim();
+//
+//                        Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+//                        return new ResponseObject(inner);
+//                    } else {
+//                        throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);
+//                    }
+//                }
+//            } catch (Exception e) {
+//                throw new CompletionException(e); // ensures exception is correctly wrapped for async
+//            }
+//        });
+//    }
 
     /**
      * Stub for searching a vector store or using OpenAI's built-in file_search tool.

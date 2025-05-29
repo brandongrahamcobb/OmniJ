@@ -202,8 +202,8 @@ public class ResponseObject extends MetadataContainer{
             MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
             Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
             put(responsesTextFormatKey, responsesTextFormat);
-            MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", Metadata.DOUBLE);
-            Double responsesTopP = (Double) responseMap.get("top_p");
+            MetadataKey<Integer> responsesTopPKey = new MetadataKey<>("top_p", Metadata.INTEGER);
+            Integer responsesTopP = (Integer) responseMap.get("top_p");
             put(responsesTopPKey, responsesTopP);
             MetadataKey<String> responsesTruncationKey = new MetadataKey<>("truncation", Metadata.STRING);
             String responsesTruncation = (String) responseMap.get("truncation");

@@ -14,6 +14,15 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
+import java.io.IOException;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.Callable;
 
 public class ToolHandler {
 
@@ -59,6 +68,17 @@ public class ToolHandler {
 
 
 
+    private static String readStream(InputStream stream) throws IOException {
+        StringBuilder builder = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line).append("\n");
+            }
+        }
+        return builder.toString().trim();
+    }
+
     public CompletableFuture<String> executeShellCommandAsync(MetadataContainer responseObject) {
         String originalCommand = responseObject.get(LOCALSHELLTOOL_COMMAND);
         if (originalCommand == null || originalCommand.isBlank()) {
@@ -67,38 +87,22 @@ public class ToolHandler {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-
                 String raw = originalCommand.trim();
                 String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
 
-                System.out.println("bash -lc " + cmd);
-
-                ProcessBuilder builder = new ProcessBuilder("bash", "-lc", cmd);
-                builder.redirectErrorStream(false);
+                ProcessBuilder builder = new ProcessBuilder("gtimeout", "30s", "bash", "-lc", cmd);
                 Process process = builder.start();
 
-                StringBuilder outputBuilder = new StringBuilder();
-                StringBuilder errorBuilder = new StringBuilder();
-
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        outputBuilder.append(line).append("\n");
-                    }
-                }
-
-                try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                    String line;
-                    while ((line = errorReader.readLine()) != null) {
-                        errorBuilder.append(line).append("\n");
-                    }
-                }
+                ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
+                Future<String> stdoutFuture = streamExecutor.submit(() -> readStream(process.getInputStream()));
+                Future<String> stderrFuture = streamExecutor.submit(() -> readStream(process.getErrorStream()));
 
                 int exitCode = process.waitFor();
-                String stdout = outputBuilder.toString().trim();
-                String stderr = errorBuilder.toString().trim();
+                String stdout = stdoutFuture.get();
+                String stderr = stderrFuture.get();
 
-                // Store in MetadataContainer
+                streamExecutor.shutdown();
+
                 responseObject.put(SHELL_EXIT_CODE, exitCode);
                 responseObject.put(SHELL_STDOUT, stdout);
                 responseObject.put(SHELL_STDERR, stderr);
@@ -118,9 +122,6 @@ public class ToolHandler {
             }
         });
     }
-    
-    
-
     
     public static List<String> executeFileSearch(ResponseObject responseObject, String query) {
         String type = responseObject.get(FILESEARCHTOOL_TYPE);

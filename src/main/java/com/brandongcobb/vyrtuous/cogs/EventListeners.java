@@ -83,7 +83,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
         fullContentFuture
             .thenCompose(fullContent -> {
-                return aim.completeRequest(fullContent, null, "gemma3:12b", "moderation")
+                return aim.completeRequest("Text to moderate: " + fullContent, null, "gemma3:12b", "moderation")
                     .thenCompose(moderationResponseObject -> moderationResponseObject.completeGetFlagged()
                         .thenCompose(flagged -> {
                             if (flagged) {
