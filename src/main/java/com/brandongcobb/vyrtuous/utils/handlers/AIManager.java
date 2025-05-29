@@ -433,10 +433,11 @@ public class AIManager {
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
-
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
-                    String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8); // for debugging
+                    String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                    // for debugging
+                    System.out.println(code);
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         Map<String, Object> message = (Map<String, Object>) outer.get("message");
@@ -450,13 +451,14 @@ public class AIManager {
                             .trim();                            // remove extra space
 
                         // Step 3: Parse the inner JSON string
-                        System.out.println(jsonContent);
                         Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
 
                         // Optionally wrap in your domain object
                         ResponseObject response = new ResponseObject(inner);
+                        System.out.println("test");
                         return response;
                     } else {
+                        System.out.println(code);
                         throw new IOException("HTTP " + code + ": " + respBody);
                     }
                 }

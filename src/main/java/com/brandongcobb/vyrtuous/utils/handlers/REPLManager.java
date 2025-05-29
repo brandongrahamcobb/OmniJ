@@ -9,7 +9,7 @@ import com.brandongcobb.vyrtuous.utils.inc.*;
 public class REPLManager {
     private static final Logger LOGGER = Logger.getLogger(REPLManager.class.getName());
 
-    private final ShellCommandExecutor executor = new ShellCommandExecutor();
+  //  private final ShellCommandExecutor executor = new ShellCommandExecutor();
     private String originalDirective;
     private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
     private final ContextManager contextManager = new ContextManager(29);
@@ -17,11 +17,13 @@ public class REPLManager {
     private final long maxSessionDurationMillis;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
-
+    static {
+        LOGGER.setLevel(Level.FINE);
+    }
     public REPLManager(ApprovalMode mode, long maxSessionDurationMillis) {
         setApprovalMode(mode);
         this.maxSessionDurationMillis = maxSessionDurationMillis;
-        LOGGER.setLevel(Level.INFO);
+        LOGGER.setLevel(Level.FINE);
         LOGGER.fine("REPLManager initialized with mode " + mode + " and max duration " + maxSessionDurationMillis + "ms");
     }
 
@@ -100,6 +102,8 @@ public class REPLManager {
         String modelSetting,
         long startTimeMillis
     ) {
+        List<String> shellCommands = response.get(ResponseObject.LOCALSHELLTOOL_COMMANDS);
+        LOGGER.fine("Shell commands received: " + shellCommands);
         String summary = response.completeGetLocalShellToolSummary().join();
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]: " + summary + "\n");
@@ -115,12 +119,23 @@ public class REPLManager {
                 return CompletableFuture.completedFuture(transcript.toString());
             }
 
-            String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
-            LOGGER.fine("Received shell command: " + shellCommand);
+           // List<String> shellCommands = r"tesponse.get(ResponseObject.LOCALSHELLTOOL_COMMANDS);
+            if (shellCommands == null || shellCommands.isEmpty()) {
+                LOGGER.warning("No shell commands received. Asking user for clarification.");
+                String plainText = response.completeGetOutput().join();
+                System.out.println("[Model]: I need clarification before proceeding. " + plainText);
+                System.out.print("> ");
+                String userInput = scanner.nextLine();
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
+                return runReplLoop(userInput, aim, transcript, scanner, modelSetting, startTimeMillis);
+            }
+
+            String element = shellCommands.get(0); // Assume only the first for now
+            LOGGER.fine("Received shell command: " + element);
             String plainText = response.completeGetOutput().join();
 
-            if (shellCommand == null || shellCommand.isBlank()) {
-                LOGGER.warning("AI response did not include a shell command. Asking user for clarification.");
+            if (element == null || element.isBlank()) {
+                LOGGER.warning("Shell command is blank. Asking for clarification.");
                 System.out.println("[Model]: I need clarification before proceeding. " + plainText);
                 System.out.print("> ");
                 String userInput = scanner.nextLine();
@@ -131,13 +146,13 @@ public class REPLManager {
             long tokens = contextManager.getContextTokenCount();
             System.out.println("Current context token count: " + tokens);
 
-            if (requiresApproval(shellCommand)) {
-                return requestApprovalAsync(shellCommand, scanner).thenCompose(approved -> {
+            if (requiresApproval(element)) {
+                return requestApprovalAsync(element, scanner).thenCompose(approved -> {
                     if (!approved) {
                         String rejectionMsg = "⛔ Command rejected by user.";
                         System.out.println(rejectionMsg);
                         transcript.append(rejectionMsg).append("\n");
-                        LOGGER.warning("User rejected command: " + shellCommand);
+                        LOGGER.warning("User rejected command: " + element);
                         return CompletableFuture.completedFuture(transcript.toString());
                     }
                     return executeCommandAndContinue(response, aim, transcript, scanner, modelSetting, startTimeMillis);
@@ -148,6 +163,7 @@ public class REPLManager {
         });
     }
 
+
     private CompletableFuture<String> executeCommandAndContinue(
         ResponseObject response,
         AIManager aim,
@@ -156,23 +172,50 @@ public class REPLManager {
         String modelSetting,
         long startTimeMillis
     ) {
-        String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
-        LOGGER.fine("Executing shell command: " + shellCommand);
+        List<String> shellCommands = response.get(ResponseObject.LOCALSHELLTOOL_COMMANDS);
 
-        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, shellCommand));
+        if (shellCommands == null || shellCommands.isEmpty()) {
+            return CompletableFuture.completedFuture("No shell commands to execute.");
+        }
+
         ToolHandler toolHandler = new ToolHandler();
 
-        return toolHandler.executeShellCommandAsync(response).thenCompose(output -> {
-            transcript.append("> ").append(shellCommand).append("\n").append(output).append("\n");
-            System.out.println("> " + shellCommand);
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
-            LOGGER.fine("Shell command output: " + output);
+        return executeCommandSequence(shellCommands, 0, toolHandler, response, aim, transcript, scanner, modelSetting, startTimeMillis);
+    }
 
+    private CompletableFuture<String> executeCommandSequence(
+            List<String> commands,
+            int index,
+            ToolHandler toolHandler,
+            ResponseObject response,
+            AIManager aim,
+            StringBuilder transcript,
+            Scanner scanner,
+            String modelSetting,
+            long startTimeMillis
+    ) {
+        if (index >= commands.size()) {
+            // Continue REPL after all commands have been run
             String updatedPrompt = contextManager.buildPromptContext();
             return aim.completeLocalRequest(updatedPrompt, null, modelSetting, "completion")
-                .thenCompose(nextResponse -> processResponseLoop(nextResponse, aim, transcript, scanner, modelSetting, startTimeMillis));
-        });
+                    .thenCompose(nextResponse -> processResponseLoop(nextResponse, aim, transcript, scanner, modelSetting, startTimeMillis));
+        }
+
+        String shellCommand = commands.get(index);
+        LOGGER.fine("Executing shell command: " + shellCommand);
+        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, shellCommand));
+
+        return toolHandler.executeShellCommandAsync(response, shellCommand) // Pass the single command
+                .thenCompose(output -> {
+                    transcript.append("> ").append(shellCommand).append("\n").append(output).append("\n");
+                    System.out.println("> " + shellCommand);
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
+                    LOGGER.info("Shell command output: " + output);
+                    // Recurse to next command
+                    return executeCommandSequence(commands, index + 1, toolHandler, response, aim, transcript, scanner, modelSetting, startTimeMillis);
+                });
     }
+
 
     public void startResponseInputThread() {
         LOGGER.fine("Starting response input thread...");
@@ -206,30 +249,8 @@ public class REPLManager {
             } catch (IllegalStateException e) {
                 LOGGER.severe("System.in is unavailable.");
                 System.out.println("System.in is unavailable.");
-            } finally {
-                shutdownExecutors();
             }
         });
-    }
-
-    private void shutdownExecutors() {
-        LOGGER.fine("Shutting down executors...");
-        inputExecutor.shutdown();
-        replExecutor.shutdown();
-        try {
-            if (!inputExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                inputExecutor.shutdownNow();
-            }
-            if (!replExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                replExecutor.shutdownNow();
-            }
-            LOGGER.fine("Executors shut down cleanly.");
-        } catch (InterruptedException e) {
-            LOGGER.warning("Executor shutdown interrupted.");
-            inputExecutor.shutdownNow();
-            replExecutor.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
     }
 
     private CompletableFuture<String> completeREPLAsync(Scanner scanner, String initialMessage) {

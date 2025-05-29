@@ -79,14 +79,14 @@ public class ToolHandler {
         return builder.toString().trim();
     }
 
-    public CompletableFuture<String> executeShellCommandAsync(MetadataContainer responseObject) {
-        String originalCommand = responseObject.get(LOCALSHELLTOOL_COMMAND);
+    public CompletableFuture<String> executeShellCommandAsync(MetadataContainer responseObject, String originalCommand) {;
         if (originalCommand == null || originalCommand.isBlank()) {
             return CompletableFuture.completedFuture("⚠️ No shell command provided.");
         }
 
         return CompletableFuture.supplyAsync(() -> {
             try {
+                System.out.println("executeShell");
                 String raw = originalCommand.trim();
                 String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
 

@@ -75,7 +75,7 @@ public class ResponseObject extends MetadataContainer{
     public static final MetadataKey<String> CODEINTERPRETERTOOL_CONTAINER_ID = new MetadataKey<>("codeinterpretertool_container_id", Metadata.STRING);
     public static final MetadataKey<Map<String, Object>> CODEINTERPRETERTOOL_CONTAINER_MAP = new MetadataKey<>("codeinterpretertool_container_map", Metadata.MAP);
     public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
-    public static final MetadataKey<String> LOCALSHELLTOOL_COMMAND = new MetadataKey<>("localshelltool_command", Metadata.STRING);
+    public static final MetadataKey<List<String>> LOCALSHELLTOOL_COMMANDS = new MetadataKey<>("localshelltool_commands", Metadata.LIST_STRING);
     public static final MetadataKey<Boolean> LOCALSHELLTOOL_FINISHED = new MetadataKey<>("localshelltool_finished", Metadata.BOOLEAN);
 
     public static String mapToJsonString(Map<String, Object> map) {
@@ -87,6 +87,7 @@ public class ResponseObject extends MetadataContainer{
     }
     
     public ResponseObject(Map<String, Object> responseMap) {
+        
         MetadataKey<String> idKey = new MetadataKey<>("id", Metadata.STRING);
         String requestId = (String) responseMap.get("id");
         put(idKey, requestId);
@@ -202,8 +203,8 @@ public class ResponseObject extends MetadataContainer{
             MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
             Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
             put(responsesTextFormatKey, responsesTextFormat);
-            MetadataKey<Integer> responsesTopPKey = new MetadataKey<>("top_p", Metadata.INTEGER);
-            Integer responsesTopP = (Integer) responseMap.get("top_p");
+            MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", Metadata.DOUBLE);                              // MUST MATCH THE RESP OBJECT VALUE
+            Double responsesTopP = (Double) responseMap.get("top_p");                                                        // DO NOT CHANGE TO INTEGER, CAUSES ERROR
             put(responsesTopPKey, responsesTopP);
             MetadataKey<String> responsesTruncationKey = new MetadataKey<>("truncation", Metadata.STRING);
             String responsesTruncation = (String) responseMap.get("truncation");
@@ -224,6 +225,7 @@ public class ResponseObject extends MetadataContainer{
             put(LOCALSHELLTOOL_FINISHED, localShellFinished);
             MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
             Object outputObj = responseMap.get("output");
+            
             if (outputObj instanceof List<?> outputList) {
                 for (Object outputItemObj : outputList) {
                     if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
@@ -239,19 +241,20 @@ public class ResponseObject extends MetadataContainer{
                         Object actionObj = outputItem.get("action");
                         if (actionObj instanceof Map<?, ?> action) {
                             Object cmdObj = action.get("command");
-                            String cmdString = null;
+
                             if (cmdObj instanceof List<?> cmdList) {
-                                cmdString = cmdList.stream()
-                                        .map(Object::toString)
-                                        .collect(Collectors.joining(" "));
+                                List<String> commands = cmdList.stream()
+                                    .map(Object::toString)
+                                    .toList(); // Java 16+, otherwise use .collect(Collectors.toList())
+                                put(LOCALSHELLTOOL_COMMANDS, commands);
+                            } else if (cmdObj instanceof String singleCommand) {
+                                put(LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
                             } else if (cmdObj != null) {
-                                cmdString = cmdObj.toString();
-                            }
-                            if (cmdString != null) {
-                                put(LOCALSHELLTOOL_COMMAND, cmdString);
+                                put(LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
                             }
                         }
                     }
+
 
                     // Extract output content text
                     Object contentObj = outputItem.get("content");
@@ -392,9 +395,25 @@ public class ResponseObject extends MetadataContainer{
 
                         case "local_shell" -> {
                             put(LOCALSHELLTOOL_TYPE, type);
-                            Object cmdObj = toolMap.get("command");
-                            if (cmdObj instanceof String cmd) {
-                                put(LOCALSHELLTOOL_COMMAND, cmd);
+                            if (outputObj instanceof List<?> outputList) {
+                                for (Object outputItemObj : outputList) {
+                                    if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
+                                    Object actionObj = outputItem.get("action");
+                                    if (actionObj instanceof Map<?, ?> action) {
+                                        Object cmdObj = action.get("command");
+                                        if (cmdObj instanceof List<?> cmdList) {
+                                            List<String> commands = cmdList.stream()
+                                                .map(Object::toString)
+                                                .toList(); // Java 16+, otherwise use .collect(Collectors.toList())
+                                            put(LOCALSHELLTOOL_COMMANDS, commands);
+                                        } else if (cmdObj instanceof String singleCommand) {
+                                            put(LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
+                                        } else if (cmdObj != null) {
+                                            put(LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
+                                        }
+                                    }
+                                
+                                }
                             }
                         }
 
@@ -554,8 +573,8 @@ public class ResponseObject extends MetadataContainer{
         return CompletableFuture.completedFuture(this.get(FILESEARCHTOOL_RANKING_OPTIONS));
     }
 
-    public CompletableFuture<String> completeGetShellToolCommand() {
-        return CompletableFuture.completedFuture(this.get(LOCALSHELLTOOL_COMMAND));
+    public CompletableFuture<List<String>> completeGetShellToolCommand() {
+        return CompletableFuture.completedFuture(this.get(LOCALSHELLTOOL_COMMANDS));
     }
     
     public CompletableFuture<Boolean> completeGetShellToolFinished() {
