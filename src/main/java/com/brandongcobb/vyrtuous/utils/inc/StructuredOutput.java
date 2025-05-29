@@ -26,9 +26,7 @@ public enum StructuredOutput {
         {
             "type": "object",
             "properties": {
-                "id": {
-                    "type": "string"
-                },
+                "id": { "type": "string", "pattern": "^modr_" },
                 "model": {
                     "type": "string"
                 },
@@ -168,7 +166,7 @@ public enum StructuredOutput {
           "type": "object",
           "properties": {
             "id": { "type": "string" },
-            "object": { "type": "string", "pattern": ["^modr_"] }
+            "object": { "type": "string", "pattern": ["^resp_"] },
             "created_at": { "type": "integer" },
             "status": { "type": "string" },
             "error": { "type": ["null", "object"] },
@@ -264,7 +262,7 @@ public enum StructuredOutput {
             "type": "object",
             "properties": {
                 "type": { "type": "string" },
-                "id": { "type": "string" },
+                "id": { "type": "string", "pattern": "^resp_"},
                 "status": { "type": "string" },
                 "role": { "type": "string" },
                 "call_id": { "type": "string" },

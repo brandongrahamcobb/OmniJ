@@ -36,28 +36,25 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class EventListeners extends ListenerAdapter implements Cog {
-
+    
     private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
     private JDA api;
     private DiscordBot bot;
-
+    
     @Override
     public void register(JDA api, DiscordBot bot) {
         this.bot = bot.completeGetBot();
         this.api = api;
         api.addEventListener(this);
     }
-
+    
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
         String messageContent = message.getContentDisplay();
-
-        // Ignore bots and messages starting with "."
-        if (message.getAuthor().isBot() || messageContent.startsWith(".")) {
-            return;
-        }
-
+        
+        if (message.getAuthor().isBot() || messageContent.startsWith(".")) return;
+        
         AIManager aim = new AIManager();
         MessageManager mem = new MessageManager();
         User sender = event.getAuthor();
@@ -65,76 +62,90 @@ public class EventListeners extends ListenerAdapter implements Cog {
         List<Attachment> attachments = message.getAttachments();
         ResponseObject previousResponse = userResponseMap.get(senderId);
         final boolean[] multimodal = new boolean[]{false};
-
-        // Remove bot mention if present
+        
         String content = messageContent.replace("@Vyrtuous", "");
-
+        
         CompletableFuture<String> fullContentFuture;
-
+        
         if (attachments != null && !attachments.isEmpty()) {
             fullContentFuture = mem.completeProcessAttachments(attachments)
-                .thenApply(attachmentContentList -> {
-                    multimodal[0] = true;
-                    return String.join("\n", attachmentContentList) + "\n" + content;
-                });
+            .thenApply(attachmentContentList -> {
+                multimodal[0] = true;
+                return String.join("\n", attachmentContentList) + "\n" + content;
+            });
         } else {
             fullContentFuture = CompletableFuture.completedFuture(content);
         }
-
+        
         fullContentFuture
-            .thenCompose(fullContent -> {
-                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
-                    .thenCompose(moderationResponseObject -> moderationResponseObject.completeGetFlagged()
-                        .thenCompose(flagged -> {
-                            if (flagged) {
-                                ModerationManager mom = new ModerationManager();
-                                return moderationResponseObject
-                                    .completeGetFormatFlaggedReasons()
-                                    .thenCompose(reason -> mom.completeHandleModeration(message, reason)
-                                        .thenApply(ignored -> null));
-                            } else {
-                                return Vyrtuous.completeGetInstance()
-                                    .thenCompose(vyr -> vyr.completeGetUserModelSettings())
-                                    .thenCompose(userModelSettings -> {
-                                        String setting = userModelSettings.getOrDefault(
-                                            senderId,
-                                            ModelRegistry.GEMINI_RESPONSE_MODEL.asString()
-                                        );
-                                        return aim.completeResolveModel(fullContent, multimodal[0], setting)
-                                            .thenCompose(model -> {
-                                                CompletableFuture<String> prevIdFut = previousResponse != null
-                                                    ? previousResponse.completeGetResponseId()
-                                                    : CompletableFuture.completedFuture(null);
-                                                return prevIdFut.thenCompose(previousResponseId ->
-                                                    aim.completeLocalRequest(fullContent, previousResponseId, "gemma3:12b", "completion")
-                                                        .thenCompose(responseObject -> {
-                                                            CompletableFuture<Void> setPrevFut;
-                                                            if (previousResponse != null) {
-                                                                setPrevFut = previousResponse
-                                                                    .completeGetPreviousResponseId()
-                                                                    .thenCompose(prevRespId ->
-                                                                        responseObject.completeSetPreviousResponseId(prevRespId));
-                                                            } else {
-                                                                setPrevFut = responseObject.completeSetPreviousResponseId(null);
-                                                            }
-                                                            return setPrevFut.thenCompose(v -> {
-                                                                userResponseMap.put(senderId, responseObject);
-                                                                return responseObject.completeGetOutput()
-                                                                    .thenCompose(outputContent ->
-                                                                        mem.completeSendResponse(message, outputContent)
-                                                                            .thenApply(ignored -> null));
-                                                            });
-                                                        })
-                                                );
-                                            });
+        .thenCompose(fullContent -> {
+            if (true) { //TODO
+                return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
+            }
+            
+            return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
+            .thenCompose(moderationResponseObject -> moderationResponseObject.completeGetFlagged()
+                         .thenCompose(flagged -> {
+                             if (flagged) {
+                                 ModerationManager mom = new ModerationManager();
+                                 return moderationResponseObject
+                                 .completeGetFormatFlaggedReasons()
+                                 .thenCompose(reason -> mom.completeHandleModeration(message, reason)
+                                              .thenApply(ignored -> null));
+                             } else {
+                                 return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
+                             }
+                         })
+                         );
+        })
+        .exceptionally(ex -> {
+            ex.printStackTrace();
+            return null;
+        });
+    }
+    
+    private CompletableFuture<Void> handleNormalFlow(
+        AIManager aim,
+        MessageManager mem,
+        long senderId,
+        ResponseObject previousResponse,
+        Message message,
+        String fullContent,
+        boolean multimodal
+    ) {
+        return Vyrtuous.completeGetInstance()
+            .thenCompose(vyr -> vyr.completeGetUserModelSettings())
+            .thenCompose(userModelSettings -> {
+                String setting = userModelSettings.getOrDefault(
+                    senderId,
+                    ModelRegistry.GEMINI_RESPONSE_MODEL.asString()
+                );
+                return aim.completeResolveModel(fullContent, multimodal, setting)
+                    .thenCompose(model -> {
+                        CompletableFuture<String> prevIdFut = previousResponse != null
+                            ? previousResponse.completeGetResponseId()
+                            : CompletableFuture.completedFuture(null);
+
+                        return prevIdFut.thenCompose(previousResponseId ->
+                            aim.completeLocalRequest(fullContent, previousResponseId, model, "completion")
+                                .thenCompose(responseObject -> {
+                                    CompletableFuture<Void> setPrevFut = previousResponse != null
+                                        ? previousResponse.completeGetPreviousResponseId()
+                                            .thenCompose(prevRespId ->
+                                                responseObject.completeSetPreviousResponseId(prevRespId))
+                                        : responseObject.completeSetPreviousResponseId(null);
+
+                                    return setPrevFut.thenCompose(v -> {
+                                        userResponseMap.put(senderId, responseObject);
+                                        return responseObject.completeGetOutput()
+                                            .thenCompose(outputContent ->
+                                                mem.completeSendResponse(message, outputContent)
+                                                    .thenApply(ignored -> null));
                                     });
-                            }
-                        })
-                    );
-            })
-            .exceptionally(ex -> {
-                ex.printStackTrace();
-                return null;
+                                })
+                        );
+                    });
             });
     }
+
 }

@@ -98,19 +98,11 @@ public class AIManager {
             }
             else if ("moderation".equals(requestType)) {
                 body.put("model", model);
-                List<Map<String, Object>> messages = new ArrayList<>();
-                Map<String, Object> msgMap = new HashMap<>();
-                Map<String, Object> systemMsg = new HashMap<>();
-                systemMsg.put("role", "system");
-                systemMsg.put("content", instructions);
-
-                Map<String, Object> userMsg = new HashMap<>();
-                userMsg.put("role", "user");
-                userMsg.put("content", content);
-
-                messages.add(systemMsg);
-                messages.add(userMsg);
-                body.put("messages", messages);
+                ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                body.put("input", content);
+                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                }
             }
             else if ("response".equals(requestType)){
                 body.put("model", ModelRegistry.GEMINI_RESPONSE_MODEL.asString());
@@ -201,6 +193,7 @@ public class AIManager {
     }
 
     public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
+        SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
                 ? moderationApiUrl
                 : responseApiUrl;
@@ -208,7 +201,7 @@ public class AIManager {
         String instructions = switch (requestType) {
             case "completion" -> "";
             case "moderation" -> "";
-            case "response" -> ""; // or provide appropriate default
+            case "response" -> "Reply with the content in the content field of this schema: " + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
 
@@ -232,15 +225,22 @@ public class AIManager {
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        Map<String, Object> message = (Map<String, Object>) outer.get("message");
-                        String content = (String) message.get("content");
-                        String jsonContent = content
+                        if (endpoint.contains("response")) {
+                            Map<String, Object> message = (Map<String, Object>) outer.get("message");
+                            String content = (String) message.get("content");
+                            String jsonContent = content
                             .replaceFirst("^```json\\s*", "")
                             .replaceFirst("\\s*```$", "")
                             .trim();
-                        Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                        ResponseObject response = new ResponseObject(inner);
-                        return response;
+                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+                            ResponseObject response = new ResponseObject(inner);
+                            return response;
+                        }
+                        else {
+                            ResponseObject response = new ResponseObject(outer);
+                            return response;
+                        }
+                        
                     } else {
                         System.out.println(code);
                         throw new IOException("HTTP " + code + ": " + respBody);
