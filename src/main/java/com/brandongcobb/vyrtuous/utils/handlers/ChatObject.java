@@ -45,18 +45,19 @@ public class ChatObject extends MetadataContainer {
         MetadataKey<String> doneReasonKey = new MetadataKey<>("done_reason", Metadata.STRING);
         MetadataKey<Boolean> doneKey = new MetadataKey<>("done", Metadata.BOOLEAN);
         MetadataKey<Long> totalDurationKey = new MetadataKey<>("total_duration", Metadata.LONG);
-        MetadataKey<Long> loadDurationKey = new MetadataKey<>("load_duration", Metadata.LONG);
+        MetadataKey<Integer> loadDurationKey = new MetadataKey<>("load_duration", Metadata.INTEGER);
         MetadataKey<Integer> promptEvalCountKey = new MetadataKey<>("prompt_eval_count", Metadata.INTEGER);
         MetadataKey<Long> promptEvalDurationKey = new MetadataKey<>("prompt_eval_duration", Metadata.LONG);
         MetadataKey<Integer> evalCountKey = new MetadataKey<>("eval_count", Metadata.INTEGER);
         MetadataKey<Long> evalDurationKey = new MetadataKey<>("eval_duration", Metadata.LONG);
 
         put(modelKey, (String) responseMap.get("model"));
+        put(contentKey, (String) responseMap.get("content"));
         put(createdAtKey, (String) responseMap.get("created_at"));
         put(doneReasonKey, (String) responseMap.get("done_reason"));
         put(doneKey, (Boolean) responseMap.get("done"));
         put(totalDurationKey, (Long) responseMap.get("total_duration"));
-        put(loadDurationKey, (Long) responseMap.get("load_duration"));
+        put(loadDurationKey, (Integer) responseMap.get("load_duration"));
         put(promptEvalCountKey, (Integer) responseMap.get("prompt_eval_count"));
         put(promptEvalDurationKey, (Long) responseMap.get("prompt_eval_duration"));
         put(evalCountKey, (Integer) responseMap.get("eval_count"));
