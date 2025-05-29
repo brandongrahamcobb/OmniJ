@@ -86,7 +86,6 @@ public class ToolHandler {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                System.out.println("executeShell");
                 String raw = originalCommand.trim();
                 String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
 

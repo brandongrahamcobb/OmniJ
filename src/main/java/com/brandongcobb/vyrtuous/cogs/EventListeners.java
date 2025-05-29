@@ -83,7 +83,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
         fullContentFuture
             .thenCompose(fullContent -> {
-                return aim.completeRequest("Text to moderate: " + fullContent, null, "gemma3:12b", "moderation")
+                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
                     .thenCompose(moderationResponseObject -> moderationResponseObject.completeGetFlagged()
                         .thenCompose(flagged -> {
                             if (flagged) {
@@ -93,7 +93,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                     .thenCompose(reason -> mom.completeHandleModeration(message, reason)
                                         .thenApply(ignored -> null));
                             } else {
-                                System.out.println("Not flagged — running completion phase");
                                 return Vyrtuous.completeGetInstance()
                                     .thenCompose(vyr -> vyr.completeGetUserModelSettings())
                                     .thenCompose(userModelSettings -> {
@@ -106,12 +105,10 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                 CompletableFuture<String> prevIdFut = previousResponse != null
                                                     ? previousResponse.completeGetResponseId()
                                                     : CompletableFuture.completedFuture(null);
-
                                                 return prevIdFut.thenCompose(previousResponseId ->
-                                                    aim.completeRequest(fullContent, previousResponseId, "gemma3:12b", "completion")
+                                                    aim.completeLocalRequest(fullContent, previousResponseId, "gemma3:12b", "completion")
                                                         .thenCompose(responseObject -> {
                                                             CompletableFuture<Void> setPrevFut;
-
                                                             if (previousResponse != null) {
                                                                 setPrevFut = previousResponse
                                                                     .completeGetPreviousResponseId()
@@ -120,7 +117,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                             } else {
                                                                 setPrevFut = responseObject.completeSetPreviousResponseId(null);
                                                             }
-
                                                             return setPrevFut.thenCompose(v -> {
                                                                 userResponseMap.put(senderId, responseObject);
                                                                 return responseObject.completeGetOutput()

@@ -90,7 +90,7 @@ public class REPLManager {
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, input));
         String prompt = contextManager.buildPromptContext();
 
-        return aim.completeLocalRequest(prompt, null, modelSetting, "completion")
+        return aim.completeLocalRequest(prompt, null, modelSetting, "response")
             .thenCompose(response -> processResponseLoop(response, aim, transcript, scanner, modelSetting, startTimeMillis));
     }
 
@@ -197,7 +197,7 @@ public class REPLManager {
         if (index >= commands.size()) {
             // Continue REPL after all commands have been run
             String updatedPrompt = contextManager.buildPromptContext();
-            return aim.completeLocalRequest(updatedPrompt, null, modelSetting, "completion")
+            return aim.completeLocalRequest(updatedPrompt, null, modelSetting, "response")
                     .thenCompose(nextResponse -> processResponseLoop(nextResponse, aim, transcript, scanner, modelSetting, startTimeMillis));
         }
 
