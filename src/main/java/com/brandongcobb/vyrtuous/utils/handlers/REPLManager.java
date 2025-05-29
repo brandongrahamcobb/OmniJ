@@ -22,7 +22,7 @@ public class REPLManager {
         setApprovalMode(mode);
         this.maxSessionDurationMillis = maxSessionDurationMillis;
         LOGGER.setLevel(Level.INFO);
-        LOGGER.info("REPLManager initialized with mode " + mode + " and max duration " + maxSessionDurationMillis + "ms");
+        LOGGER.fine("REPLManager initialized with mode " + mode + " and max duration " + maxSessionDurationMillis + "ms");
     }
 
     public REPLManager(ApprovalMode mode) {
@@ -30,7 +30,7 @@ public class REPLManager {
     }
 
     public void setApprovalMode(ApprovalMode mode) {
-        LOGGER.info("Approval mode set to: " + mode);
+        LOGGER.fine("Approval mode set to: " + mode);
         this.approvalMode = mode;
     }
 
@@ -54,7 +54,7 @@ public class REPLManager {
 
     private CompletableFuture<Boolean> requestApprovalAsync(String command, Scanner scanner) {
         return CompletableFuture.supplyAsync(() -> {
-            LOGGER.info("Requesting user approval for command: " + command);
+            LOGGER.fine("Requesting user approval for command: " + command);
             System.out.println("Approval required for command: " + command);
             System.out.print("Approve? (yes/no): ");
             while (true) {
@@ -74,7 +74,7 @@ public class REPLManager {
         String modelSetting,
         long startTimeMillis
     ) {
-        LOGGER.info("Running REPL loop with input: " + input);
+        LOGGER.fine("Running REPL loop with input: " + input);
         if (maxSessionDurationMillis > 0) {
             long elapsed = System.currentTimeMillis() - startTimeMillis;
             if (elapsed > maxSessionDurationMillis) {
@@ -104,19 +104,19 @@ public class REPLManager {
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]: " + summary + "\n");
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
-            LOGGER.info("Model summary: " + summary);
+            LOGGER.fine("Model summary: " + summary);
         }
 
         return response.completeGetShellToolFinished().thenCompose(finished -> {
             if (Boolean.TRUE.equals(finished)) {
-                LOGGER.info("AI indicated task is finished.");
+                LOGGER.fine("AI indicated task is finished.");
                 System.out.println("✅ Task complete.");
                 System.out.println("\nFinal Summary:\n" + transcript.toString());
                 return CompletableFuture.completedFuture(transcript.toString());
             }
 
             String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
-            LOGGER.info("Received shell command: " + shellCommand);
+            LOGGER.fine("Received shell command: " + shellCommand);
 
             if (shellCommand == null || shellCommand.isBlank()) {
                 LOGGER.warning("AI response did not include a shell command. Asking user for clarification.");
@@ -156,7 +156,7 @@ public class REPLManager {
         long startTimeMillis
     ) {
         String shellCommand = response.get(ResponseObject.LOCALSHELLTOOL_COMMAND);
-        LOGGER.info("Executing shell command: " + shellCommand);
+        LOGGER.fine("Executing shell command: " + shellCommand);
 
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, shellCommand));
         ToolHandler toolHandler = new ToolHandler();
@@ -175,7 +175,7 @@ public class REPLManager {
     }
 
     public void startResponseInputThread() {
-        LOGGER.info("Starting response input thread...");
+        LOGGER.fine("Starting response input thread...");
         inputExecutor.submit(() -> {
             try (Scanner scanner = new Scanner(System.in)) {
                 System.out.println("Response input thread started. Type your messages:");
@@ -191,16 +191,16 @@ public class REPLManager {
                     }
 
                     if (input.equalsIgnoreCase(".exit") || input.equalsIgnoreCase(".quit")) {
-                        LOGGER.info("User requested REPL shutdown.");
+                        LOGGER.fine("User requested REPL shutdown.");
                         System.out.println("Exiting response input thread.");
                         break;
                     }
 
-                    LOGGER.info("Received user input: " + input);
+                    LOGGER.fine("Received user input: " + input);
                     completeREPLAsync(scanner, input)
                         .thenAcceptAsync(response -> {
                             System.out.println("Bot: " + response);
-                            LOGGER.info("REPL output: " + response);
+                            LOGGER.fine("REPL output: " + response);
                         }, replExecutor);
                 }
             } catch (IllegalStateException e) {
@@ -213,7 +213,7 @@ public class REPLManager {
     }
 
     private void shutdownExecutors() {
-        LOGGER.info("Shutting down executors...");
+        LOGGER.fine("Shutting down executors...");
         inputExecutor.shutdown();
         replExecutor.shutdown();
         try {
@@ -223,7 +223,7 @@ public class REPLManager {
             if (!replExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                 replExecutor.shutdownNow();
             }
-            LOGGER.info("Executors shut down cleanly.");
+            LOGGER.fine("Executors shut down cleanly.");
         } catch (InterruptedException e) {
             LOGGER.warning("Executor shutdown interrupted.");
             inputExecutor.shutdownNow();
@@ -234,7 +234,7 @@ public class REPLManager {
 
     private CompletableFuture<String> completeREPLAsync(Scanner scanner, String initialMessage) {
         this.originalDirective = initialMessage;
-        LOGGER.info("Starting REPL session with: " + initialMessage);
+        LOGGER.fine("Starting REPL session with: " + initialMessage);
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, initialMessage));
         AIManager aim = new AIManager();
         StringBuilder transcript = new StringBuilder();
