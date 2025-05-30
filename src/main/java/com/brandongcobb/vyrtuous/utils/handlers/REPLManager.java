@@ -152,8 +152,8 @@ public class REPLManager {
             String element = shellCommands.get(0); // Assume only the first for now
             LOGGER.fine("Received shell command: " + element);
             String plainText = ru.completeGetOutput().join();
-            if (element == null || element.isBlank()) {
-                LOGGER.warning("Shell command is blank. Asking for clarification.");
+            if (element == null || element.isBlank() || element.startsWith("echo")) {
+                LOGGER.warning("Shell command is blank or starts with echo. Asking for clarification.");
                 System.out.println("[Model]: I need clarification before proceeding. " + plainText);
                 System.out.print("> ");
                 String userInput = scanner.nextLine();
