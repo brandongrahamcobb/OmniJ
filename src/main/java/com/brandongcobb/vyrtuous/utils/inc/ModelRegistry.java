@@ -27,6 +27,7 @@ import com.brandongcobb.vyrtuous.utils.inc.*;
 public enum ModelRegistry {
 
     GEMINI_RESPONSE_MODEL("gemma3:12b"),
+    DEEPSEEK_RESPONSE_MODEL("deepseek:latest"),
 
     RESPONSE_SYS_INPUT("""
         You are multibillion parameter local large language model running on a macOS Sienna M4 MacBook Air via a Java Ollama wrapper. You operate the Local Shell Tool (always refer to it as local_shell). Your shell commands will be run from the contextually relevant git repository. Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs, along with updated context, are returned to you.

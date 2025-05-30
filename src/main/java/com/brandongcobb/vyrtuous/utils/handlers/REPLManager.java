@@ -224,7 +224,7 @@ public class REPLManager {
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, initialMessage));
         AIManager aim = new AIManager();
         StringBuilder transcript = new StringBuilder();
-        String model = ModelRegistry.GEMINI_RESPONSE_MODEL.asString();
+        String model = ModelRegistry.DEEPSEEK_RESPONSE_MODEL.asString();
         return completeREPLLoop(initialMessage, aim, transcript, scanner, model, System.currentTimeMillis());
     }
     
