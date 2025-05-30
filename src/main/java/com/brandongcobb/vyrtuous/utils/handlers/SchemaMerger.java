@@ -1,8 +1,5 @@
-
-/*
- * ModelRegistry.java
- * The purpose of this program is to be solely for
- * OpenAI (and possibly other AI providers) model parameter bounds.
+/* SchemaMerger.java The purpose of this program is to create JSON
+ * schemas.
  *
  * Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -21,13 +18,13 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+
+import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-
-import com.brandongcobb.vyrtuous.utils.inc.*;
 
 public class SchemaMerger {
 
@@ -35,27 +32,21 @@ public class SchemaMerger {
 
     public static String mergeModeration(String baseSchemaString, String outputItemSnippet) throws IOException {
         JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
-
-        // Inject into output items (assuming 'output' is an array of objects)
         JsonNode outputItemsNode = baseSchema.path("properties").path("output").path("items").path("properties");
         if (outputItemsNode instanceof ObjectNode) {
             JsonNode outputItemToAdd = objectMapper.readTree(outputItemSnippet);
             ((ObjectNode) outputItemsNode).setAll((ObjectNode) outputItemToAdd);
         }
-
         return objectMapper.writeValueAsString(baseSchema);
     }
     
     public static String mergeLocalShell(String baseSchemaString, String metadataSnippet) throws IOException {
         JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
-
-        // Inject into metadata
         JsonNode metadataNode = baseSchema.path("properties").path("metadata").path("properties");
         if (metadataNode instanceof ObjectNode) {
             JsonNode metadataToAdd = objectMapper.readTree(metadataSnippet);
             ((ObjectNode) metadataNode).set("local_shell_command_sequence_finished", metadataToAdd.path("local_shell_command_sequence_finished"));
         }
-
         return objectMapper.writeValueAsString(baseSchema);
     }
     

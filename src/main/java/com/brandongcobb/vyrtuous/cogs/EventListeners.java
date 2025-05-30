@@ -98,7 +98,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 return null;
             });
     }
-
     
     private CompletableFuture<Void> handleNormalFlow(
         AIManager aim,
@@ -147,5 +146,4 @@ public class EventListeners extends ListenerAdapter implements Cog {
                     });
             });
     }
-
 }

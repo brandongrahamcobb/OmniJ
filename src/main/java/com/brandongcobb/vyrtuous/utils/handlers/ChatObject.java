@@ -1,5 +1,5 @@
-/* ChatObject.java The purpose of this class is to interpret and
- * containerize the metadata of OpenAI's response object.
+/*  ChatObject.java The purpose of this class is to extend and
+ *  a MetadataContainer for completion objects.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

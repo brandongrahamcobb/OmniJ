@@ -19,6 +19,7 @@
 package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
@@ -31,8 +32,6 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 
 public class ResponseObject extends MetadataContainer {
@@ -74,10 +73,13 @@ public class ResponseObject extends MetadataContainer {
     public static final MetadataKey<String> CODEINTERPRETERTOOL_TYPE = new MetadataKey<>("codeinterpretertool_type", Metadata.STRING);
     public static final MetadataKey<String> CODEINTERPRETERTOOL_CONTAINER_ID = new MetadataKey<>("codeinterpretertool_container_id", Metadata.STRING);
     public static final MetadataKey<Map<String, Object>> CODEINTERPRETERTOOL_CONTAINER_MAP = new MetadataKey<>("codeinterpretertool_container_map", Metadata.MAP);
-    public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
+    public static final MetadataKey<String> LOCALSHELLTOOL_CALL_ID = new MetadataKey<>("localshelltool_call_id", Metadata.STRING);
+    public static final MetadataKey<String> LOCALSHELLTOOL_COMMAND = new MetadataKey<>("localshelltool_command", Metadata.STRING);
     public static final MetadataKey<List<String>> LOCALSHELLTOOL_COMMANDS = new MetadataKey<>("localshelltool_commands", Metadata.LIST_STRING);
     public static final MetadataKey<Boolean> LOCALSHELLTOOL_FINISHED = new MetadataKey<>("localshelltool_finished", Metadata.BOOLEAN);
-
+    public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
+    
+    
     public static String mapToJsonString(Map<String, Object> map) {
         try {
             return new ObjectMapper().writeValueAsString(map);
@@ -134,6 +136,7 @@ public class ResponseObject extends MetadataContainer {
                 put(completionCompletionTokensKey, completionCompletionTokens);
             }
         }
+        
         else if (requestId.contains("models")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
@@ -147,7 +150,6 @@ public class ResponseObject extends MetadataContainer {
             put(ownerCreatedKey, ownerCreated);
         }
 
-        
         else if (requestId.contains("resp_")) {
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
@@ -224,27 +226,22 @@ public class ResponseObject extends MetadataContainer {
             put(LOCALSHELLTOOL_FINISHED, localShellFinished);
             MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
             Object outputObj = responseMap.get("output");
-            
             if (outputObj instanceof List<?> outputList) {
                 for (Object outputItemObj : outputList) {
                     if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
-
-                    // Check for local_shell_call type
                     Object typeObj = outputItem.get("type");
                     if ("tool_call".equals(typeObj)) {
                         Object callIdObj = outputItem.get("call_id");
                         if (callIdObj instanceof String callId) {
-                            put(ToolHandler.LOCALSHELLTOOL_CALL_ID, callId);
+                            put(LOCALSHELLTOOL_CALL_ID, callId);
                         }
-
                         Object actionObj = outputItem.get("action");
                         if (actionObj instanceof Map<?, ?> action) {
                             Object cmdObj = action.get("command");
-
                             if (cmdObj instanceof List<?> cmdList) {
                                 List<String> commands = cmdList.stream()
                                     .map(Object::toString)
-                                    .toList(); // Java 16+, otherwise use .collect(Collectors.toList())
+                                    .toList();
                                 put(LOCALSHELLTOOL_COMMANDS, commands);
                             } else if (cmdObj instanceof String singleCommand) {
                                 put(LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
@@ -253,9 +250,6 @@ public class ResponseObject extends MetadataContainer {
                             }
                         }
                     }
-
-
-                    // Extract output content text
                     Object contentObj = outputItem.get("content");
                     if (contentObj instanceof List<?> contentList) {
                         for (Object contentItemObj : contentList) {
@@ -269,8 +263,6 @@ public class ResponseObject extends MetadataContainer {
                     }
                 }
             }
-
-            // Parse "tools" array
             MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
             Object toolsObj = responseMap.get("tools");
             if (toolsObj instanceof List<?> toolsListRaw) {
@@ -281,26 +273,21 @@ public class ResponseObject extends MetadataContainer {
                     }
                 }
                 put(toolsKey, toolsList);
-
                 for (Map<String, Object> toolMap : toolsList) {
                     Object typeObj = toolMap.get("type");
                     if (!(typeObj instanceof String type)) continue;
-
                     switch (type) {
                         case "file_search" -> {
                             put(FILESEARCHTOOL_TYPE, "file_search");
-                            put(FILESEARCHTOOL_VECTOR_STORE_IDS, List.of("file-ToDXSxedx12w7xAFJa1kdM"));
-
+                            put(FILESEARCHTOOL_VECTOR_STORE_IDS, List.of("file-PLACEHOLDER"));
                             Object filtersObj = toolMap.get("filters");
                             if (filtersObj instanceof Map<?, ?> filterMap) {
                                 put(FILESEARCHTOOL_FILTERS, (Map<String, Object>) filterMap);
-
                                 if (filterMap.containsKey("key") && filterMap.containsKey("type") && filterMap.containsKey("value")) {
                                     put(FILESEARCHTOOL_FILTER_COMPARISON, (Map<String, Object>) filterMap);
                                 }
                                 if ("and".equals(filterMap.get("type")) || "or".equals(filterMap.get("type"))) {
                                     put(FILESEARCHTOOL_FILTER_COMPOUND, (Map<String, Object>) filterMap);
-
                                     Object subFilters = filterMap.get("filters");
                                     if (subFilters instanceof List<?> subList) {
                                         List<Map<String, Object>> casted = new ArrayList<>();
@@ -313,25 +300,21 @@ public class ResponseObject extends MetadataContainer {
                                     }
                                 }
                             }
-
                             Object maxNumResults = toolMap.get("max_num_results");
                             if (maxNumResults instanceof Number num) {
                                 put(FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
                             }
-
                             Object rankingOpts = toolMap.get("ranking_options");
                             if (rankingOpts instanceof Map<?, ?> rankingMap) {
                                 put(FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingMap);
                             }
                         }
-
                         case "web_search_preview", "web_search_preview_2025_03_11" -> {
                             put(WEBSEARCHTOOL_TYPE, type);
                             Object searchContextSize = toolMap.get("search_context_size");
                             if (searchContextSize instanceof String size) {
                                 put(WEBSEARCHTOOL_CONTEXT_SIZE, size);
                             }
-
                             Object userLocObj = toolMap.get("user_location");
                             if (userLocObj instanceof Map<?, ?> loc) {
                                 if (loc.get("type") instanceof String locType) put(WEBSEARCHTOOL_LOCATION_TYPE, locType);
@@ -341,31 +324,25 @@ public class ResponseObject extends MetadataContainer {
                                 if (loc.get("timezone") instanceof String tz) put(WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
                             }
                         }
-
                         case "computer_use_preview" -> {
                             put(COMPUTERTOOL_TYPE, type);
                             if (toolMap.get("display_height") instanceof Number height) put(COMPUTERTOOL_DISPLAY_HEIGHT, height.intValue());
                             if (toolMap.get("display_width") instanceof Number width) put(COMPUTERTOOL_DISPLAY_WIDTH, width.intValue());
                             if (toolMap.get("environment") instanceof String env) put(COMPUTERTOOL_ENVIRONMENT, env);
                         }
-
                         case "mcp" -> {
                             put(MCPTOOL_TYPE, type);
-
                             if (toolMap.get("server_label") instanceof String serverLabel) put(MCPTOOL_SERVER_LABEL, serverLabel);
                             if (toolMap.get("server_url") instanceof String serverUrl) put(MCPTOOL_SERVER_URL, serverUrl);
-
                             Object allowedToolsObj = toolMap.get("allowed_tools");
                             if (allowedToolsObj instanceof List<?> allowedToolList) {
                                 put(MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
                             } else if (allowedToolsObj instanceof Map<?, ?> allowedToolMap) {
                                 put(MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
                             }
-
                             if (toolMap.get("headers") instanceof Map<?, ?> headersMap) {
                                 put(MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
                             }
-
                             Object approvalObj = toolMap.get("require_approval");
                             if (approvalObj instanceof String approvalSetting) {
                                 put(MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
@@ -381,7 +358,6 @@ public class ResponseObject extends MetadataContainer {
                                 }
                             }
                         }
-
                         case "code_interpreter" -> {
                             put(CODEINTERPRETERTOOL_TYPE, type);
                             Object containerObj = toolMap.get("container");
@@ -391,7 +367,6 @@ public class ResponseObject extends MetadataContainer {
                                 put(CODEINTERPRETERTOOL_CONTAINER_MAP, (Map<String, Object>) containerMap);
                             }
                         }
-
                         case "local_shell" -> {
                             put(LOCALSHELLTOOL_TYPE, type);
                             if (outputObj instanceof List<?> outputList) {
@@ -415,9 +390,8 @@ public class ResponseObject extends MetadataContainer {
                                 }
                             }
                         }
-
+                            
                         default -> {
-                            // Unknown tool type - ignore or log
                         }
                     }
                 }
@@ -477,7 +451,6 @@ public class ResponseObject extends MetadataContainer {
                     MetadataKey<Boolean> illicitKey = new MetadataKey<>("illicit", Metadata.BOOLEAN);
                     Boolean moderationIllicit = categories.get("illicit");
                     put(illicitKey, moderationIllicit);
-                    // Note: watch out for extra spaces in key names
                     MetadataKey<Boolean> illicitViolentKey = new MetadataKey<>("illicit/violent", Metadata.BOOLEAN);
                     Boolean moderationIllicitViolent = categories.get("illicit/violent");
                     put(illicitViolentKey, moderationIllicitViolent);

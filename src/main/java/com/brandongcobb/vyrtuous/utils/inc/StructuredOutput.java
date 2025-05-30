@@ -1,7 +1,5 @@
-/*
- * ModelRegistry.java
- * The purpose of this program is to be solely for
- * OpenAI (and possibly other AI providers) model parameter bounds.
+/* StructuredOutput.java The purpose of this program is to behold JSON
+ * schemas
  *
  * Copyright (C) 2025  github.com/brandongrahamcobb
  *

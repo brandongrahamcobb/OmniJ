@@ -1,6 +1,5 @@
 /*  Vyrtuous.java The primary purpose of this class is to integrate
- *  Discord, LinkedIn, OpenAI, Patreon, Twitch and many more into one
- *  hub.
+ *  local and remote AI tools.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -56,17 +55,13 @@ public class Vyrtuous {
     private static Vyrtuous app;
     private static Boolean isInputThreadRunning = false;
     private Map<Long, String> userModelSettings = new HashMap<>();
-    private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
     
     public static void main(String[] args) {
         app = new Vyrtuous();
         DiscordBot bot = new DiscordBot();
         boolean isInputThreadRunning = false;
-
         if (!isInputThreadRunning) {
-            // Optionally pass approval mode if your REPLManager supports it
             ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
-            // Optional session timeout (seconds) via env VYRTUOUS_TIMEOUT
             String timeoutEnv = System.getenv("VYRTUOUS_TIMEOUT");
             long timeoutMillis = 0L;
             if (timeoutEnv != null) {
@@ -76,19 +71,15 @@ public class Vyrtuous {
                     System.err.println("Invalid VYRTUOUS_TIMEOUT, must be integer seconds.");
                 }
             }
-            // initialize REPL with approval mode and optional timeout
             REPLManager repl = new REPLManager(approvalMode, timeoutMillis);
-            repl.startResponseInputThread(); // starts REPL thread with enhanced AI loop
+            repl.startResponseInputThread();
             isInputThreadRunning = true;
         }
-
-        // Keep main thread alive
         try {
             new CountDownLatch(1).await();
         } catch (InterruptedException ie) {
             ie.printStackTrace();
         }
-
     }
 
     public static CompletableFuture<Vyrtuous> completeGetInstance() {

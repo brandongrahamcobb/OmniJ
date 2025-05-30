@@ -114,6 +114,47 @@ public class HybridCommands extends ListenerAdapter implements Cog {
         }
     }
 
+    private CompletableFuture<Void> deleteMessagesInChunks(List<Message> messages, TextChannel channel) {
+        if (messages.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<Message> chunk = messages.stream().limit(100).collect(Collectors.toList());
+        List<String> messageIds = chunk.stream().map(Message::getId).collect(Collectors.toList());
+        CompletableFuture<Void> deletionFuture = new CompletableFuture<>();
+        channel.deleteMessagesByIds(messageIds).queue(
+            success -> deletionFuture.complete(null),
+            failure -> deletionFuture.completeExceptionally(failure)
+        );
+        return deletionFuture.thenCompose(v -> {
+            List<Message> remaining = messages.stream().skip(100).collect(Collectors.toList());
+            return deleteMessagesInChunks(remaining, channel);
+        });
+    }
+    
+    private CompletableFuture<List<Message>> fetchAllMessages(MessageHistory history) {
+        CompletableFuture<List<Message>> future = new CompletableFuture<>();
+        history.retrievePast(100).queue(messages -> {
+            List<Message> allMessages = messages;
+            fetchRemainingMessages(history, allMessages, future);
+        }, failure -> future.completeExceptionally(failure));
+        return future;
+    }
+
+    private void fetchRemainingMessages(MessageHistory history, List<Message> accumulated, CompletableFuture<List<Message>> future) {
+        if (history.getRetrievedHistory().size() == 0) {
+            future.complete(accumulated);
+        } else {
+            history.retrievePast(100).queue(messages -> {
+                if (messages.isEmpty()) {
+                    future.complete(accumulated);
+                } else {
+                    accumulated.addAll(messages);
+                    fetchRemainingMessages(history, accumulated, future);
+                }
+            }, failure -> future.completeExceptionally(failure));
+        }
+    }
+    
     private User parseUserFromMention(String mention, Guild guild) {
         if (mention.startsWith("<@") && mention.endsWith(">")) {
             String id = mention.replaceAll("[<@!>]", "");
@@ -153,47 +194,6 @@ public class HybridCommands extends ListenerAdapter implements Cog {
                     })
                     .collect(Collectors.toList());
             return deleteMessagesInChunks(toDelete, channel);
-        });
-    }
-
-    private CompletableFuture<List<Message>> fetchAllMessages(MessageHistory history) {
-        CompletableFuture<List<Message>> future = new CompletableFuture<>();
-        history.retrievePast(100).queue(messages -> {
-            List<Message> allMessages = messages;
-            fetchRemainingMessages(history, allMessages, future);
-        }, failure -> future.completeExceptionally(failure));
-        return future;
-    }
-
-    private void fetchRemainingMessages(MessageHistory history, List<Message> accumulated, CompletableFuture<List<Message>> future) {
-        if (history.getRetrievedHistory().size() == 0) {
-            future.complete(accumulated);
-        } else {
-            history.retrievePast(100).queue(messages -> {
-                if (messages.isEmpty()) {
-                    future.complete(accumulated);
-                } else {
-                    accumulated.addAll(messages);
-                    fetchRemainingMessages(history, accumulated, future);
-                }
-            }, failure -> future.completeExceptionally(failure));
-        }
-    }
-
-    private CompletableFuture<Void> deleteMessagesInChunks(List<Message> messages, TextChannel channel) {
-        if (messages.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        List<Message> chunk = messages.stream().limit(100).collect(Collectors.toList());
-        List<String> messageIds = chunk.stream().map(Message::getId).collect(Collectors.toList());
-        CompletableFuture<Void> deletionFuture = new CompletableFuture<>();
-        channel.deleteMessagesByIds(messageIds).queue(
-            success -> deletionFuture.complete(null),
-            failure -> deletionFuture.completeExceptionally(failure)
-        );
-        return deletionFuture.thenCompose(v -> {
-            List<Message> remaining = messages.stream().skip(100).collect(Collectors.toList());
-            return deleteMessagesInChunks(remaining, channel);
         });
     }
 }

@@ -1,3 +1,21 @@
+/* ModelRegistry.java The purpose of this class is to handle the tools.
+ *
+ * Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.brandongcobb.vyrtuous.utils.inc;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -7,6 +25,7 @@ import java.io.IOException;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 
 public enum ModelRegistry {
+
     GEMINI_RESPONSE_MODEL("gemma3:12b"),
 
     RESPONSE_SYS_INPUT("""
@@ -175,6 +194,7 @@ public enum ModelRegistry {
           ]
         }"""),
 
+    OPENAI_CODEX_MODEL("codex-mini-latest"),
     OPENAI_MODERATION_STATUS(true),
     OPENAI_MODERATION_MODEL("omni-moderation-latest"),
     OPENAI_MODERATION_RESPONSE_STORE(false),
@@ -183,9 +203,7 @@ public enum ModelRegistry {
     OPENAI_MODERATION_RESPONSE_TEMPERATURE(0.7f),
     OPENAI_MODERATION_RESPONSE_TOP_P(1.0f),
     OPENAI_MODERATION_RESPONSE_WARNING("Please adhere to the community guidelines. Your message was flagged for moderation."),
-
     OPENAI_RESPONSE_MODEL("gpt-4.1"),
-    OPENAI_CODEX_MODEL("codex-mini-latest"),
     OPENAI_RESPONSE_N(1),
     OPENAI_RESPONSE_STATUS(true),
     OPENAI_RESPONSE_STORE(false),

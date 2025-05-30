@@ -33,23 +33,16 @@ import java.util.Map;
 
 public class Helpers {
 
-    public static String FILE_ACTIVITY_OBJECT;
     public static String FILE_AI_MANAGER;
-    public static String FILE_COST_OBJECT;
     public static String FILE_DISCORD_BOT;
     public static String FILE_EVENT_LISTENERS;
     public static String FILE_HELPERS;
-    public static String FILE_HYBIRD_COMMANDS;
-    public static String FILE_METADATA_CONTAINER;
-    public static String FILE_METADATA_HOLDER;
-    public static String FILE_METADATA_KEY;
-    public static String FILE_METADATA_TYPE;
+    public static String FILE_HYBRID_COMMANDS;
     public static String FILE_MESSAGE_MANAGER;
     public static String FILE_MODEL_INFO;
     public static String FILE_MODEL_REGISTRY;
     public static String FILE_MODERATION_MANAGER;
     public static String FILE_PREDICATOR;
-    public static String FILE_REQUEST_OBJECT;
     public static String FILE_RESPONSE_OBJECT;
     public static String FILE_VYRTUOUS;
 
@@ -57,57 +50,33 @@ public class Helpers {
 
     public static final Path DIR_BASE = Paths.get("/app/source").toAbsolutePath();
     public static final Path DIR_TEMP = Paths.get(DIR_BASE.toString(), "vyrtuous", "temp");
-    public static final Path PATH_ACTIVITY_OBJECT = Paths.get(DIR_BASE.toString(), "vyrtuous", "metadata", "Activity.java");
     public static final Path PATH_AI_MANAGER = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "AIManager.java");
     public static final Path PATH_COG = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "Cog.java");
-    public static final Path PATH_COST_OBJECT = Paths.get(DIR_BASE.toString(), "vyrtuous", "metadata", "Costs.java");
     public static final Path PATH_DISCORD_BOT = Paths.get(DIR_BASE.toString(), "vyrtuous", "bots", "DiscordBot.java");
     public static final Path PATH_EVENT_LISTENERS = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "EventListeners.java");
     public static final Path PATH_HELPERS = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "inc", "Helpers.java");
-    public static final Path PATH_HYBIRD_COMMANDS = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "HybridCommands.java");
+    public static final Path PATH_HYBRID_COMMANDS = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "HybridCommands.java");
     public static final Path PATH_MESSAGE_MANAGER = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MessageManager.java");
-    public static final Path PATH_METADATA_CONTAINER = Paths.get(DIR_BASE.toString(), "vyrtuous", "metadata", "MetadataContainer.java");
-    public static final Path PATH_METADATA_HOLDER = Paths.get(DIR_BASE.toString(), "vyrtuous", "metadata", "MetadataHolder.java");
-    public static final Path PATH_METADATA_KEY = Paths.get(DIR_BASE.toString(), "vyrtuous", "metadata", "MetadataKey.java");
-    public static final Path PATH_METADATA_TYPE = Paths.get(DIR_BASE.toString(), "vyrtuous", "metadata", "MetadataType.java");
     public static final Path PATH_MODEL_INFO = Paths.get(DIR_BASE.toString(), "vyrtuous", "records", "ModelInfo.java");
     public static final Path PATH_MODEL_REGISTRY = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "inc", "ModelRegistry.java");
     public static final Path PATH_MODERATION_MANAGER = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ModerationManager.java");
     public static final Path PATH_PREDICATOR = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "Predicator.java");
-    public static final Path PATH_REQUEST_OBJECT = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "RequestObject.java");
     public static final Path PATH_RESPONSE_OBJECT = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ResponseObject.java");
     public static final Path PATH_VYRTUOUS = Paths.get(DIR_BASE.toString(), "vyrtuous", "Vyrtuous.java");
 
-    // Safely read source files into static fields; missing files yield empty strings
     static {
-        FILE_ACTIVITY_OBJECT      = safeRead(EnvironmentPaths.ACTIVITY_OBJECT.get());
         FILE_AI_MANAGER           = safeRead(EnvironmentPaths.AI_MANAGER.get());
-        FILE_COST_OBJECT          = safeRead(EnvironmentPaths.COST_OBJECT.get());
         FILE_DISCORD_BOT          = safeRead(EnvironmentPaths.DISCORD_BOT.get());
         FILE_EVENT_LISTENERS      = safeRead(EnvironmentPaths.EVENT_LISTENERS.get());
         FILE_HELPERS              = safeRead(EnvironmentPaths.HELPERS.get());
-        FILE_HYBIRD_COMMANDS      = safeRead(EnvironmentPaths.HYBIRD_COMMANDS.get());
-        FILE_METADATA_CONTAINER   = safeRead(EnvironmentPaths.METADATA_CONTAINER.get());
-        FILE_METADATA_HOLDER      = safeRead(EnvironmentPaths.METADATA_HOLDER.get());
-        FILE_METADATA_KEY         = safeRead(EnvironmentPaths.METADATA_KEY.get());
-        FILE_METADATA_TYPE        = safeRead(EnvironmentPaths.METADATA_TYPE.get());
+        FILE_HYBRID_COMMANDS      = safeRead(EnvironmentPaths.HYBRID_COMMANDS.get());
         FILE_MESSAGE_MANAGER      = safeRead(EnvironmentPaths.MESSAGE_MANAGER.get());
         FILE_MODEL_INFO           = safeRead(EnvironmentPaths.MODEL_INFO.get());
         FILE_MODEL_REGISTRY       = safeRead(EnvironmentPaths.MODEL_REGISTRY.get());
         FILE_MODERATION_MANAGER   = safeRead(EnvironmentPaths.MODERATION_MANAGER.get());
         FILE_PREDICATOR           = safeRead(EnvironmentPaths.PREDICATOR.get());
-        FILE_REQUEST_OBJECT       = safeRead(EnvironmentPaths.REQUEST_OBJECT.get());
         FILE_RESPONSE_OBJECT      = safeRead(EnvironmentPaths.RESPONSE_OBJECT.get());
         FILE_VYRTUOUS             = safeRead(EnvironmentPaths.VYRTUOUS.get());
-    }
-
-    // Helper method to read a file or return empty string if unavailable
-    private static String safeRead(Path path) {
-        try {
-            return Files.readString(path);
-        } catch (IOException e) {
-            return "";
-        }
     }
 
     public static boolean containsString(String[] array, String target) {
@@ -191,6 +160,14 @@ public class Helpers {
             return (long) intVal;
         } catch (NumberFormatException e) {
             return Long.parseLong(cleanedNumber);
+        }
+    }
+    
+    private static String safeRead(Path path) {
+        try {
+            return Files.readString(path);
+        } catch (IOException e) {
+            return "";
         }
     }
 }

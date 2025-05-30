@@ -93,8 +93,10 @@ public class Maps {
         format.put("schema", mainSchema);
         return format;
     }
+    
     public static final Map<String, Object> OPENAI_MODERATION_RESPONSE_FORMAT = createModerationSchema();
     public static final Map<String, Object> OPENAI_RESPONSE_FORMAT_COLORIZE = createColorizeSchema();
+    
     @SuppressWarnings("unchecked")
     public static Map<String, Object> createColorizeSchema() {
         Map<String, Object> properties = new HashMap<>();
@@ -119,8 +121,6 @@ public class Maps {
     @SuppressWarnings("unchecked")
     public static Map<String, Object> createResponsesApiSchema() {
         Map<String, Object> rootProperties = new HashMap<>();
-
-        // Top-level primitive fields
         rootProperties.put("id", Map.of("type", "string"));
         rootProperties.put("object", Map.of("type", "string"));
         rootProperties.put("created_at", Map.of("type", "integer"));
@@ -139,8 +139,6 @@ public class Maps {
         rootProperties.put("truncation", Map.of("type", "string"));
         rootProperties.put("user", Map.of("type", List.of("null", "object")));
         rootProperties.put("metadata", Map.of("type", "object"));
-
-        // reasoning object
         Map<String, Object> reasoningProperties = new HashMap<>();
         reasoningProperties.put("effort", Map.of("type", List.of("null", "string")));
         reasoningProperties.put("summary", Map.of("type", List.of("null", "string")));
@@ -150,8 +148,6 @@ public class Maps {
         reasoningSchema.put("required", List.of("effort", "summary"));
         reasoningSchema.put("additionalProperties", false);
         rootProperties.put("reasoning", reasoningSchema);
-
-        // text object
         Map<String, Object> textFormatProperties = new HashMap<>();
         textFormatProperties.put("type", "string");
         Map<String, Object> textFormatSchema = new HashMap<>();
@@ -159,7 +155,6 @@ public class Maps {
         textFormatSchema.put("properties", textFormatProperties);
         textFormatSchema.put("required", List.of("type"));
         textFormatSchema.put("additionalProperties", false);
-
         Map<String, Object> textProperties = new HashMap<>();
         textProperties.put("format", textFormatSchema);
         Map<String, Object> textSchema = new HashMap<>();
@@ -168,8 +163,6 @@ public class Maps {
         textSchema.put("required", List.of("format"));
         textSchema.put("additionalProperties", false);
         rootProperties.put("text", textSchema);
-
-        // usage object
         Map<String, Object> inputTokensDetailsProperties = Map.of(
             "cached_tokens", Map.of("type", "integer")
         );
@@ -179,7 +172,6 @@ public class Maps {
             "required", List.of("cached_tokens"),
             "additionalProperties", false
         );
-
         Map<String, Object> outputTokensDetailsProperties = Map.of(
             "reasoning_tokens", Map.of("type", "integer")
         );
@@ -189,7 +181,6 @@ public class Maps {
             "required", List.of("reasoning_tokens"),
             "additionalProperties", false
         );
-
         Map<String, Object> usageProperties = new HashMap<>();
         usageProperties.put("input_tokens", Map.of("type", "integer"));
         usageProperties.put("input_tokens_details", inputTokensDetailsSchema);
@@ -204,52 +195,40 @@ public class Maps {
         ));
         usageSchema.put("additionalProperties", false);
         rootProperties.put("usage", usageSchema);
-
-        // tools array (empty array in example)
         Map<String, Object> toolsSchema = Map.of(
             "type", "array",
-            "items", Map.of("type", "object") // generic object, can be detailed more
+            "items", Map.of("type", "object")
         );
         rootProperties.put("tools", toolsSchema);
-
-        // output array (list of message objects)
-        // Define content inside each message's content array
         Map<String, Object> outputTextContentProperties = new HashMap<>();
         outputTextContentProperties.put("type", Map.of("type", "string"));
         outputTextContentProperties.put("text", Map.of("type", "string"));
-        outputTextContentProperties.put("annotations", Map.of("type", "array")); // array of annotations (can be empty)
-
+        outputTextContentProperties.put("annotations", Map.of("type", "array"));
         Map<String, Object> outputTextContentSchema = new HashMap<>();
         outputTextContentSchema.put("type", "object");
         outputTextContentSchema.put("properties", outputTextContentProperties);
         outputTextContentSchema.put("required", List.of("type", "text", "annotations"));
         outputTextContentSchema.put("additionalProperties", false);
-
         Map<String, Object> messageContentArraySchema = Map.of(
             "type", "array",
             "items", outputTextContentSchema
         );
-
         Map<String, Object> messageProperties = new HashMap<>();
         messageProperties.put("type", Map.of("type", "string"));
         messageProperties.put("id", Map.of("type", "string"));
         messageProperties.put("status", Map.of("type", "string"));
         messageProperties.put("role", Map.of("type", "string"));
         messageProperties.put("content", messageContentArraySchema);
-
         Map<String, Object> messageSchema = new HashMap<>();
         messageSchema.put("type", "object");
         messageSchema.put("properties", messageProperties);
         messageSchema.put("required", List.of("type", "id", "status", "role", "content"));
         messageSchema.put("additionalProperties", false);
-
         Map<String, Object> outputSchema = Map.of(
             "type", "array",
             "items", messageSchema
         );
         rootProperties.put("output", outputSchema);
-
-        // Assemble root schema
         Map<String, Object> schema = new HashMap<>();
         schema.put("type", "object");
         schema.put("properties", rootProperties);
@@ -258,13 +237,11 @@ public class Maps {
             "temperature", "tool_choice", "top_p", "truncation", "usage", "tools", "text", "reasoning", "metadata"
         ));
         schema.put("additionalProperties", false);
-
         Map<String, Object> format = new HashMap<>();
         format.put("type", "json_schema");
         format.put("strict", true);
         format.put("schema", schema);
         format.put("name", "responses_api");
-
         return format;
     }
 
@@ -285,12 +262,14 @@ public class Maps {
         format.put("name", "perplexity");
         return format;
     }
+    
     public static final Map<String, String> OPENAI_RESPONSE_HEADERS = Map.of(
         "Content-Type", "application/json",
         "OpenAI-Organization", "org-3LYwtg7DSFJ7RLn9bfk4hATf",
         "User-Agent", "brandongrahamcobb@icloud.com",
         "OpenAI-Project", "proj_u5htBCWX0LSHxkw45po1Vfz9"
     );
+    
     public static final Map<String, ModelInfo> OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS = Map.ofEntries(
         Map.entry("ft:gpt-4o-mini-2024-07-18:spawd:vyrtuous:AjZpTNN2", new ModelInfo(Helpers.parseCommaNumber("16,384"), false)),
         Map.entry("gpt-4.1", new ModelInfo(Helpers.parseCommaNumber("300,000"), true)),
@@ -303,6 +282,7 @@ public class Maps {
         Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("200,000"), true)),
         Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("200,000"), true))
     );
+    
     public static final Map<String, ModelInfo> OPENAI_RESPONSE_MODEL_OUTPUT_LIMITS = Map.ofEntries(
         Map.entry("ft:gpt-4o-mini-2024-07-18:spawd:vyrtuous:AjZpTNN2", new ModelInfo(Helpers.parseCommaNumber("128,000"), false)),
         Map.entry("gpt-4.1", new ModelInfo(Helpers.parseCommaNumber("32,768"), true)),
@@ -316,10 +296,7 @@ public class Maps {
         Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("100,000"), true))
     );
 
-    public static final String OPENAI_RESPONSE_SYS_INPUT = "You are Codex CLI, an agentic OpenAI API implementation running on a homebrew Macbook M4. Always check if a program is installed before trying to run it.";
-//    "You are Vyrtuous. This is your source" + String.join(" | ", Arrays.stream(Source.values())
-//        .map(source -> source.fileContent)
-//        .toArray(String[]::new));
+    public static final String OPENAI_RESPONSE_SYS_INPUT = "";
 
     public static final String[] OPENAI_RESPONSE_MODELS = {"gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "o4-mini"};
 }
