@@ -18,6 +18,7 @@
 package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
+import com.brandongcobb.vyrtuous.utils.inc.*;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.List;
@@ -71,7 +72,8 @@ public class ToolHandler {
         if (originalCommand == null || originalCommand.isBlank()) {
             return CompletableFuture.completedFuture("⚠️ No shell command provided.");
         }
-
+        
+        ContextManager cm = new ContextManager(100);
         return CompletableFuture.supplyAsync(() -> {
             ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
             try {
@@ -81,34 +83,48 @@ public class ToolHandler {
                 ProcessBuilder builder = new ProcessBuilder("gtimeout", "30s", "bash", "-lc", cmd);
                 Process process = builder.start();
 
-                // Stream gobblers for stdout and stderr
                 Future<String> stdoutFuture = streamExecutor.submit(() -> readStream(process.getInputStream()));
                 Future<String> stderrFuture = streamExecutor.submit(() -> readStream(process.getErrorStream()));
 
                 int exitCode = process.waitFor();
-                String stdout = stdoutFuture.get(10, TimeUnit.SECONDS); // Protect against stuck threads
+                String stdout = stdoutFuture.get(10, TimeUnit.SECONDS);
                 String stderr = stderrFuture.get(10, TimeUnit.SECONDS);
 
-                responseObject.put(SHELL_EXIT_CODE, exitCode);
-                responseObject.put(SHELL_STDOUT, stdout);
-                responseObject.put(SHELL_STDERR, stderr);
+                // Optionally remove these if you *only* want to use contextManager
+                // responseObject.put(SHELL_EXIT_CODE, exitCode);
+                // responseObject.put(SHELL_STDOUT, stdout);
+                // responseObject.put(SHELL_STDERR, stderr);
+
+                // Compose a clean shell summary
+                String shellSummary = """
+                    [Shell Execution Result]
+                    Exit Code: %d
+
+                    --- STDOUT ---
+                    %s
+
+                    --- STDERR ---
+                    %s
+                    """.formatted(exitCode, stdout, stderr);
+
+                // Add the full result to the context
+                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, shellSummary));
 
                 if (exitCode == 0) {
                     return stdout.isBlank() ? "✅ Command executed successfully with no output." : stdout;
                 } else {
-                    String errorMessage = stderr.isBlank() ? "No error message available." : stderr;
-                    return "❌ Shell command exited with code " + exitCode + ":\n" + errorMessage;
+                    return "❌ Shell command exited with code " + exitCode + ":\n" + (stderr.isBlank() ? "No error message available." : stderr);
                 }
             } catch (TimeoutException e) {
-                responseObject.put(SHELL_EXIT_CODE, 998);
-                responseObject.put(SHELL_STDOUT, "");
-                responseObject.put(SHELL_STDERR, "Stream reading timed out.");
-                return "⏱️ Shell output reading timed out.";
+                String msg = "⏱️ Shell output reading timed out.";
+                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
+                return msg;
             } catch (Exception e) {
-                responseObject.put(SHELL_EXIT_CODE, 999);
-                responseObject.put(SHELL_STDOUT, "");
-                responseObject.put(SHELL_STDERR, e.getMessage());
-                return "⚠️ Shell execution failed: " + e.getMessage();
+                String msg = "⚠️ Shell execution failed: " + e.getMessage();
+                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
+                return msg;
+            } finally {
+                streamExecutor.shutdown();
             }
         });
     }

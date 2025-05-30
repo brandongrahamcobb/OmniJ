@@ -180,7 +180,10 @@ public enum StructuredOutput {
             "top_p": { "type": "number" },
             "truncation": { "type": "string" },
             "user": { "type": ["null", "object"] },
-            "metadata": { "type": "object" },
+            "metadata": {
+              "type": "object",
+              "local_shell_command_sequence_finished": "boolean"
+            },
             "reasoning": {
               "type": "object",
               "properties": {
