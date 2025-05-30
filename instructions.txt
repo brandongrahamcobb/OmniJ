@@ -1,1 +1,1 @@
-Customize my MacOS environment using homebrew to extend the function of the REPLManager which allows a Local LLM to submit commands in a loop and complete them. I am running you from the codebase so try to make the already present function better.
+Customize my MacOS environment using homebrew to extend the function of the REPLManager.java which allows a Local LLM to submit commands in a loop and complete them. I am running you from the codebase so try to make the already present function better.

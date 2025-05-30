@@ -100,7 +100,7 @@ public class REPLManager {
     ) {
         if (index >= commands.size()) {
             String updatedPrompt = contextManager.buildPromptContext();
-            return aim.completeLocalShellRequest(updatedPrompt, null, modelSetting, "response")
+            return aim.completeWebShellRequest(updatedPrompt, null, modelSetting, "response")
                     .thenCompose(nextResponse -> completeProcessREPLLoop(nextResponse, aim, transcript, scanner, modelSetting, startTimeMillis));
         }
         String shellCommand = commands.get(index);
@@ -116,6 +116,43 @@ public class REPLManager {
                 });
     }
     
+    private static String truncateOutput(String output, int maxChars, int maxLines) {
+        if (output == null || output.isBlank()) return "";
+
+        String[] lines = output.split("\n");
+        StringBuilder builder = new StringBuilder();
+        int count = 0;
+
+        for (String line : lines) {
+            if (builder.length() + line.length() + 1 > maxChars || count >= maxLines) break;
+            builder.append(line).append("\n");
+            count++;
+        }
+
+        if (count < lines.length) {
+            builder.append("...\n⚠️ Output truncated (").append(lines.length - count).append(" lines omitted)");
+        }
+
+        return builder.toString().trim();
+    }
+
+    private String prepareShellOutputSummary(MetadataContainer response) {
+        String stdout = truncateOutput(response.get(ToolHandler.SHELL_STDOUT), 4000, 40);
+        String stderr = truncateOutput(response.get(ToolHandler.SHELL_STDERR), 2000, 20);
+        int exitCode = response.get(ToolHandler.SHELL_EXIT_CODE);
+
+        return """
+            [Shell Execution Result]
+            Exit Code: %d
+
+            --- STDOUT ---
+            %s
+
+            --- STDERR ---
+            %s
+            """.formatted(exitCode, stdout, stderr);
+    }
+    
     private CompletableFuture<String> completeProcessREPLLoop(
         MetadataContainer response,
         AIManager aim,
@@ -124,13 +161,16 @@ public class REPLManager {
         String modelSetting,
         long startTimeMillis
     ) {
+        System.out.println("test");
         List<String> shellCommands = response.get(ResponseObject.LOCALSHELLTOOL_COMMANDS);
-        LOGGER.fine("Shell commands received: " + shellCommands);
+        LOGGER.fine("Shell commands received: " + shellCommands);;
+        System.out.println("Shell commands received: " + shellCommands);
         ResponseUtils ru = new ResponseUtils(response);
         String summary = ru.completeGetLocalShellToolSummary().join();
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]: " + summary + "\n");
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
+            String shellSummary = prepareShellOutputSummary(response);
+            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, shellSummary));
             LOGGER.fine("Model summary: " + summary);
         }
         return ru.completeGetShellToolFinished().thenCompose(finished -> {
@@ -141,8 +181,9 @@ public class REPLManager {
                 return CompletableFuture.completedFuture(transcript.toString());
             }
             if (shellCommands == null || shellCommands.isEmpty()) {
+                
                 LOGGER.warning("No shell commands received. Asking user for clarification.");
-                String plainText = ru.completeGetOutput().join();
+                String plainText = ru.completeGetResponseMap().join();
                 System.out.println("[Model]: I need clarification before proceeding. " + plainText);
                 System.out.print("> ");
                 String userInput = scanner.nextLine();
@@ -199,8 +240,7 @@ public class REPLManager {
         }
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, input));
         String prompt = contextManager.buildPromptContext();
-
-        return aim.completeLocalShellRequest(prompt, null, modelSetting, "response")
+        return aim.completeWebShellRequest(prompt, null, modelSetting, "response")
             .thenCompose(response -> completeProcessREPLLoop(response, aim, transcript, scanner, modelSetting, startTimeMillis));
     }
     
@@ -224,7 +264,7 @@ public class REPLManager {
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, initialMessage));
         AIManager aim = new AIManager();
         StringBuilder transcript = new StringBuilder();
-        String model = ModelRegistry.DEEPSEEK_RESPONSE_MODEL.asString();
+        String model = ModelRegistry.OPENROUTER_RESPONSE_MODEL.asString();
         return completeREPLLoop(initialMessage, aim, transcript, scanner, model, System.currentTimeMillis());
     }
     
@@ -264,3 +304,5 @@ public class REPLManager {
         });
     }
 }
+
+// theres an issue with multiple commands vs single command and the redundant call to AIM.

@@ -31,6 +31,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class ToolHandler {
 
@@ -42,39 +52,58 @@ public class ToolHandler {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             String line;
-            while ((line = reader.readLine()) != null) {
+            int maxLines = 200;
+            int maxChars = 8000;
+            int lineCount = 0;
+            while ((line = reader.readLine()) != null && builder.length() < maxChars && lineCount < maxLines) {
                 builder.append(line).append("\n");
+                lineCount++;
+            }
+            if (line != null) {
+                builder.append("...\n⚠️ Output truncated due to size.");
             }
         }
         return builder.toString().trim();
     }
 
-    public CompletableFuture<String> completeShellCommand(MetadataContainer responseObject, String originalCommand) {;
+    
+    public CompletableFuture<String> completeShellCommand(MetadataContainer responseObject, String originalCommand) {
         if (originalCommand == null || originalCommand.isBlank()) {
             return CompletableFuture.completedFuture("⚠️ No shell command provided.");
         }
+
         return CompletableFuture.supplyAsync(() -> {
+            ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
             try {
                 String raw = originalCommand.trim();
                 String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
+
                 ProcessBuilder builder = new ProcessBuilder("gtimeout", "30s", "bash", "-lc", cmd);
                 Process process = builder.start();
-                ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
+
+                // Stream gobblers for stdout and stderr
                 Future<String> stdoutFuture = streamExecutor.submit(() -> readStream(process.getInputStream()));
                 Future<String> stderrFuture = streamExecutor.submit(() -> readStream(process.getErrorStream()));
+
                 int exitCode = process.waitFor();
-                String stdout = stdoutFuture.get();
-                String stderr = stderrFuture.get();
-                streamExecutor.shutdown();
+                String stdout = stdoutFuture.get(10, TimeUnit.SECONDS); // Protect against stuck threads
+                String stderr = stderrFuture.get(10, TimeUnit.SECONDS);
+
                 responseObject.put(SHELL_EXIT_CODE, exitCode);
                 responseObject.put(SHELL_STDOUT, stdout);
                 responseObject.put(SHELL_STDERR, stderr);
+
                 if (exitCode == 0) {
-                    return stdout.isEmpty() ? "✅ Command executed successfully with no output." : stdout;
+                    return stdout.isBlank() ? "✅ Command executed successfully with no output." : stdout;
                 } else {
-                    String errorMessage = stderr.isEmpty() ? "No error message available." : stderr;
+                    String errorMessage = stderr.isBlank() ? "No error message available." : stderr;
                     return "❌ Shell command exited with code " + exitCode + ":\n" + errorMessage;
                 }
+            } catch (TimeoutException e) {
+                responseObject.put(SHELL_EXIT_CODE, 998);
+                responseObject.put(SHELL_STDOUT, "");
+                responseObject.put(SHELL_STDERR, "Stream reading timed out.");
+                return "⏱️ Shell output reading timed out.";
             } catch (Exception e) {
                 responseObject.put(SHELL_EXIT_CODE, 999);
                 responseObject.put(SHELL_STDOUT, "");

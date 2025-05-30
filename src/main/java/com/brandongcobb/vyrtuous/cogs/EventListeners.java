@@ -113,7 +113,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
             .thenCompose(userModelSettings -> {
                 String setting = userModelSettings.getOrDefault(
                     senderId,
-                    ModelRegistry.GEMINI_RESPONSE_MODEL.asString()
+                    ModelRegistry.LOCAL_RESPONSE_MODEL.asString()
                 );
                 return aim.completeResolveModel(fullContent, multimodal, setting)
                     .thenCompose(model -> {
@@ -121,7 +121,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                             ? new ResponseUtils(previousResponse).completeGetResponseId()
                             : CompletableFuture.completedFuture(null);
                         return prevIdFut.thenCompose(previousResponseId ->
-                            aim.completeLocalShellRequest(fullContent, previousResponseId, model, "completion")
+                            aim.completeLocalWebRequest(fullContent, previousResponseId, model, "completion")
                                 .thenCompose(responseObject -> {
                                     ResponseUtils ru = new ResponseUtils(responseObject);
                                     CompletableFuture<Void> setPrevFut;

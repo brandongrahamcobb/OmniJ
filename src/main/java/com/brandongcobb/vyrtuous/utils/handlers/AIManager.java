@@ -58,6 +58,9 @@ public class AIManager {
     private String completionApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("completions");
     private String moderationApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("moderations");
     private String responseApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("responses");
+    private String openRouterCompletionApiUrl = Maps.OPENROUTER_ENDPOINT_URLS.get("completions");
+    private String openRouterModerationApiUrl = Maps.OPENROUTER_ENDPOINT_URLS.get("moderations");
+    private String openRouterResponseApiUrl = Maps.OPENROUTER_ENDPOINT_URLS.get("responses");
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(10_000)
@@ -76,7 +79,7 @@ public class AIManager {
         return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
             Map<String, Object> body = new HashMap<>();
             if ("completion".equals(requestType)) {
-                body.put("model", ModelRegistry.GEMINI_RESPONSE_MODEL.asString());
+                body.put("model", ModelRegistry.LOCAL_RESPONSE_MODEL.asString());
                 List<Map<String, Object>> messages = new ArrayList<>();
                 Map<String, Object> msgMap = new HashMap<>();
                 Map<String, Object> systemMsg = new HashMap<>();
@@ -98,7 +101,34 @@ public class AIManager {
                 }
             }
             else if ("response".equals(requestType)){
-                body.put("model", ModelRegistry.GEMINI_RESPONSE_MODEL.asString());
+                body.put("model", ModelRegistry.LOCAL_RESPONSE_MODEL.asString());
+                List<Map<String, Object>> messages = new ArrayList<>();
+                Map<String, Object> msgMap = new HashMap<>();
+                Map<String, Object> systemMsg = new HashMap<>();
+                systemMsg.put("role", "system");
+                systemMsg.put("content", instructions);
+                Map<String, Object> userMsg = new HashMap<>();
+                userMsg.put("role", "user");
+                userMsg.put("content", content);
+                messages.add(systemMsg);
+                messages.add(userMsg);
+                body.put("messages", messages);
+            }
+            return body;
+        });
+    }
+    
+    private CompletableFuture<Map<String, Object>> completeBuildWebRequestBody(
+        String content,
+        String previousResponseId,
+        String model,
+        String requestType,
+        String instructions
+    ) {
+        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
+            Map<String, Object> body = new HashMap<>();
+            if ("response".equals(requestType)) {
+                body.put("model", ModelRegistry.OPENROUTER_RESPONSE_MODEL.asString());
                 List<Map<String, Object>> messages = new ArrayList<>();
                 Map<String, Object> msgMap = new HashMap<>();
                 Map<String, Object> systemMsg = new HashMap<>();
@@ -174,7 +204,7 @@ public class AIManager {
         String instructions = switch (requestType) {
             case "completion" -> "";
             case "moderation" -> ""; //TODO
-            case "response" -> ModelRegistry.RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
+            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
         return completeBuildLocalRequestBody(content, previousResponseId, model, requestType, instructions)
@@ -198,6 +228,40 @@ public class AIManager {
                 .thenCompose(reqBody -> completeProcessLocalRequest(reqBody, endpoint));
     }
     
+    public CompletableFuture<MetadataContainer> completeWebShellRequest(String content, String previousResponseId, String model, String requestType) {
+        SchemaMerger sm = new SchemaMerger();
+        String endpoint = "moderation".equals(requestType)
+            ? moderationApiUrl
+            : "completion".equals(requestType)
+                ? openRouterCompletionApiUrl
+                : openRouterResponseApiUrl;
+        String instructions = switch (requestType) {
+            case "completion" -> "";
+            case "moderation" -> ""; //TODO
+            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
+            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
+        };
+        return completeBuildWebRequestBody(content, previousResponseId, model, requestType, instructions)
+                .thenCompose(reqBody -> completeProcessWebRequest(reqBody, endpoint));
+    }
+    
+    public CompletableFuture<MetadataContainer> completeWebRequest(String content, String previousResponseId, String model, String requestType) {
+        SchemaMerger sm = new SchemaMerger();
+        String endpoint = "moderation".equals(requestType)
+            ? moderationApiUrl
+            : "completion".equals(requestType)
+                ? openRouterCompletionApiUrl
+                : openRouterResponseApiUrl;
+        String instructions = switch (requestType) {
+            case "completion" -> "";
+            case "moderation" -> "";
+            case "response" -> "Reply with the content in the content field of this schema: " + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
+            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
+        };
+        return completeBuildWebRequestBody(content, previousResponseId, model, requestType, instructions)
+                .thenCompose(reqBody -> completeProcessWebRequest(reqBody, endpoint));
+    }
+    
     private CompletableFuture<MetadataContainer> completeProcessLocalRequest(Map<String, Object> requestBody, String endpoint) {
         return CompletableFuture.supplyAsync(() -> {
             try (CloseableHttpClient client = HttpClients.custom()
@@ -212,6 +276,7 @@ public class AIManager {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                    System.out.println("Http success");
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         if (endpoint.contains("response")) {
@@ -223,6 +288,11 @@ public class AIManager {
                             .trim();
                             Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                             ResponseObject response = new ResponseObject(inner);
+                            return (MetadataContainer) response;
+                        }
+                        else if (endpoint.contains("openrouter")) {
+                            System.out.println("test");
+                            ResponseObject response = new ResponseObject(outer);
                             return (MetadataContainer) response;
                         }
                         else {
@@ -240,6 +310,65 @@ public class AIManager {
         });
     }
 
+    private CompletableFuture<MetadataContainer> completeProcessWebRequest(Map<String, Object> requestBody, String endpoint) {
+        String apiKey = System.getenv("OPENROUTER_API_KEY");
+        if (apiKey == null || apiKey.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENROUTER_API_KEY"));
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try (CloseableHttpClient client = HttpClients.custom()
+                    .setDefaultRequestConfig(REQUEST_CONFIG)
+                    .build()) {
+
+                HttpPost post = new HttpPost("https://openrouter.ai/api/v1/chat/completions");
+                post.setHeader("Content-Type", "application/json");
+                post.setHeader("Authorization", "Bearer " + apiKey);
+
+                ObjectMapper mapper = new ObjectMapper();
+                requestBody.putIfAbsent("stream", false);
+                String json = mapper.writeValueAsString(requestBody);
+                post.setEntity(new StringEntity(json));
+                try (CloseableHttpResponse resp = client.execute(post)) {
+                    int code = resp.getStatusLine().getStatusCode();
+                    String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+
+                    if (code >= 200 && code < 300) {
+                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        String id = (String) outer.get("id");
+
+                        List<Map<String, Object>> choices = (List<Map<String, Object>>) outer.get("choices");
+                        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+                        String content = (String) message.get("content");
+
+                        if (id != null && id.startsWith("gen-")) {
+                            Map<String, Object> inner = mapper.readValue(content, new TypeReference<>() {});
+                            ResponseObject response = new ResponseObject(inner);
+                            return (MetadataContainer) response;
+                        } else if (id != null && id.startsWith("resp_")) {
+                            // Content is raw JSON as a string
+                            String jsonContent = content
+                                .replaceFirst("^```json\\s*", "")
+                                .replaceFirst("\\s*```$", "")
+                                .trim();
+                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+                            ResponseObject response = new ResponseObject(inner);
+                            return (MetadataContainer) response;
+                        } else {
+                            ChatObject response = new ChatObject(outer);
+                            return (MetadataContainer) response;
+                        }
+                    } else {
+                        System.out.println("HTTP error code: " + code);
+                        throw new IOException("HTTP " + code + ": " + respBody);
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Local request failed: " + e.getMessage(), e);
+            }
+        });
+    }
+    
     private CompletableFuture<ResponseObject> completeProcessLocalWebRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENAI_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
@@ -281,9 +410,9 @@ public class AIManager {
         return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
             Map<String, Object> body = new HashMap<>();
             if (model == null) {
-                String setting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+                String setting = ModelRegistry.OPENROUTER_RESPONSE_MODEL.asString();
                 body.put("model", setting);
-                ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
+                ModelInfo info = Maps.OPENROUTER_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
                 if (info != null && info.status()) {
                     body.put("max_output_tokens", tokens);
                 } else {
@@ -291,7 +420,7 @@ public class AIManager {
                 }
             } else {
                 body.put("model", model);
-                ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                ModelInfo info = Maps.OPENROUTER_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
                 if (info != null && info.status()) {
                     body.put("max_output_tokens", tokens);
                 } else {

@@ -61,6 +61,16 @@ public class ResponseUtils {
     public CompletableFuture<Map<String, Object>> completeGetFileSearchToolFilters() {
         return CompletableFuture.completedFuture(this.container.get(ResponseObject.FILESEARCHTOOL_FILTERS));
     }
+    
+    public CompletableFuture<String> completeGetReasoning() {
+        MetadataKey<String> summaryKey = new MetadataKey<>("summary", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(summaryKey));
+    }
+    
+    public CompletableFuture<String> completeGetResponseMap() {
+        MetadataKey<String> responseMapKey = new MetadataKey<>("response_map", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(responseMapKey));
+    }
 
     public CompletableFuture<Integer> completeGetFileSearchToolMaxNumResults() {
         return CompletableFuture.completedFuture(this.container.get(ResponseObject.FILESEARCHTOOL_MAX_NUM_RESULTS));

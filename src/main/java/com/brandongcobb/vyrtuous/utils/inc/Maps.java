@@ -27,6 +27,20 @@ import java.util.Map;
 
 public class Maps {
 
+    public static final Map<String, ModelInfo> OPENROUTER_RESPONSE_MODEL_CONTEXT_LIMITS = Map.ofEntries(
+        Map.entry("deepseek/deepseek-r1-0528:free", new ModelInfo(Helpers.parseCommaNumber("128,000"), true))
+    );
+    
+    public static final Map<String, ModelInfo> OPENROUTER_RESPONSE_MODEL_OUTPUT_LIMITS = Map.ofEntries(
+        Map.entry("deepseek/deepseek-r1-0528:free", new ModelInfo(Helpers.parseCommaNumber("128,000"), true))
+    );
+    
+    public static final Map<String, String> OPENROUTER_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("completions", "https://openrouter.api/v1/chat/completions"),
+        Map.entry("moderations", "https://openrouter.api/v1/chat/completions"),
+        Map.entry("responses", "https://openrouter.api/v1/chat/completions")
+    );
+    
     public static final Map<String, String> OPENAI_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("audio", "https://api.openai.com/v1/audio/speech"),
         Map.entry("batch", "https://api.openai.com/v1/audio/batches"),

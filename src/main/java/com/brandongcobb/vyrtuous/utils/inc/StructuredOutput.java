@@ -268,8 +268,6 @@ public enum StructuredOutput {
                 "type": "object",
                 "properties": {
                     "command": {
-                    "oneOf": [
-                        { "type": "array", "items": { "type": "string" } },
                         { "type": "string" }
                     ]
                     }
