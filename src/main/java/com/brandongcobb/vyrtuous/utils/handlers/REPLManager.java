@@ -8,9 +8,8 @@ import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.brandongcobb.metadata.*;
 
 public class REPLManager {
+    
     private static final Logger LOGGER = Logger.getLogger(REPLManager.class.getName());
-
-  //  private final ShellCommandExecutor executor = new ShellCommandExecutor();
     private String originalDirective;
     private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
     private final ContextManager contextManager = new ContextManager(29);
@@ -18,9 +17,7 @@ public class REPLManager {
     private final long maxSessionDurationMillis;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
-    static {
-        LOGGER.setLevel(Level.FINE);
-    }
+
     public REPLManager(ApprovalMode mode, long maxSessionDurationMillis) {
         setApprovalMode(mode);
         this.maxSessionDurationMillis = maxSessionDurationMillis;
@@ -87,11 +84,10 @@ public class REPLManager {
                 return CompletableFuture.completedFuture(transcript.toString());
             }
         }
-
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, input));
         String prompt = contextManager.buildPromptContext();
 
-        return aim.completeLocalRequest(prompt, null, modelSetting, "response")
+        return aim.completeLocalShellRequest(prompt, null, modelSetting, "response")
             .thenCompose(response -> processResponseLoop(response, aim, transcript, scanner, modelSetting, startTimeMillis));
     }
 
@@ -199,7 +195,7 @@ public class REPLManager {
         if (index >= commands.size()) {
             // Continue REPL after all commands have been run
             String updatedPrompt = contextManager.buildPromptContext();
-            return aim.completeLocalRequest(updatedPrompt, null, modelSetting, "response")
+            return aim.completeLocalShellRequest(updatedPrompt, null, modelSetting, "response")
                     .thenCompose(nextResponse -> processResponseLoop(nextResponse, aim, transcript, scanner, modelSetting, startTimeMillis));
         }
 

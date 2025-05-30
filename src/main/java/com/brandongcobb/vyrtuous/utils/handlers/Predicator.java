@@ -42,7 +42,6 @@ public class Predicator {
         this.bot = bot;
     }
 
-
     public CompletableFuture<Guild> getGuildById(long guildId) {
         return CompletableFuture.supplyAsync(() -> {
             for (Guild guild : bot.getGuilds()) {
@@ -53,5 +52,4 @@ public class Predicator {
             return null;
         });
     }
-
 }

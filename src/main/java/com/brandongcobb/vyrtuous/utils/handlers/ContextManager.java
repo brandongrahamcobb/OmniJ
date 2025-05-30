@@ -1,16 +1,16 @@
 package com.brandongcobb.vyrtuous.utils.handlers;
 
-import java.util.List;
-import java.util.ArrayList;
-
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.knuddels.jtokkit.api.Encoding;
 import com.knuddels.jtokkit.api.EncodingRegistry;
 import com.knuddels.jtokkit.Encodings;
+import java.util.List;
+import java.util.ArrayList;
+
 public class ContextManager {
 
     private final List<ContextEntry> entries = new ArrayList<>();
-    private final int maxEntries;          // max number of entries before summarizing
+    private final int maxEntries;
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
 
     public ContextManager(int maxEntries) {
@@ -19,9 +19,7 @@ public class ContextManager {
 
     public synchronized void addEntry(ContextEntry entry) {
         entries.add(entry);
-
-        // Optional: summarize if entries too large
-        if (entries.size() > maxEntries) {
+        if (entries.size() > maxEntries) {  // TODO: Measure by token size not entry size.
             summarizeOldEntries();
         }
     }
@@ -32,6 +30,10 @@ public class ContextManager {
             sb.append(entry.formatForPrompt()).append("\n");
         }
         return sb.toString();
+    }
+    
+    public synchronized void clear() {
+        entries.clear();
     }
 
     public synchronized long getContextTokenCount() {
@@ -45,20 +47,8 @@ public class ContextManager {
                 .orElseThrow(() -> new IllegalStateException("Encoding cl100k_base not available"));
             return encoding.encode(prompt).size();
         } catch (Exception e) {
-            // Log or handle error if needed
             return 0L;
         }
-    }
-
-    private synchronized void summarizeOldEntries() {
-        int removeCount = entries.size() / 2;
-        List<ContextEntry> toSummarize = new ArrayList<>(entries.subList(0, removeCount));
-        String summary = summarizeEntries(toSummarize);
-
-        for (int i = 0; i < removeCount; i++) {
-            entries.remove(0);
-        }
-        entries.add(0, new ContextEntry(ContextEntry.Type.SYSTEM_NOTE, "[Summary of earlier context]: " + summary));
     }
 
     private String summarizeEntries(List<ContextEntry> entriesToSummarize) {
@@ -71,7 +61,13 @@ public class ContextManager {
         return sb.toString().trim();
     }
 
-    public synchronized void clear() {
-        entries.clear();
+    private synchronized void summarizeOldEntries() {
+        int removeCount = entries.size() / 2;
+        List<ContextEntry> toSummarize = new ArrayList<>(entries.subList(0, removeCount));
+        String summary = summarizeEntries(toSummarize);
+        for (int i = 0; i < removeCount; i++) {
+            entries.remove(0);
+        }
+        entries.add(0, new ContextEntry(ContextEntry.Type.SYSTEM_NOTE, "[Summary of earlier context]: " + summary));
     }
 }

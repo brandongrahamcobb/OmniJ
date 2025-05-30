@@ -1,4 +1,4 @@
-/* ResponseUtils.java The purpose of this class is to interpret and
+/* ChatUtils.java The purpose of this class is to interpret and
  * containerize the metadata of OpenAI's response object.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
@@ -19,20 +19,17 @@
 package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
 import java.util.ArrayList;
 
 public class ChatUtils {

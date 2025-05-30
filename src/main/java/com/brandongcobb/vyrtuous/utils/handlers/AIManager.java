@@ -23,13 +23,13 @@ import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knuddels.jtokkit.Encodings;
 import com.knuddels.jtokkit.api.Encoding;
 import com.knuddels.jtokkit.api.EncodingRegistry;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -37,41 +37,36 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.HttpEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.client.config.RequestConfig;
 import org.apache.http.util.EntityUtils;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.CompletionException;
-import java.nio.charset.StandardCharsets;
-import org.apache.http.entity.ContentType;
 
 public class AIManager {
 
     private String completionApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("completions");
     private String moderationApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("moderations");
     private String responseApiUrl = Maps.OPENAI_ENDPOINT_URLS.get("responses");
-    // Align HTTP socket timeout with our application-level 30s timeout to avoid unbounded hangs
+    private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(10_000)
             .setConnectionRequestTimeout(10_000)
             .setSocketTimeout(600_000)
             .build();
-    private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
-    private Map<String, Object> OPENAI_RESPONSE_FORMAT = new HashMap<>();
-    private final Map<Long, ResponseObject> userResponseMap = new ConcurrentHashMap<>();
+    
 
-    private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
+    private CompletableFuture<Map<String, Object>> completeBuildLocalRequestBody(
         String content,
         String previousResponseId,
         String model,
@@ -87,14 +82,11 @@ public class AIManager {
                 Map<String, Object> systemMsg = new HashMap<>();
                 systemMsg.put("role", "system");
                 systemMsg.put("content", instructions);
-
                 Map<String, Object> userMsg = new HashMap<>();
                 userMsg.put("role", "user");
                 userMsg.put("content", content);
-
                 messages.add(systemMsg);
                 messages.add(userMsg);
-
                 body.put("messages", messages);
             }
             else if ("moderation".equals(requestType)) {
@@ -112,53 +104,17 @@ public class AIManager {
                 Map<String, Object> systemMsg = new HashMap<>();
                 systemMsg.put("role", "system");
                 systemMsg.put("content", instructions);
-
                 Map<String, Object> userMsg = new HashMap<>();
                 userMsg.put("role", "user");
                 userMsg.put("content", content);
-
                 messages.add(systemMsg);
                 messages.add(userMsg);
-
                 body.put("messages", messages);
-//                if (model == null) {
-//                    String setting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-//                    body.put("model", setting);
-//                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
-//                    if (info != null && info.status()) {
-//                        body.put("max_output_tokens", tokens);
-//                    } else {
-//                        body.put("max_tokens", tokens);
-//                    }
-//                } else {
-//                    body.put("model", model);
-//                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-//                    if (info != null && info.status()) {
-//                        body.put("max_output_tokens", tokens);
-//                    } else {
-//                        body.put("max_tokens", tokens);
-//                    }
-//                }
-//                body.put("text", Map.of("format", Maps.GEMINI_RESPONSE_FORMAT));
-//                body.put("instructions", instructions);
-//                List<Map<String, Object>> messages = new ArrayList<>();
-//                Map<String, Object> msgMap = new HashMap<>();
-//                msgMap.put("role", "user");
-//                msgMap.put("content", content);
-//                messages.add(msgMap);
-//                body.put("input", messages);
-//                if (previousResponseId != null && !previousResponseId.isEmpty()) {
-//                    body.put("previous_response_id", previousResponseId);
-//                }
-//                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-//                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-//                }
-
             }
             return body;
         });
     }
-    
+
     private CompletableFuture<Long> completeCalculateMaxOutputTokens(String model, String prompt) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -175,43 +131,71 @@ public class AIManager {
             }
         });
     }
+    
+    public CompletableFuture<Map<String, Object>> completeCreateVectorStore(List<String> fileIds) {
+        String apiKey = System.getenv("OPENAI_API_KEY");
+        if (apiKey == null || apiKey.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try (CloseableHttpClient client = HttpClients.custom()
+                    .setDefaultRequestConfig(REQUEST_CONFIG)
+                    .build()) {
+                HttpPost post = new HttpPost("https://api.openai.com/v1/vector_stores");
+                post.setHeader("Authorization", "Bearer " + apiKey);
+                post.setHeader("Content-Type", "application/json");
+                ObjectMapper mapper = new ObjectMapper();
+                Map<String, Object> body = Map.of("file_ids", fileIds);
+                String json = mapper.writeValueAsString(body);
+                post.setEntity(new StringEntity(json));
+                try (CloseableHttpResponse resp = client.execute(post)) {
+                    int code = resp.getStatusLine().getStatusCode();
+                    String respBody = EntityUtils.toString(resp.getEntity(), "UTF-8");
+                    System.out.println("📦 Vector Store Response:\n" + respBody);
+                    if (code >= 200 && code < 300) {
+                        return mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
+                    } else {
+                        throw new IOException("HTTP " + code + ": " + respBody);
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create vector store", e);
+            }
+        });
+    }
 
-    public CompletableFuture<MetadataContainer> completeLocalRequest(String content, String previousResponseId, String model, String requestType) {
+    public CompletableFuture<MetadataContainer> completeLocalShellRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
             ? moderationApiUrl
             : "completion".equals(requestType)
                 ? completionApiUrl
                 : responseApiUrl;
-
         String instructions = switch (requestType) {
             case "completion" -> "";
             case "moderation" -> ""; //TODO
             case "response" -> ModelRegistry.RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
-
-        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions)
+        return completeBuildLocalRequestBody(content, previousResponseId, model, requestType, instructions)
                 .thenCompose(reqBody -> completeProcessLocalRequest(reqBody, endpoint));
     }
 
-    public CompletableFuture<ResponseObject> completeRequest(String content, String previousResponseId, String model, String requestType) {
+    public CompletableFuture<MetadataContainer> completeLocalWebRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
             ? moderationApiUrl
             : "completion".equals(requestType)
                 ? completionApiUrl
                 : responseApiUrl;
-
         String instructions = switch (requestType) {
             case "completion" -> "";
             case "moderation" -> "";
             case "response" -> "Reply with the content in the content field of this schema: " + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
-
-        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions)
-                .thenCompose(reqBody -> completeProcessRequest(reqBody, endpoint));
+        return completeBuildLocalRequestBody(content, previousResponseId, model, requestType, instructions)
+                .thenCompose(reqBody -> completeProcessLocalRequest(reqBody, endpoint));
     }
     
     private CompletableFuture<MetadataContainer> completeProcessLocalRequest(Map<String, Object> requestBody, String endpoint) {
@@ -245,7 +229,6 @@ public class AIManager {
                             ChatObject response = new ChatObject(outer);
                             return (MetadataContainer) response;
                         }
-                        
                     } else {
                         System.out.println(code);
                         throw new IOException("HTTP " + code + ": " + respBody);
@@ -257,46 +240,7 @@ public class AIManager {
         });
     }
 
-//    public CompletableFuture<Map<String, Object>> completeCreateVectorStore(List<String> fileIds) {
-//        String apiKey = System.getenv("OPENAI_API_KEY");
-//        if (apiKey == null || apiKey.isEmpty()) {
-//            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
-//        }
-//
-//        return CompletableFuture.supplyAsync(() -> {
-//            try (CloseableHttpClient client = HttpClients.custom()
-//                    .setDefaultRequestConfig(REQUEST_CONFIG)
-//                    .build()) {
-//                HttpPost post = new HttpPost("https://api.openai.com/v1/vector_stores");
-//
-//                post.setHeader("Authorization", "Bearer " + apiKey);
-//                post.setHeader("Content-Type", "application/json");
-//
-//                ObjectMapper mapper = new ObjectMapper();
-//                Map<String, Object> body = Map.of("file_ids", fileIds);
-//                String json = mapper.writeValueAsString(body);
-//
-//                post.setEntity(new StringEntity(json));
-//
-//                try (CloseableHttpResponse resp = client.execute(post)) {
-//                    int code = resp.getStatusLine().getStatusCode();
-//                    String respBody = EntityUtils.toString(resp.getEntity(), "UTF-8");
-//
-//                    System.out.println("📦 Vector Store Response:\n" + respBody);
-//
-//                    if (code >= 200 && code < 300) {
-//                        return mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
-//                    } else {
-//                        throw new IOException("HTTP " + code + ": " + respBody);
-//                    }
-//                }
-//            } catch (Exception e) {
-//                throw new RuntimeException("Failed to create vector store", e);
-//            }
-//        });
-//    }
-
-    private CompletableFuture<ResponseObject> completeProcessRequest(Map<String, Object> requestBody, String endpoint) {
+    private CompletableFuture<ResponseObject> completeProcessLocalWebRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENAI_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
@@ -322,15 +266,56 @@ public class AIManager {
                     }
                 }
             } catch (Exception e) {
-                throw new CompletionException(e); // ensures exception is correctly wrapped for async
+                throw new CompletionException(e);
             }
         });
     }
+    
+    private CompletableFuture<Map<String, Object>> completeWebRequest(
+        String content,
+        String previousResponseId,
+        String model,
+        String requestType,
+        String instructions
+    ) {
+        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
+            Map<String, Object> body = new HashMap<>();
+            if (model == null) {
+                String setting = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+                body.put("model", setting);
+                ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
+                if (info != null && info.status()) {
+                    body.put("max_output_tokens", tokens);
+                } else {
+                    body.put("max_tokens", tokens);
+                }
+            } else {
+                body.put("model", model);
+                ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                if (info != null && info.status()) {
+                    body.put("max_output_tokens", tokens);
+                } else {
+                    body.put("max_tokens", tokens);
+                }
+            }
+            body.put("text", Map.of("format", Maps.GEMINI_RESPONSE_FORMAT));
+            body.put("instructions", instructions);
+            List<Map<String, Object>> messages = new ArrayList<>();
+            Map<String, Object> msgMap = new HashMap<>();
+            msgMap.put("role", "user");
+            msgMap.put("content", content);
+            messages.add(msgMap);
+            body.put("input", messages);
+            if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                body.put("previous_response_id", previousResponseId);
+            }
+            if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+            }
+            return body;
+        });
+    }
 
-    /**
-     * Stub for searching a vector store or using OpenAI's built-in file_search tool.
-     * Replace this stub with a call to your chosen file_search API or client helper.
-     */
     public List<String> searchVectorStore(
             String vectorStoreId,
             String query,
@@ -342,19 +327,7 @@ public class AIManager {
         return List.of();
     }
 
-
-    public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) {
+    public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) { //TODO Deprecated
         return CompletableFuture.supplyAsync(() -> model);
-//        return completeRequest(content, null, model, "perplexity")
-//            .thenCompose(resp -> resp.completeGetPerplexity())
-//            .thenApply(perplexityObj -> {
-//                Integer perplexity = (Integer) perplexityObj;
-//                if (perplexity < 100) return "o4-mini";
-//                if (perplexity > 100 && perplexity < 150 && Boolean.TRUE.equals(multiModal))
-//                    return "o4-mini";
-//                if (perplexity > 175 && perplexity < 200 && Boolean.TRUE.equals(multiModal))
-//                    return "o4-mini";
-//                return "o4-mini";
-//            });
     }
 }

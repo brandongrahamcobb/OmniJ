@@ -77,14 +77,12 @@ public class MessageManager {
     public CompletableFuture<List<String>> completeProcessAttachments(List<Attachment> attachments) {
         List<String> results = Collections.synchronizedList(new ArrayList<>());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-
         for (Attachment attachment : attachments) {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
                     String url = attachment.getUrl();
                     String fileName = attachment.getFileName();
                     String contentType = attachment.getContentType();
-
                     File tempFile = new File(tempDirectory, fileName);
                     try (InputStream in = new URL(url).openStream()) {
                         Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -112,7 +110,6 @@ public class MessageManager {
             });
             futures.add(future);
         }
-
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
             .thenApply(v -> results)
             .exceptionally(ex -> {
@@ -142,31 +139,46 @@ public class MessageManager {
         return "application/octet-stream";
     }
 
+    private List<CompletableFuture<Message>> sendInChunks(Message message, String text) {
+        List<CompletableFuture<Message>> chunks = new ArrayList<>();
+        int maxLength = 2000;
+        int index = 0;
+        while (index < text.length()) {
+            int end = Math.min(index + maxLength, text.length());
+            if (end < text.length()) {
+                int lastNewline = text.lastIndexOf("\n", end);
+                int lastSpace = text.lastIndexOf(" ", end);
+                if (lastNewline > index) end = lastNewline;
+                else if (lastSpace > index) end = lastSpace;
+            }
+            String chunk = text.substring(index, end).trim();
+            if (!chunk.isEmpty()) {
+                chunks.add(completeSendDiscordMessage(message, chunk));
+            }
+            index = end;
+        }
+        return chunks;
+    }
+    
     public CompletableFuture<Void> completeSendResponse(Message message, String response) {
         List<CompletableFuture<Message>> futures = new ArrayList<>();
         Pattern codeBlockPattern = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```");
         Matcher matcher = codeBlockPattern.matcher(response);
         int fileIndex = 0;
         int lastEnd = 0;
-    
         while (matcher.find()) {
-            // Handle text before the code block
             if (matcher.start() > lastEnd) {
                 String beforeCode = response.substring(lastEnd, matcher.start()).trim();
                 if (!beforeCode.isEmpty()) {
                     futures.addAll(sendInChunks(message, beforeCode));
                 }
             }
-    
             String fileType = matcher.group(1) != null ? matcher.group(1) : "txt";
             String codeContent = matcher.group(2).trim();
-    
             if (codeContent.length() < 1900) {
-                // Send short code block inline
                 String codeMessage = "```" + fileType + "\n" + codeContent + "\n```";
                 futures.add(completeSendDiscordMessage(message, codeMessage));
             } else {
-                // Send long code block as a file
                 File file = new File(tempDirectory, "response_" + (fileIndex++) + "." + fileType);
                 try {
                     Files.writeString(file.toPath(), codeContent, StandardCharsets.UTF_8);
@@ -176,54 +188,17 @@ public class MessageManager {
                     futures.add(completeSendDiscordMessage(message, error));
                 }
             }
-    
             lastEnd = matcher.end();
         }
-    
-        // Handle any remaining text after the last code block
         if (lastEnd < response.length()) {
             String remaining = response.substring(lastEnd).trim();
             if (!remaining.isEmpty()) {
                 futures.addAll(sendInChunks(message, remaining));
             }
         }
-    
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
     
-    private List<CompletableFuture<Message>> sendInChunks(Message message, String text) {
-        List<CompletableFuture<Message>> chunks = new ArrayList<>();
-        int maxLength = 2000;
-        int index = 0;
-    
-        while (index < text.length()) {
-            int end = Math.min(index + maxLength, text.length());
-    
-            // Avoid breaking in the middle of a word or sentence if possible
-            if (end < text.length()) {
-                int lastNewline = text.lastIndexOf("\n", end);
-                int lastSpace = text.lastIndexOf(" ", end);
-                if (lastNewline > index) end = lastNewline;
-                else if (lastSpace > index) end = lastSpace;
-            }
-    
-            String chunk = text.substring(index, end).trim();
-            if (!chunk.isEmpty()) {
-                chunks.add(completeSendDiscordMessage(message, chunk));
-            }
-    
-            index = end;
-        }
-    
-        return chunks;
-    }
-
-    public CompletableFuture<Message> completeSendDM(User user, String content) {
-        return user.openPrivateChannel()
-            .submit()
-            .thenCompose(channel -> channel.sendMessage(content).submit());
-    }
-
     public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content, MessageEmbed embed) {
         return message.getGuildChannel()
             .asTextChannel()
@@ -257,5 +232,11 @@ public class MessageManager {
         return channel.sendMessage(content)
             .addEmbeds(embed)
             .submit();
+    }
+    
+    public CompletableFuture<Message> completeSendDM(User user, String content) {
+        return user.openPrivateChannel()
+            .submit()
+            .thenCompose(channel -> channel.sendMessage(content).submit());
     }
 }

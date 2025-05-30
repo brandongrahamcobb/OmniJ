@@ -53,9 +53,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
         String messageContent = message.getContentDisplay();
-        
         if (message.getAuthor().isBot() || messageContent.startsWith(".")) return;
-        
         AIManager aim = new AIManager();
         MessageManager mem = new MessageManager();
         User sender = event.getAuthor();
@@ -63,11 +61,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
         List<Attachment> attachments = message.getAttachments();
         MetadataContainer previousResponse = userResponseMap.get(senderId);
         final boolean[] multimodal = new boolean[]{false};
-        
         String content = messageContent.replace("@Vyrtuous", "");
-        
         CompletableFuture<String> fullContentFuture;
-        
         if (attachments != null && !attachments.isEmpty()) {
             fullContentFuture = mem.completeProcessAttachments(attachments)
                 .thenApply(attachmentContentList -> {
@@ -77,17 +72,14 @@ public class EventListeners extends ListenerAdapter implements Cog {
         } else {
             fullContentFuture = CompletableFuture.completedFuture(content);
         }
-        
         fullContentFuture
             .thenCompose(fullContent -> {
                 if (true) { //TODO: moderation logic here later
                     return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
                 }
-                
-                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
+                return aim.completeLocalShellRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
                     .thenCompose(moderationResponseObject -> {
                         ResponseUtils ru = new ResponseUtils(moderationResponseObject);
-                        // <-- Return this chain!
                         return ru.completeGetFlagged()
                             .thenCompose(flagged -> {
                                 if (flagged) {
@@ -129,12 +121,10 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         CompletableFuture<String> prevIdFut = previousResponse != null
                             ? new ResponseUtils(previousResponse).completeGetResponseId()
                             : CompletableFuture.completedFuture(null);
-
                         return prevIdFut.thenCompose(previousResponseId ->
-                            aim.completeLocalRequest(fullContent, previousResponseId, model, "completion")
+                            aim.completeLocalShellRequest(fullContent, previousResponseId, model, "completion")
                                 .thenCompose(responseObject -> {
                                     ResponseUtils ru = new ResponseUtils(responseObject);
-
                                     CompletableFuture<Void> setPrevFut;
                                     if (previousResponse != null) {
                                         ResponseUtils ruPrevious = new ResponseUtils(previousResponse);
@@ -144,10 +134,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                     } else {
                                         setPrevFut = ru.completeSetPreviousResponseId(null);
                                     }
-
                                     return setPrevFut.thenCompose(v -> {
                                         userResponseMap.put(senderId, responseObject);
-
                                         ChatUtils cu = new ChatUtils(responseObject);
                                         return cu.completeGetContent()
                                             .thenCompose(outputContent ->

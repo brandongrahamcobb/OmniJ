@@ -19,27 +19,24 @@
 package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.List;
-import java.util.HashMap;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.ArrayList;
 
 public class ChatObject extends MetadataContainer {
     
+    // TODO: Remove depends on AI unstructured output.
     public ChatObject(Map<String, Object> responseMap) {
         MetadataKey<String> modelKey = new MetadataKey<>("model", Metadata.STRING);
-        MetadataKey<String> createdAtKey = new MetadataKey<>("created_at", Metadata.STRING); // Could be DATE if parsed
+        MetadataKey<String> createdAtKey = new MetadataKey<>("created_at", Metadata.STRING);
         MetadataKey<String> roleKey = new MetadataKey<>("role", Metadata.STRING);
         MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
         MetadataKey<String> doneReasonKey = new MetadataKey<>("done_reason", Metadata.STRING);
@@ -50,7 +47,6 @@ public class ChatObject extends MetadataContainer {
         //MetadataKey<Long> promptEvalDurationKey = new MetadataKey<>("prompt_eval_duration", Metadata.LONG);
         MetadataKey<Integer> evalCountKey = new MetadataKey<>("eval_count", Metadata.INTEGER);
         //MetadataKey<Integer> evalDurationKey = new MetadataKey<>("eval_duration", Metadata.INTEGER);
-
         Map<String, Object> messageMap = (Map<String, Object>) responseMap.get("message");
         put(modelKey, (String) responseMap.get("model"));
         put(contentKey, (String) messageMap.get("content"));
@@ -64,7 +60,6 @@ public class ChatObject extends MetadataContainer {
         put(evalCountKey, (Integer) responseMap.get("eval_count"));
         //put(evalDurationKey, (Integer) responseMap.get("eval_duration"));
     }
-
 
     public CompletableFuture<String> completeGetContent() {
         MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
