@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LOCAL_RESPONSE_MODEL("gemma3:latest"),
+    LOCAL_RESPONSE_MODEL("deepseek-r1:latest"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
     SHELL_RESPONSE_SYS_INPUT("""
