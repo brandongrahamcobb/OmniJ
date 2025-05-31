@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class ResponseObject extends MetadataContainer {
     
@@ -78,7 +79,8 @@ public class ResponseObject extends MetadataContainer {
     public static final MetadataKey<List<String>> LOCALSHELLTOOL_COMMANDS = new MetadataKey<>("localshelltool_commands", Metadata.LIST_STRING);
     public static final MetadataKey<Boolean> LOCALSHELLTOOL_FINISHED = new MetadataKey<>("localshelltool_finished", Metadata.BOOLEAN);
     public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
-    
+    public static final MetadataKey<Integer> LOCALSHELLTOOL_COMMAND_INDEX = new MetadataKey<>("localshelltool.command_index", Metadata.INTEGER);
+
     
     public static String mapToJsonString(Map<String, Object> map) {
         try {
@@ -194,37 +196,40 @@ public class ResponseObject extends MetadataContainer {
                     if (outputObj instanceof List<?> outputList) {
                         for (Object outputItemObj : outputList) {
                             if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
+
                             Object typeObj = outputItem.get("type");
-                            if ("tool_call".equals(typeObj)) {
-                                Object callIdObj = outputItem.get("call_id");
-                                if (callIdObj instanceof String callId) {
-                                    put(LOCALSHELLTOOL_CALL_ID, callId);
-                                }
-                                Object actionObj = outputItem.get("action");
-                                if (actionObj instanceof Map<?, ?> action) {
-                                    Object cmdObj = action.get("command");
-    
-                                    if (cmdObj instanceof List<?> cmdList) {
-                                        List<String> commands = cmdList.stream()
-                                            .map(Object::toString)
-                                            .toList();
-    
-                                        boolean isSingleCommandInParts = commands.stream().noneMatch(s -> s.contains(" "));
-    
-                                        if (isSingleCommandInParts) {
-                                            // Treat as parameterized single command
-                                            String combined = String.join(" ", commands);
-                                            put(LOCALSHELLTOOL_COMMANDS, List.of(combined));
-                                        } else {
-                                            // Treat as list of full commands
-                                            put(LOCALSHELLTOOL_COMMANDS, commands);
+                            if (!"tool_call".equals(typeObj)) continue;
+
+                            Object callIdObj = outputItem.get("call_id");
+                            if (callIdObj instanceof String callId) {
+                                put(LOCALSHELLTOOL_CALL_ID, callId);
+                            }
+
+                            Object actionObj = outputItem.get("action");
+                            if (!(actionObj instanceof Map<?, ?> action)) continue;
+
+                            Object cmdObj = action.get("command");
+                            if (cmdObj instanceof List<?> cmdList) {
+                                if (cmdList.size() > 1) {
+                                    List<String> raw = cmdList.stream().map(Object::toString).toList();
+                                    List<String> fullCommands = new ArrayList<>();
+                                    StringBuilder current = new StringBuilder();
+
+                                    for (String s : raw) {
+                                        // Heuristic: Treat command keywords as new command start
+                                        if ((s.startsWith("echo") || s.startsWith("cd") || s.startsWith("ls") || s.startsWith("rm")) && current.length() > 0) {
+                                            fullCommands.add(current.toString().trim());
+                                            current = new StringBuilder();
                                         }
-                                    } else if (cmdObj instanceof String singleCommand) {
-                                        put(LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
-                                    } else if (cmdObj != null) {
-                                        put(LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
+                                        if (current.length() > 0) current.append(" ");
+                                        current.append(s);
                                     }
-    
+                                    if (current.length() > 0) {
+                                        fullCommands.add(current.toString().trim());
+                                    }
+
+                                    put(LOCALSHELLTOOL_COMMANDS, fullCommands);
+                                    continue;
                                 }
                             }
                             Object contentObject = outputItem.get("content");

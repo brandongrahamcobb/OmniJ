@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LOCAL_RESPONSE_MODEL("gemma3:latest"),
+    LOCAL_RESPONSE_MODEL("gemma3:1b"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
     SHELL_RESPONSE_SYS_INPUT("""
@@ -37,7 +37,7 @@ You are multibillion parameter local large language model running on a macOS Sie
       "object": "resp_tool_call",
       "created_at": 1717085200,
       "status": "success",
-      "model": "deepseek-r1:latest",
+      "model": "gemma3:1b",
       "output": [
         {
           "type": "tool_call",
@@ -107,7 +107,7 @@ You are multibillion parameter local large language model running on a macOS Sie
         "summary": "Determined appropriate shell commands for listing files and confirming execution."
       },
       "metadata": {
-        "local_shell_instruction": "Use `command` as a list. Each entry is either a full command string (e.g., 'ls -la /') or a parameterized command split into parts     (e.g., ['ls', '-la', '/']). Multiple commands can be given as multiple strings in the list.",
+        "local_shell_instruction": "Use `command` as a list. Each entry must be a full command string (e.g., 'ls -la /'). Multiple commands can be given as multiple strings in the list.",
         "local_shell_command_sequence_finished": false
       }
     }

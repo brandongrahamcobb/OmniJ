@@ -91,6 +91,7 @@ public class AIManager {
                 messages.add(systemMsg);
                 messages.add(userMsg);
                 body.put("messages", messages);
+                body.put("format", "json");
             }
             else if ("moderation".equals(requestType)) {
                 body.put("model", model);
@@ -113,6 +114,7 @@ public class AIManager {
                 messages.add(systemMsg);
                 messages.add(userMsg);
                 body.put("messages", messages);
+                body.put("format", "json");
             }
             return body;
         });
@@ -140,6 +142,7 @@ public class AIManager {
                 messages.add(systemMsg);
                 messages.add(userMsg);
                 body.put("messages", messages);
+                body.put("format", "json");
             }
             return body;
         });
@@ -286,7 +289,7 @@ public class AIManager {
                             .replaceFirst("\\s*```$", "")
                             .trim();
                         Map<String, Object> map = mapper.readValue(jsonContent, new TypeReference<Map<String, Object>> () {});
-                        String id = (String) map.get("id");
+                        String id = map.containsKey("id") ? (String) map.get("id") : null;
                         if (id != null && id.startsWith("gen-")) {
                             ResponseObject response = new ResponseObject(map);
                             return (MetadataContainer) response;

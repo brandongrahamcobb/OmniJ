@@ -67,6 +67,19 @@ public class ToolHandler {
         return builder.toString().trim();
     }
 
+
+
+    public boolean isCommandAvailable(String command) {
+        ProcessBuilder pb = new ProcessBuilder("which", command);
+        try {
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
     
     public CompletableFuture<String> completeShellCommand(
         MetadataContainer responseObject,
@@ -83,6 +96,13 @@ public class ToolHandler {
                 String raw = originalCommand.trim();
                 String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
 
+                // Extract the actual command
+                String firstWord = cmd.split("\\s+")[0];
+                if (!isCommandAvailable(firstWord)) {
+                    String msg = "❌ Command not found: " + firstWord;
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
+                    return msg;
+                }
                 ProcessBuilder builder = new ProcessBuilder("gtimeout", "30s", "bash", "-lc", cmd);
                 Process process = builder.start();
 
