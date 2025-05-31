@@ -68,12 +68,15 @@ public class ToolHandler {
     }
 
     
-    public CompletableFuture<String> completeShellCommand(MetadataContainer responseObject, String originalCommand) {
+    public CompletableFuture<String> completeShellCommand(
+        MetadataContainer responseObject,
+        String originalCommand,
+        ContextManager contextManager // ← inject the shared instance
+    ) {
         if (originalCommand == null || originalCommand.isBlank()) {
             return CompletableFuture.completedFuture("⚠️ No shell command provided.");
         }
-        
-        ContextManager cm = new ContextManager(100);
+
         return CompletableFuture.supplyAsync(() -> {
             ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
             try {
@@ -90,12 +93,6 @@ public class ToolHandler {
                 String stdout = stdoutFuture.get(10, TimeUnit.SECONDS);
                 String stderr = stderrFuture.get(10, TimeUnit.SECONDS);
 
-                // Optionally remove these if you *only* want to use contextManager
-                // responseObject.put(SHELL_EXIT_CODE, exitCode);
-                // responseObject.put(SHELL_STDOUT, stdout);
-                // responseObject.put(SHELL_STDERR, stderr);
-
-                // Compose a clean shell summary
                 String shellSummary = """
                     [Shell Execution Result]
                     Exit Code: %d
@@ -107,27 +104,30 @@ public class ToolHandler {
                     %s
                     """.formatted(exitCode, stdout, stderr);
 
-                // Add the full result to the context
-                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, shellSummary));
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, shellSummary));
 
                 if (exitCode == 0) {
                     return stdout.isBlank() ? "✅ Command executed successfully with no output." : stdout;
                 } else {
                     return "❌ Shell command exited with code " + exitCode + ":\n" + (stderr.isBlank() ? "No error message available." : stderr);
                 }
+
             } catch (TimeoutException e) {
                 String msg = "⏱️ Shell output reading timed out.";
-                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
                 return msg;
+
             } catch (Exception e) {
                 String msg = "⚠️ Shell execution failed: " + e.getMessage();
-                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
                 return msg;
+
             } finally {
                 streamExecutor.shutdown();
             }
         });
     }
+
     
     public static List<String> executeFileSearch(ResponseObject responseObject, String query) {
         String type = responseObject.get(ResponseObject.FILESEARCHTOOL_TYPE);

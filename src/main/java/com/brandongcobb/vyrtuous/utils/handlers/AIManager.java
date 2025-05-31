@@ -276,27 +276,27 @@ public class AIManager {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                    System.out.println("Http success");
+                    System.out.println(respBody);
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        if (endpoint.contains("response")) {
-                            Map<String, Object> message = (Map<String, Object>) outer.get("message");
-                            String content = (String) message.get("content");
-                            String jsonContent = content
+                        Map<String, Object> message = (Map<String, Object>) outer.get("message");
+                        String content = message != null ? (String) message.get("content") : null;
+                        String jsonContent = content.strip()
                             .replaceFirst("^```json\\s*", "")
                             .replaceFirst("\\s*```$", "")
                             .trim();
-                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            ResponseObject response = new ResponseObject(inner);
+                        Map<String, Object> map = mapper.readValue(jsonContent, new TypeReference<Map<String, Object>> () {});
+                        String id = (String) map.get("id");
+                        if (id != null && id.startsWith("gen-")) {
+                            ResponseObject response = new ResponseObject(map);
                             return (MetadataContainer) response;
-                        }
-                        else if (endpoint.contains("openrouter")) {
+                        } else if (id != null && id.startsWith("resp_")) {
                             System.out.println("test");
-                            ResponseObject response = new ResponseObject(outer);
+                            ResponseObject response = new ResponseObject(map);
                             return (MetadataContainer) response;
-                        }
-                        else {
-                            ChatObject response = new ChatObject(outer);
+                        } else {
+                            System.out.println("chatObject");
+                            ChatObject response = new ChatObject(map);
                             return (MetadataContainer) response;
                         }
                     } else {

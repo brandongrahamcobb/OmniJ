@@ -100,21 +100,25 @@ public class REPLManager {
     ) {
         if (index >= commands.size()) {
             String updatedPrompt = contextManager.buildPromptContext();
-            return aim.completeWebShellRequest(updatedPrompt, null, modelSetting, "response")
+            return aim.completeLocalShellRequest(updatedPrompt, null, modelSetting, "response")
                     .thenCompose(nextResponse -> completeProcessREPLLoop(nextResponse, aim, transcript, scanner, modelSetting, startTimeMillis));
         }
+
         String shellCommand = commands.get(index);
         LOGGER.fine("Executing shell command: " + shellCommand);
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, shellCommand));
-        return toolHandler.completeShellCommand(response, shellCommand)
+        return toolHandler.completeShellCommand(response, shellCommand, contextManager)
                 .thenCompose(output -> {
                     transcript.append("> ").append(shellCommand).append("\n").append(output).append("\n");
                     System.out.println("> " + shellCommand);
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
                     LOGGER.info("Shell command output: " + output);
+
+                    // ✅ Increment index to avoid infinite loop
                     return completeMultipleCommands(commands, index + 1, toolHandler, response, aim, transcript, scanner, modelSetting, startTimeMillis);
                 });
     }
+
     
     
     private CompletableFuture<String> completeProcessREPLLoop(
@@ -199,7 +203,7 @@ public class REPLManager {
         }
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, input));
         String prompt = contextManager.buildPromptContext();
-        return aim.completeWebShellRequest(prompt, null, modelSetting, "response")
+        return aim.completeLocalShellRequest(prompt, null, modelSetting, "response")
             .thenCompose(response -> completeProcessREPLLoop(response, aim, transcript, scanner, modelSetting, startTimeMillis));
     }
     
