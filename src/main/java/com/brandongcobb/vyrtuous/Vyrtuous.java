@@ -62,16 +62,7 @@ public class Vyrtuous {
         boolean isInputThreadRunning = false;
         if (!isInputThreadRunning) {
             ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
-            String timeoutEnv = System.getenv("VYRTUOUS_TIMEOUT");
-            long timeoutMillis = 0L;
-            if (timeoutEnv != null) {
-                try {
-                    timeoutMillis = Long.parseLong(timeoutEnv) * 1000L;
-                } catch (NumberFormatException e) {
-                    System.err.println("Invalid VYRTUOUS_TIMEOUT, must be integer seconds.");
-                }
-            }
-            REPLManager repl = new REPLManager(approvalMode, timeoutMillis);
+            REPLManager repl = new REPLManager(approvalMode);
             repl.startResponseInputThread();
             isInputThreadRunning = true;
         }

@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LOCAL_RESPONSE_MODEL("deepseek-r1:latest"),
+    LOCAL_RESPONSE_MODEL("qwen2.5-coder:latest"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
     SHELL_RESPONSE_SYS_INPUT("""
@@ -37,7 +37,7 @@ You are multibillion parameter local large language model running on a macOS Sie
       "object": "resp_tool_call",
       "created_at": 1717085200,
       "status": "success",
-      "model": "deepseek-r1:latest",
+      "model": "deepseek/deepseek-r1-0528-qwen3-8b",
       "output": [
         {
           "type": "tool_call",

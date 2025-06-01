@@ -107,6 +107,7 @@ public class ToolHandler {
                     %s
                     """.formatted(exitCode, stdout, stderr);
 
+                System.out.println(shellSummary);
                 // Add the full result to the context
                 cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, shellSummary));
 

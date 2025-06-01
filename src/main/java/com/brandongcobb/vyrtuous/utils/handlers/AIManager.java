@@ -276,6 +276,53 @@ public class AIManager {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                    if (code >= 200 && code < 300) {
+                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        if (endpoint.contains("response")) {
+                            Map<String, Object> message = (Map<String, Object>) outer.get("message");
+                            String content = (String) message.get("content");
+                            String jsonContent = content
+                            .replaceFirst("^```json\\s*", "")
+                            .replaceFirst("\\s*```$", "")
+                            .trim();
+                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+                            ResponseObject response = new ResponseObject(inner);
+                            return (MetadataContainer) response;
+                        }
+                        else if (endpoint.contains("openrouter")) {
+                            ResponseObject response = new ResponseObject(outer);
+                            return (MetadataContainer) response;
+                        }
+                        else {
+                            ChatObject response = new ChatObject(outer);
+                            return (MetadataContainer) response;
+                        }
+                    } else {
+                        System.out.println(code);
+                        throw new IOException("HTTP " + code + ": " + respBody);
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Local request failed" + e.getMessage(), e);
+            }
+        });
+    }
+
+    private CompletableFuture<MetadataContainer> completeProcessLMStudioRequest(Map<String, Object> requestBody, String endpoint) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (CloseableHttpClient client = HttpClients.custom()
+                    .setDefaultRequestConfig(REQUEST_CONFIG)
+                    .build()) {
+                HttpPost post = new HttpPost("http://127.0.0.1:1234/v1/chat/completions");
+                post.setHeader("Content-Type", "application/json");
+                requestBody.putIfAbsent("stream", false);
+                ObjectMapper mapper = new ObjectMapper();
+                String json = mapper.writeValueAsString(requestBody);
+                post.setEntity(new StringEntity(json));
+                System.out.println("test");
+                try (CloseableHttpResponse resp = client.execute(post)) {
+                    int code = resp.getStatusLine().getStatusCode();
+                    String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     System.out.println("Http success");
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
@@ -309,7 +356,7 @@ public class AIManager {
             }
         });
     }
-
+    
     private CompletableFuture<MetadataContainer> completeProcessWebRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENROUTER_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
