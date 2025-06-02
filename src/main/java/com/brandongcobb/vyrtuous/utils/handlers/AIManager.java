@@ -69,16 +69,20 @@ public class AIManager {
             .build();
     
 
-    private CompletableFuture<Map<String, Object>> completeBuildLocalRequestBody(
+    private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
         String content,
         String previousResponseId,
         String model,
         String requestType,
-        String instructions
+        String instructions,
+        String provider
     ) {
         return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
             Map<String, Object> body = new HashMap<>();
-            if ("completion".equals(requestType)) {
+            if (provider.toLowerCase().equals("openrouter")) {
+                
+            } else if (provider.toLowerCase().equals("llama")) {
+                // TODO: consider other endpoints other than chat/completions
                 body.put("model", ModelRegistry.LOCAL_RESPONSE_MODEL.asString());
                 List<Map<String, Object>> messages = new ArrayList<>();
                 Map<String, Object> msgMap = new HashMap<>();
@@ -91,55 +95,62 @@ public class AIManager {
                 messages.add(systemMsg);
                 messages.add(userMsg);
                 body.put("messages", messages);
-            }
-            else if ("moderation".equals(requestType)) {
-                body.put("model", model);
-                ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-                body.put("input", content);
-                if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+            } else if (provider.toLowerCase().equals("openai")) {
+                if ("completion".equals(requestType)) {
+                    body.put("model", ModelRegistry.OPENAI_RESPONSE_MODEL.asString());
+                    List<Map<String, Object>> messages = new ArrayList<>();
+                    Map<String, Object> msgMap = new HashMap<>();
+                    Map<String, Object> systemMsg = new HashMap<>();
+                    systemMsg.put("role", "system");
+                    systemMsg.put("content", instructions);
+                    Map<String, Object> userMsg = new HashMap<>();
+                    userMsg.put("role", "user");
+                    userMsg.put("content", content);
+                    messages.add(systemMsg);
+                    messages.add(userMsg);
+                    body.put("messages", messages);
                 }
-            }
-            else if ("response".equals(requestType)){
-                body.put("model", ModelRegistry.LOCAL_RESPONSE_MODEL.asString());
-                List<Map<String, Object>> messages = new ArrayList<>();
-                Map<String, Object> msgMap = new HashMap<>();
-                Map<String, Object> systemMsg = new HashMap<>();
-                systemMsg.put("role", "system");
-                systemMsg.put("content", instructions);
-                Map<String, Object> userMsg = new HashMap<>();
-                userMsg.put("role", "user");
-                userMsg.put("content", content);
-                messages.add(systemMsg);
-                messages.add(userMsg);
-                body.put("messages", messages);
-            }
-            return body;
-        });
-    }
-    
-    private CompletableFuture<Map<String, Object>> completeBuildWebRequestBody(
-        String content,
-        String previousResponseId,
-        String model,
-        String requestType,
-        String instructions
-    ) {
-        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
-            Map<String, Object> body = new HashMap<>();
-            if ("response".equals(requestType)) {
-                body.put("model", ModelRegistry.OPENROUTER_RESPONSE_MODEL.asString());
-                List<Map<String, Object>> messages = new ArrayList<>();
-                Map<String, Object> msgMap = new HashMap<>();
-                Map<String, Object> systemMsg = new HashMap<>();
-                systemMsg.put("role", "system");
-                systemMsg.put("content", instructions);
-                Map<String, Object> userMsg = new HashMap<>();
-                userMsg.put("role", "user");
-                userMsg.put("content", content);
-                messages.add(systemMsg);
-                messages.add(userMsg);
-                body.put("messages", messages);
+                else if ("moderation".equals(requestType)) {
+                    body.put("model", model);
+                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                    body.put("input", content);
+                    if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                        body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                    }
+                }
+                else if ("response".equals(requestType)){
+                    if (model == null) {
+                        String setting = ModelRegistry.LOCAL_RESPONSE_MODEL.asString();
+                        body.put("model", setting);
+                        ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
+                        if (info != null && info.status()) {
+                            body.put("max_output_tokens", tokens);
+                        } else {
+                            body.put("max_tokens", tokens);
+                        }
+                    } else {
+                        body.put("model", model);
+                        ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                        if (info != null && info.status()) {
+                            body.put("max_output_tokens", tokens);
+                        } else {
+                            body.put("max_tokens", tokens);
+                        }
+                    }
+                    body.put("instructions", ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString());
+                    List<Map<String, Object>> messages = new ArrayList<>();
+                    Map<String, Object> msgMap = new HashMap<>();
+                    msgMap.put("role", "user");
+                    msgMap.put("content", content);
+                    messages.add(msgMap);
+                    body.put("input", messages);
+                    if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                        body.put("previous_response_id", previousResponseId);
+                    }
+                    if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
+                        body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                    }
+                }
             }
             return body;
         });
@@ -194,24 +205,47 @@ public class AIManager {
         });
     }
 
-    public CompletableFuture<MetadataContainer> completeLocalShellRequest(String content, String previousResponseId, String model, String requestType) {
+    public CompletableFuture<MetadataContainer> completeRequest(
+            String content,
+            String previousResponseId,
+            String model,
+            String requestType,
+            String provider
+    ) {
+        switch (provider.toLowerCase()) {
+            case "llama":
+                return completeLlamaRequest(content, previousResponseId, model, requestType);
+
+            //case "ollama":
+              //  return completeOllamaRequest(content, previousResponseId, model, requestType);
+
+            case "openai":
+                return completeOpenAIRequest(content, previousResponseId, model, requestType);
+
+            case "openrouter":
+                return completeOpenRouterRequest(content, previousResponseId, model, requestType);
+
+            default:
+                return CompletableFuture.failedFuture(
+                    new IllegalArgumentException("Unknown provider: " + provider)
+                );
+        }
+    }
+    
+    public CompletableFuture<MetadataContainer> completeLlamaRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
-        String endpoint = "moderation".equals(requestType)
-            ? moderationApiUrl
-            : "completion".equals(requestType)
-                ? completionApiUrl
-                : responseApiUrl;
         String instructions = switch (requestType) {
-            case "completion" -> "";
+            case "completion" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
             case "moderation" -> ""; //TODO
-            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
+            case "response" -> "";
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
-        return completeBuildLocalRequestBody(content, previousResponseId, model, requestType, instructions)
-                .thenCompose(reqBody -> completeProcessLocalRequest(reqBody, endpoint));
+        String endpoint = "completion";
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "llama")
+                .thenCompose(reqBody -> completeProcessLlamaRequest(reqBody, endpoint));
     }
 
-    public CompletableFuture<MetadataContainer> completeLocalWebRequest(String content, String previousResponseId, String model, String requestType) {
+    public CompletableFuture<MetadataContainer> completeOpenAIRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
             ? moderationApiUrl
@@ -221,14 +255,14 @@ public class AIManager {
         String instructions = switch (requestType) {
             case "completion" -> "";
             case "moderation" -> "";
-            case "response" -> "Reply with the content in the content field of this schema: " + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
+            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
-        return completeBuildLocalRequestBody(content, previousResponseId, model, requestType, instructions)
-                .thenCompose(reqBody -> completeProcessLocalRequest(reqBody, endpoint));
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "openai")
+                .thenCompose(reqBody -> completeProcessOpenAIRequest(reqBody, endpoint));
     }
     
-    public CompletableFuture<MetadataContainer> completeWebShellRequest(String content, String previousResponseId, String model, String requestType) {
+    public CompletableFuture<MetadataContainer> completeOpenRouterRequest(String content, String previousResponseId, String model, String requestType) {
         SchemaMerger sm = new SchemaMerger();
         String endpoint = "moderation".equals(requestType)
             ? moderationApiUrl
@@ -241,35 +275,18 @@ public class AIManager {
             case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
-        return completeBuildWebRequestBody(content, previousResponseId, model, requestType, instructions)
-                .thenCompose(reqBody -> completeProcessWebRequest(reqBody, endpoint));
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "openrouter")
+                .thenCompose(reqBody -> completeProcessOpenRouterRequest(reqBody, endpoint));
     }
     
-    public CompletableFuture<MetadataContainer> completeWebRequest(String content, String previousResponseId, String model, String requestType) {
-        SchemaMerger sm = new SchemaMerger();
-        String endpoint = "moderation".equals(requestType)
-            ? moderationApiUrl
-            : "completion".equals(requestType)
-                ? openRouterCompletionApiUrl
-                : openRouterResponseApiUrl;
-        String instructions = switch (requestType) {
-            case "completion" -> "";
-            case "moderation" -> "";
-            case "response" -> "Reply with the content in the content field of this schema: " + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
-            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
-        };
-        return completeBuildWebRequestBody(content, previousResponseId, model, requestType, instructions)
-                .thenCompose(reqBody -> completeProcessWebRequest(reqBody, endpoint));
-    }
-    
-    private CompletableFuture<MetadataContainer> completeProcessLocalRequest(Map<String, Object> requestBody, String endpoint) {
+    private CompletableFuture<MetadataContainer> completeProcessLlamaRequest(Map<String, Object> requestBody, String endpoint) {
         return CompletableFuture.supplyAsync(() -> {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
-                HttpPost post = new HttpPost("http://localhost:11434/api/chat");
+                HttpPost post = new HttpPost("http://localhost:8080/api/chat");
                 post.setHeader("Content-Type", "application/json");
-                requestBody.putIfAbsent("stream", false);
+                requestBody.putIfAbsent("stream", true);
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
@@ -278,24 +295,11 @@ public class AIManager {
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        if (endpoint.contains("response")) {
-                            Map<String, Object> message = (Map<String, Object>) outer.get("message");
-                            String content = (String) message.get("content");
-                            String jsonContent = content
-                            .replaceFirst("^```json\\s*", "")
-                            .replaceFirst("\\s*```$", "")
-                            .trim();
-                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            ResponseObject response = new ResponseObject(inner);
-                            return (MetadataContainer) response;
-                        }
-                        else if (endpoint.contains("openrouter")) {
-                            ResponseObject response = new ResponseObject(outer);
-                            return (MetadataContainer) response;
-                        }
-                        else {
-                            ChatObject response = new ChatObject(outer);
-                            return (MetadataContainer) response;
+                        if (endpoint.contains("completion")) {
+                            LlamaContainer deserializedLlamaCompletion = new LlamaContainer(outer);
+                            return (MetadataContainer) deserializedLlamaCompletion;
+                        } else {
+                            return new MetadataContainer();
                         }
                     } else {
                         System.out.println(code);
@@ -319,11 +323,9 @@ public class AIManager {
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
-                System.out.println("test");
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                    System.out.println("Http success");
                     if (code >= 200 && code < 300) {
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         if (endpoint.contains("response")) {
@@ -334,17 +336,10 @@ public class AIManager {
                             .replaceFirst("\\s*```$", "")
                             .trim();
                             Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            ResponseObject response = new ResponseObject(inner);
+                            OpenAIContainer response = new OpenAIContainer(inner);
                             return (MetadataContainer) response;
-                        }
-                        else if (endpoint.contains("openrouter")) {
-                            System.out.println("test");
-                            ResponseObject response = new ResponseObject(outer);
-                            return (MetadataContainer) response;
-                        }
-                        else {
-                            ChatObject response = new ChatObject(outer);
-                            return (MetadataContainer) response;
+                        } else {
+                            return new OpenAIContainer(outer);  // Fallback: wrap entire response if not endpoint-specific
                         }
                     } else {
                         System.out.println(code);
@@ -357,7 +352,7 @@ public class AIManager {
         });
     }
     
-    private CompletableFuture<MetadataContainer> completeProcessWebRequest(Map<String, Object> requestBody, String endpoint) {
+    private CompletableFuture<MetadataContainer> completeProcessOpenRouterRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENROUTER_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENROUTER_API_KEY"));
@@ -390,7 +385,7 @@ public class AIManager {
 
                         if (id != null && id.startsWith("gen-")) {
                             Map<String, Object> inner = mapper.readValue(content, new TypeReference<>() {});
-                            ResponseObject response = new ResponseObject(inner);
+                            OpenAIContainer response = new OpenAIContainer(inner);
                             return (MetadataContainer) response;
                         } else if (id != null && id.startsWith("resp_")) {
                             // Content is raw JSON as a string
@@ -399,10 +394,10 @@ public class AIManager {
                                 .replaceFirst("\\s*```$", "")
                                 .trim();
                             Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            ResponseObject response = new ResponseObject(inner);
+                            OpenAIContainer response = new OpenAIContainer(inner);
                             return (MetadataContainer) response;
                         } else {
-                            ChatObject response = new ChatObject(outer);
+                            OllamaContainer response = new OllamaContainer(outer);
                             return (MetadataContainer) response;
                         }
                     } else {
@@ -416,7 +411,7 @@ public class AIManager {
         });
     }
     
-    private CompletableFuture<ResponseObject> completeProcessLocalWebRequest(Map<String, Object> requestBody, String endpoint) {
+    private CompletableFuture<MetadataContainer> completeProcessOpenAIRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENAI_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
@@ -431,12 +426,24 @@ public class AIManager {
                 post.setHeader("Content-Type", "application/json");
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
-                try (CloseableHttpResponse response = client.execute(post)) {
-                    int statusCode = response.getStatusLine().getStatusCode();
-                    String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                try (CloseableHttpResponse resp = client.execute(post)) {
+                    int statusCode = resp.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (statusCode >= 200 && statusCode < 300) {
                         Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
-                        return new ResponseObject(outer);
+                        OpenAIContainer openaiOuterResponse = new OpenAIContainer(outer);
+                        OpenAIUtils openaiOuterUtils = new OpenAIUtils(openaiOuterResponse);
+                        String content = (String) openaiOuterUtils.completeGetOutput().join();
+                        String jsonContent = content
+                            .replaceFirst("^```json\\s*", "")
+                            .replaceFirst("\\s*```$", "")
+                            .trim();
+                        Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+                        MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
+                        String previousResponseId = (String) openaiOuterUtils.completeGetResponseId().join();
+                        OpenAIContainer openaiInnerResponse = new OpenAIContainer(inner);
+                        openaiInnerResponse.put(previousResponseIdKey, previousResponseId);
+                        return (MetadataContainer) openaiInnerResponse;
                     } else {
                         throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);
                     }
@@ -447,7 +454,7 @@ public class AIManager {
         });
     }
     
-    private CompletableFuture<Map<String, Object>> completeWebRequest(
+    private CompletableFuture<Map<String, Object>> completeOpenRouterRequest(
         String content,
         String previousResponseId,
         String model,

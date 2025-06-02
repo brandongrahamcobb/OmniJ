@@ -77,14 +77,14 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 if (true) { //TODO: moderation logic here later
                     return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
                 }
-                return aim.completeLocalShellRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation")
-                    .thenCompose(moderationResponseObject -> {
-                        ResponseUtils ru = new ResponseUtils(moderationResponseObject);
-                        return ru.completeGetFlagged()
+                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation", "openai")
+                    .thenCompose(moderationOpenAIContainer -> {
+                        OpenAIUtils utils = new OpenAIUtils(moderationOpenAIContainer);
+                        return utils.completeGetFlagged()
                             .thenCompose(flagged -> {
                                 if (flagged) {
                                     ModerationManager mom = new ModerationManager();
-                                    return ru.completeGetFormatFlaggedReasons()
+                                    return utils.completeGetFormatFlaggedReasons()
                                         .thenCompose(reason -> mom.completeHandleModeration(message, reason)
                                             .thenApply(ignored -> null));
                                 } else {
@@ -118,29 +118,27 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 return aim.completeResolveModel(fullContent, multimodal, setting)
                     .thenCompose(model -> {
                         CompletableFuture<String> prevIdFut = previousResponse != null
-                            ? new ResponseUtils(previousResponse).completeGetResponseId()
+                            ? new OpenAIUtils(previousResponse).completeGetResponseId()
                             : CompletableFuture.completedFuture(null);
                         return prevIdFut.thenCompose(previousResponseId ->
-                            aim.completeLocalWebRequest(fullContent, previousResponseId, model, "completion")
+                            aim.completeRequest(fullContent, previousResponseId, model, "completion", "llama")
                                 .thenCompose(responseObject -> {
-                                    ResponseUtils ru = new ResponseUtils(responseObject);
+                                    OpenAIUtils openaiUtils = new OpenAIUtils(responseObject);
                                     CompletableFuture<Void> setPrevFut;
                                     if (previousResponse != null) {
-                                        ResponseUtils ruPrevious = new ResponseUtils(previousResponse);
-                                        setPrevFut = ruPrevious.completeGetPreviousResponseId()
+                                        OpenAIUtils openaiUtilsPrevious = new OpenAIUtils(previousResponse);
+                                        return openaiUtilsPrevious.completeGetPreviousResponseId()
                                             .thenCompose(prevRespId ->
-                                                ru.completeSetPreviousResponseId(prevRespId));
-                                    } else {
-                                        setPrevFut = ru.completeSetPreviousResponseId(null);
+                                                openaiUtils.completeSetPreviousResponseId(prevRespId));
                                     }
-                                    return setPrevFut.thenCompose(v -> {
+                                    else {
                                         userResponseMap.put(senderId, responseObject);
-                                        ChatUtils cu = new ChatUtils(responseObject);
-                                        return cu.completeGetContent()
+                                        LlamaUtils llamaUtils = new LlamaUtils(responseObject);
+                                        return llamaUtils.completeGetContent()
                                             .thenCompose(outputContent ->
                                                 mem.completeSendResponse(message, outputContent)
                                                     .thenApply(ignored -> null));
-                                    });
+                                    }
                                 })
                         );
                     });

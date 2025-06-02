@@ -34,8 +34,9 @@ public class REPLManager {
     private String originalDirective;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private AIManager aim = new AIManager();
-    private ToolHandler toolHandler = new ToolHandler();
-    
+    private ToolHandler th = new ToolHandler();
+    private MetadataContainer lastResponse = null;
+
     /*
      * constructors
      */
@@ -46,7 +47,6 @@ public class REPLManager {
     /*
      * basic helper methods
      */
-    
     public void setApprovalMode(ApprovalMode mode) {
         this.approvalMode = mode;
     }
@@ -88,21 +88,38 @@ public class REPLManager {
     private CompletableFuture<String> completeStartREPL(Scanner scanner, String userInput) {
         this.originalDirective = userInput;
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        return completeRStep(scanner).thenCompose(response -> completeEStep(response, scanner));
+        return completeRStep(scanner, true).thenCompose(response -> completeEStep(response, scanner));
     }
-
 
     // REPL : R
-    private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner) {
+    private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         String prompt = contextManager.buildPromptContext();
-        String model = ModelRegistry.LOCAL_RESPONSE_MODEL.asString();
-        return aim.completeLocalShellRequest(prompt, null, model, "response");
+        String model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+
+        if (firstRun || lastResponse == null) {
+            return aim.completeRequest(prompt, null, model, "response", "openai")
+                    .thenApply(response -> {
+                        lastResponse = response;
+                        return response;
+                    });
+        } else {
+            return new OpenAIUtils(lastResponse).completeGetPreviousResponseId()
+                .thenCompose(previousResponseId -> {
+                    System.out.println(previousResponseId);
+                    return aim.completeRequest(prompt, previousResponseId, model, "response", "openai")
+                        .thenApply(response -> {
+                            lastResponse = response;
+                            return response;
+                        });
+                });
+        }
     }
+
 
     // REPL : E
     private CompletableFuture<String> completeEStep(MetadataContainer response, Scanner scanner) {
-        List<String> commands = response.get(ResponseObject.LOCALSHELLTOOL_COMMANDS);
-        boolean finished = response.getOrDefault(ResponseObject.LOCALSHELLTOOL_FINISHED, false);
+        List<String> commands = response.get(th.LOCALSHELLTOOL_COMMANDS);
+        boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
         if (commands == null || commands.isEmpty()) {
             return CompletableFuture.completedFuture("No shell commands to execute.");
         }
@@ -158,7 +175,7 @@ public class REPLManager {
             Scanner scanner
     ) {
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, command));
-        return toolHandler.completeShellCommand(response, command).thenCompose(output -> {
+        return th.completeShellCommand(response, command).thenCompose(output -> {
             System.out.println("> " + command + "\n" + output);
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
             return completeESubStep(commands, index + 1, response, scanner);
@@ -167,7 +184,7 @@ public class REPLManager {
     
     // REPL : P
     private void completePStep(MetadataContainer response) {
-        String summary = new ResponseUtils(response).completeGetLocalShellToolSummary().join();
+        String summary = new OpenAIUtils(response).completeGetLocalShellToolSummary().join();
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]:\n" + summary + "\n");
         }
@@ -177,7 +194,7 @@ public class REPLManager {
 
     // REPL : L
     private CompletableFuture<String> completeLStep(Scanner scanner) {
-        return completeRStep(scanner).thenCompose(response -> {
+        return completeRStep(scanner, false).thenCompose(response -> {
             completePStep(response);
             return completeEStep(response, scanner);
         });

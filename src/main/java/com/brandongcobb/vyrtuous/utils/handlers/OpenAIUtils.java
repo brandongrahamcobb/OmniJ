@@ -34,11 +34,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 
-public class ResponseUtils {
+public class OpenAIUtils {
     
     private MetadataContainer container;
+    private ToolHandler th = new ToolHandler();
     
-    public ResponseUtils(MetadataContainer container) {
+    public OpenAIUtils(MetadataContainer container) {
         this.container = container;
     }
     
@@ -46,11 +47,11 @@ public class ResponseUtils {
      *    Getters
      */
     public CompletableFuture<String> completeGetFileSearchToolType() {
-        return CompletableFuture.completedFuture(this.container.get(ResponseObject.FILESEARCHTOOL_TYPE));
+        return CompletableFuture.completedFuture(this.container.get(th.FILESEARCHTOOL_TYPE));
     }
 
     public CompletableFuture<List<String>> completeGetFileSearchToolVectorStoreIds() {
-        return CompletableFuture.completedFuture(this.container.get(ResponseObject.FILESEARCHTOOL_VECTOR_STORE_IDS));
+        return CompletableFuture.completedFuture(this.container.get(th.FILESEARCHTOOL_VECTOR_STORE_IDS));
     }
 
     public CompletableFuture<String> completeGetLocalShellToolSummary() {
@@ -59,35 +60,16 @@ public class ResponseUtils {
     }
     
     public CompletableFuture<Map<String, Object>> completeGetFileSearchToolFilters() {
-        return CompletableFuture.completedFuture(this.container.get(ResponseObject.FILESEARCHTOOL_FILTERS));
+        return CompletableFuture.completedFuture(this.container.get(th.FILESEARCHTOOL_FILTERS));
     }
     
-    public CompletableFuture<String> completeGetReasoning() {
-        MetadataKey<String> summaryKey = new MetadataKey<>("summary", Metadata.STRING);
-        return CompletableFuture.completedFuture(this.container.get(summaryKey));
-    }
-    
-    public CompletableFuture<String> completeGetResponseMap() {
-        MetadataKey<String> responseMapKey = new MetadataKey<>("response_map", Metadata.STRING);
-        return CompletableFuture.completedFuture(this.container.get(responseMapKey));
-    }
-
     public CompletableFuture<Integer> completeGetFileSearchToolMaxNumResults() {
-        return CompletableFuture.completedFuture(this.container.get(ResponseObject.FILESEARCHTOOL_MAX_NUM_RESULTS));
+        return CompletableFuture.completedFuture(this.container.get(th.FILESEARCHTOOL_MAX_NUM_RESULTS));
     }
 
     public CompletableFuture<Map<String, Object>> completeGetFileSearchToolRankingOptions() {
-        return CompletableFuture.completedFuture(this.container.get(ResponseObject.FILESEARCHTOOL_RANKING_OPTIONS));
+        return CompletableFuture.completedFuture(this.container.get(th.FILESEARCHTOOL_RANKING_OPTIONS));
     }
-
-    public CompletableFuture<List<String>> completeGetShellToolCommand() {
-        return CompletableFuture.completedFuture(this.container.get(ResponseObject.LOCALSHELLTOOL_COMMANDS));
-    }
-    
-    public CompletableFuture<Boolean> completeGetShellToolFinished() {
-        return CompletableFuture.completedFuture(this.container.get(ResponseObject.LOCALSHELLTOOL_FINISHED));
-    }
-    
     
     public CompletableFuture<Boolean> completeGetFlagged() {
         return CompletableFuture.supplyAsync(() -> {
@@ -97,41 +79,6 @@ public class ResponseUtils {
         });
     }
     
-    public CompletableFuture<String> completeGetToolChoice() {
-        return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<String> toolChoiceKey = new MetadataKey<>("tool_choice", Metadata.STRING);
-            Object toolChoiceObj = this.container.get(toolChoiceKey);
-            return toolChoiceObj != null ? String.valueOf(toolChoiceObj) : null;
-        });
-    }
-
-    public CompletableFuture<List<Map<String, Object>>> completeGetTools() {
-        return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
-            Object toolsObj = this.container.get(toolsKey);
-            if (toolsObj instanceof List) {
-                return (List<Map<String, Object>>) toolsObj;
-            } else {
-                return Collections.emptyList();
-            }
-        });
-    }
-    
-    public CompletableFuture<Map<String, Object>> completeGetToolByName(String toolName) {
-        return completeGetTools().thenApply(tools -> {
-            for (Map<String, Object> tool : tools) {
-                Object functionObj = tool.get("function");
-                if (functionObj instanceof Map) {
-                    Map<String, Object> functionMap = (Map<String, Object>) functionObj;
-                    if (toolName.equals(functionMap.get("name"))) {
-                        return tool;
-                    }
-                }
-            }
-            return null;
-        });
-    }
-
     public CompletableFuture<Map<String, Boolean>> completeGetFlaggedReasons() {
         return CompletableFuture.supplyAsync(() -> {
             MetadataKey<Boolean>[] keys = new MetadataKey[] {
@@ -168,6 +115,61 @@ public class ResponseUtils {
         });
     }
 
+    public CompletableFuture<String> completeGetOutput() {
+        MetadataKey<String> outputKey = new MetadataKey<>("output_content", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(outputKey));
+    }
+    
+    public CompletableFuture<String> completeGetPreviousResponseId() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
+            return this.container.get(previousResponseIdKey);
+        });
+    }
+    public CompletableFuture<String> completeGetReasoning() {
+        MetadataKey<String> summaryKey = new MetadataKey<>("summary", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(summaryKey));
+    }
+
+    public CompletableFuture<List<String>> completeGetShellToolCommand() {
+        return CompletableFuture.completedFuture(this.container.get(th.LOCALSHELLTOOL_COMMANDS));
+    }
+    
+    public CompletableFuture<Map<String, Object>> completeGetToolByName(String toolName) {
+        return completeGetTools().thenApply(tools -> {
+            for (Map<String, Object> tool : tools) {
+                Object functionObj = tool.get("function");
+                if (functionObj instanceof Map) {
+                    Map<String, Object> functionMap = (Map<String, Object>) functionObj;
+                    if (toolName.equals(functionMap.get("name"))) {
+                        return tool;
+                    }
+                }
+            }
+            return null;
+        });
+    }
+    
+    public CompletableFuture<String> completeGetToolChoice() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<String> toolChoiceKey = new MetadataKey<>("tool_choice", Metadata.STRING);
+            Object toolChoiceObj = this.container.get(toolChoiceKey);
+            return toolChoiceObj != null ? String.valueOf(toolChoiceObj) : null;
+        });
+    }
+
+    public CompletableFuture<List<Map<String, Object>>> completeGetTools() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
+            Object toolsObj = this.container.get(toolsKey);
+            if (toolsObj instanceof List) {
+                return (List<Map<String, Object>>) toolsObj;
+            } else {
+                return Collections.emptyList();
+            }
+        });
+    }
+    
     public CompletableFuture<String> completeGetResponseId() {
         return CompletableFuture.supplyAsync(() -> {
             MetadataKey<String> responseIdKey = new MetadataKey<>("id", Metadata.STRING);
@@ -175,32 +177,6 @@ public class ResponseUtils {
         });
     }
 
-    public CompletableFuture<String> completeGetOutput() {
-        MetadataKey<String> outputKey = new MetadataKey<>("output_content", Metadata.STRING);
-        return CompletableFuture.completedFuture(this.container.get(outputKey));
-    }
-
-    public CompletableFuture<Integer> completeGetPerplexity() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                MetadataKey<String> outputKey = new MetadataKey<>("output_content", Metadata.STRING);
-                ObjectMapper objectMapper = new ObjectMapper();
-                String json = this.container.get(outputKey);
-                Map<String, Integer> responseMap = objectMapper.readValue(json, new TypeReference<Map<String, Integer>>() {});
-                return responseMap.get("perplexity");
-            } catch (Exception e) {
-                throw new CompletionException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<String> completeGetPreviousResponseId() {
-        return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
-            return this.container.get(previousResponseIdKey);
-        });
-    }
-    
     /*
      *    Setters
      */

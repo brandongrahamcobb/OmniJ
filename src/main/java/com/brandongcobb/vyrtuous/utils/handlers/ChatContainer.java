@@ -31,10 +31,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
-public class ChatObject extends MetadataContainer {
+public class ChatContainer extends MainContainer {
     
     // TODO: Remove depends on AI unstructured output.
-    public ChatObject(Map<String, Object> responseMap) {
+    public ChatContainer(Map<String, Object> responseMap) {
         MetadataKey<String> modelKey = new MetadataKey<>("model", Metadata.STRING);
         MetadataKey<String> createdAtKey = new MetadataKey<>("created_at", Metadata.STRING);
         MetadataKey<String> roleKey = new MetadataKey<>("role", Metadata.STRING);
