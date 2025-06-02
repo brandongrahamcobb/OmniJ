@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
-
+import java.util.Optional;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
@@ -36,11 +36,14 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
+import java.util.function.Consumer;
+
 public class EventListeners extends ListenerAdapter implements Cog {
     
     private final Map<Long, MetadataContainer> userResponseMap = new ConcurrentHashMap<>();
     private JDA api;
     private DiscordBot bot;
+    final StringBuilder messageBuilder = new StringBuilder();
     
     @Override
     public void register(JDA api, DiscordBot bot) {
@@ -49,13 +52,14 @@ public class EventListeners extends ListenerAdapter implements Cog {
         api.addEventListener(this);
     }
     
+    
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
         String messageContent = message.getContentDisplay();
         if (message.getAuthor().isBot() || messageContent.startsWith(".")) return;
         AIManager aim = new AIManager();
-        MessageManager mem = new MessageManager();
+        MessageManager mem = new MessageManager(api);
         User sender = event.getAuthor();
         long senderId = sender.getIdLong();
         List<Attachment> attachments = message.getAttachments();
@@ -77,13 +81,13 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 if (true) { //TODO: moderation logic here later
                     return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
                 }
-                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation", "openai")
+                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation", "openai", false, null)
                     .thenCompose(moderationOpenAIContainer -> {
                         OpenAIUtils utils = new OpenAIUtils(moderationOpenAIContainer);
                         return utils.completeGetFlagged()
                             .thenCompose(flagged -> {
                                 if (flagged) {
-                                    ModerationManager mom = new ModerationManager();
+                                    ModerationManager mom = new ModerationManager(api);
                                     return utils.completeGetFormatFlaggedReasons()
                                         .thenCompose(reason -> mom.completeHandleModeration(message, reason)
                                             .thenApply(ignored -> null));
@@ -120,28 +124,40 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         CompletableFuture<String> prevIdFut = previousResponse != null
                             ? new OpenAIUtils(previousResponse).completeGetResponseId()
                             : CompletableFuture.completedFuture(null);
-                        return prevIdFut.thenCompose(previousResponseId ->
-                            aim.completeRequest(fullContent, previousResponseId, model, "completion", "llama")
-                                .thenCompose(responseObject -> {
-                                    OpenAIUtils openaiUtils = new OpenAIUtils(responseObject);
-                                    CompletableFuture<Void> setPrevFut;
-                                    if (previousResponse != null) {
-                                        OpenAIUtils openaiUtilsPrevious = new OpenAIUtils(previousResponse);
-                                        return openaiUtilsPrevious.completeGetPreviousResponseId()
-                                            .thenCompose(prevRespId ->
-                                                openaiUtils.completeSetPreviousResponseId(prevRespId));
-                                    }
-                                    else {
-                                        userResponseMap.put(senderId, responseObject);
-                                        LlamaUtils llamaUtils = new LlamaUtils(responseObject);
-                                        return llamaUtils.completeGetContent()
-                                            .thenCompose(outputContent ->
-                                                mem.completeSendResponse(message, outputContent)
-                                                    .thenApply(ignored -> null));
-                                    }
-                                })
-                        );
+
+                        return prevIdFut.thenCompose(previousResponseId -> {
+                            // Step 1: send initial placeholder message to Discord
+                            return message.getChannel().sendMessage("🤖 Generating response...").submit()
+                                .thenCompose(sentMessage -> {
+
+                                    StringBuilder messageBuilder = new StringBuilder();
+
+                                    // Step 2: define streaming chunk handler
+                                    Consumer<String> chunkHandler = chunk -> {
+                                        messageBuilder.append(chunk);
+                                        sentMessage.editMessage(messageBuilder.toString()).queue(); // stream updates
+                                    };
+
+                                    // Step 3: build and stream LLaMA response
+                                    return aim.completeRequest(fullContent, previousResponseId, model, "completion", "llama", true, chunkHandler)
+                                        .thenCompose(responseObject -> {
+                                            // Save response object for later follow-ups
+                                            userResponseMap.put(senderId, responseObject);
+
+                                            // Chain set previous ID if needed
+                                            if (previousResponse != null) {
+                                                OpenAIUtils openaiUtilsPrev = new OpenAIUtils(previousResponse);
+                                                return openaiUtilsPrev.completeGetPreviousResponseId()
+                                                    .thenCompose(prevRespId ->
+                                                        new OpenAIUtils(responseObject).completeSetPreviousResponseId(prevRespId));
+                                            }
+
+                                            return CompletableFuture.completedFuture(null);
+                                        });
+                                });
+                        });
                     });
             });
     }
+
 }

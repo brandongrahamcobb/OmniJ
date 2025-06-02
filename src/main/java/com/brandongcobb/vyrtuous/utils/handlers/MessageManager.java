@@ -38,6 +38,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.HashMap;
 import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -63,14 +66,27 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Locale;
 import java.nio.file.Files;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Optional;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+
+import java.util.function.Supplier;
 public class MessageManager {
 
     private Lock lock;
     private ObjectMapper mapper = new ObjectMapper();
     private File tempDirectory;
-
-    public MessageManager() {
+    private JDA jda;
+    
+    public MessageManager(JDA jda) {
+        this.jda = jda;
         this.tempDirectory = new File(System.getProperty("java.io.tmpdir"));
     }
 
@@ -197,6 +213,113 @@ public class MessageManager {
             }
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+    
+    public CompletableFuture<Void> completeStreamResponse(
+            Message originalMessage,
+            Supplier<Optional<String>> nextChunkSupplier
+    ) {
+        AtomicReference<Message> editingMessage = new AtomicReference<>(originalMessage);
+        StringBuilder buffer = new StringBuilder();
+        long[] lastFlushTime = {System.currentTimeMillis()};
+
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        CompletableFuture<Void> done = new CompletableFuture<>();
+
+        Runnable task = () -> {
+            Optional<String> nextChunkOpt = nextChunkSupplier.get();
+
+            if (nextChunkOpt.isEmpty()) {
+                flushBuffer(buffer, editingMessage)
+                    .thenRun(() -> {
+                        scheduler.shutdown();
+                        done.complete(null);
+                    });
+                return;
+            }
+
+            String chunk = nextChunkOpt.get();
+            buffer.append(chunk);
+
+            if (containsCodeBlock(buffer.toString()) || buffer.length() > 1900 ||
+                System.currentTimeMillis() - lastFlushTime[0] > 10_000) {
+
+                flushBuffer(buffer, editingMessage).thenAccept(newMsg -> {
+                    editingMessage.set(newMsg);
+                    lastFlushTime[0] = System.currentTimeMillis();
+                });
+            }
+        };
+
+        scheduler.scheduleAtFixedRate(task, 0, 2, TimeUnit.SECONDS); // Check every 2 seconds
+        return done;
+    }
+
+    private CompletableFuture<Message> flushBuffer(StringBuilder buffer, AtomicReference<Message> editingMessage) {
+        String content = buffer.toString().trim();
+        buffer.setLength(0);
+
+        if (content.isEmpty()) {
+            return CompletableFuture.completedFuture(editingMessage.get());
+        }
+
+        Matcher matcher = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```").matcher(content);
+        if (matcher.find()) {
+            String lang = matcher.group(1) != null ? matcher.group(1) : "txt";
+            String code = matcher.group(2).trim();
+
+            if (code.length() < 1900) {
+                String msg = "```" + lang + "\n" + code + "\n```";
+                return completeSendDiscordMessage(editingMessage.get(), msg);
+            } else {
+                File file = new File(tempDirectory, "stream_" + System.currentTimeMillis() + "." + lang);
+                try {
+                    Files.writeString(file.toPath(), code, StandardCharsets.UTF_8);
+                    return completeSendDiscordMessage(editingMessage.get(), "📄 Code attached:", file);
+                } catch (IOException e) {
+                    return completeSendDiscordMessage(editingMessage.get(), "❌ Error writing file: " + e.getMessage());
+                }
+            }
+        }
+
+        // Otherwise, just edit or send
+        Message lastMsg = editingMessage.get();
+        if (lastMsg != null) {
+            return completeEditDiscordMessage(lastMsg, content);
+        } else {
+            return completeSendDiscordMessage(lastMsg, content);
+        }
+    }
+
+    private boolean containsCodeBlock(String text) {
+        return text.contains("```");
+    }
+
+
+    private CompletableFuture<Message> handleCodeBlock(Message message, String content) {
+        Matcher matcher = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```").matcher(content);
+        if (matcher.find()) {
+            String lang = matcher.group(1) != null ? matcher.group(1) : "txt";
+            String code = matcher.group(2);
+
+            if (code.length() < 1900) {
+                String msg = "```" + lang + "\n" + code + "\n```";
+                return completeSendDiscordMessage(message, msg);
+            } else {
+                File file = new File(tempDirectory, "codeblock_" + System.currentTimeMillis() + "." + lang);
+                try {
+                    Files.writeString(file.toPath(), code);
+                    return completeSendDiscordMessage(message, "📄 Code attached:", file);
+                } catch (IOException e) {
+                    return completeSendDiscordMessage(message, "❌ Error: " + e.getMessage());
+                }
+            }
+        }
+        return completeSendDiscordMessage(message, content);
+    }
+
+    private CompletableFuture<Message> completeEditDiscordMessage(Message message, String newContent) {
+        return message.editMessage(newContent).submit();
     }
     
     public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content, MessageEmbed embed) {

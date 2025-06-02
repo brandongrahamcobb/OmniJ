@@ -50,4 +50,9 @@ public class LlamaUtils {
         return CompletableFuture.completedFuture(this.container.get(outputKey));
     }
     
+
+    public CompletableFuture<MetadataContainer> completeGetContainer() {
+        MetadataKey<MetadataContainer> containerKey = new MetadataKey<>("container", Metadata.METADATA);
+        return CompletableFuture.completedFuture(container);
+    }
 }

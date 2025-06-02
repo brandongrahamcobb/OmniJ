@@ -42,6 +42,8 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 
+import net.dv8tion.jda.api.JDA;
+
 public class ModerationManager {
 
     private Vyrtuous app;
@@ -51,9 +53,14 @@ public class ModerationManager {
     private File tempDirectory = new File(System.getProperty("java.io.tmpdir"));
     private File tempFile = new File(System.getProperty("java.io.tmpdir"), "config.yml");
     private Map<Long, Integer> userCounts;
-
+    private JDA jda;
+    
+    public ModerationManager(JDA jda) {
+        this.jda = jda;
+    }
+    
     public CompletableFuture<Void> completeHandleModeration(Message message, String reasonStr) {
-        MessageManager mem = new MessageManager();
+        MessageManager mem = new MessageManager(jda);
         User author = message.getAuthor();
         Guild guild = message.getGuild();
         if (guild == null || author == null) {
