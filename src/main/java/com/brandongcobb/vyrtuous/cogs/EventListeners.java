@@ -35,6 +35,14 @@ import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.HashMap;
+import java.util.function.Supplier;
 
 import java.util.function.Consumer;
 
@@ -119,45 +127,63 @@ public class EventListeners extends ListenerAdapter implements Cog {
                     senderId,
                     ModelRegistry.LOCAL_RESPONSE_MODEL.asString()
                 );
+
                 return aim.completeResolveModel(fullContent, multimodal, setting)
                     .thenCompose(model -> {
                         CompletableFuture<String> prevIdFut = previousResponse != null
                             ? new OpenAIUtils(previousResponse).completeGetResponseId()
                             : CompletableFuture.completedFuture(null);
 
-                        return prevIdFut.thenCompose(previousResponseId -> {
-                            // Step 1: send initial placeholder message to Discord
-                            return message.getChannel().sendMessage("🤖 Generating response...").submit()
+                        return prevIdFut.thenCompose(previousResponseId ->
+                            message.getChannel().sendMessage("🤖 Generating response...").submit()
                                 .thenCompose(sentMessage -> {
-
-                                    StringBuilder messageBuilder = new StringBuilder();
-
-                                    // Step 2: define streaming chunk handler
-                                    Consumer<String> chunkHandler = chunk -> {
-                                        messageBuilder.append(chunk);
-                                        sentMessage.editMessage(messageBuilder.toString()).queue(); // stream updates
+                                    BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+                                    Supplier<Optional<String>> nextChunkSupplier = () -> {
+                                        try {
+                                            String chunk = queue.take();  // blocks until a chunk is available
+                                            if ("<<END>>".equals(chunk)) {
+                                                return Optional.empty(); // signal stream ended
+                                            }
+                                            return Optional.of(chunk);
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                            return Optional.empty();
+                                        }
                                     };
 
-                                    // Step 3: build and stream LLaMA response
-                                    return aim.completeRequest(fullContent, previousResponseId, model, "completion", "llama", true, chunkHandler)
-                                        .thenCompose(responseObject -> {
-                                            // Save response object for later follow-ups
+
+                                    // Start streaming request, pushing chunks into queue via onContentChunk
+                                    CompletableFuture<MetadataContainer> responseFuture =
+                                        aim.completeRequest(
+                                            fullContent,
+                                            previousResponseId,
+                                            model,
+                                            "completion",
+                                            "llama",
+                                            true,
+                                            queue::offer
+                                        );
+
+                                    // Stream queued chunks to Discord message edits
+                                    CompletableFuture<Void> streamFuture =
+                                        mem.completeStreamResponse(sentMessage, nextChunkSupplier);
+
+                                    return CompletableFuture.allOf(responseFuture, streamFuture)
+                                        .thenCompose(v -> {
+                                            MetadataContainer responseObject = responseFuture.join();
                                             userResponseMap.put(senderId, responseObject);
 
-                                            // Chain set previous ID if needed
                                             if (previousResponse != null) {
-                                                OpenAIUtils openaiUtilsPrev = new OpenAIUtils(previousResponse);
-                                                return openaiUtilsPrev.completeGetPreviousResponseId()
-                                                    .thenCompose(prevRespId ->
-                                                        new OpenAIUtils(responseObject).completeSetPreviousResponseId(prevRespId));
+                                                return new OpenAIUtils(previousResponse).completeGetPreviousResponseId()
+                                                    .thenCompose(prevId ->
+                                                        new OpenAIUtils(responseObject).completeSetPreviousResponseId(prevId)
+                                                    );
                                             }
-
                                             return CompletableFuture.completedFuture(null);
                                         });
-                                });
-                        });
+                                }));
                     });
             });
     }
-
+    
 }

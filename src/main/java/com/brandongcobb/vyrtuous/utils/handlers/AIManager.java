@@ -309,7 +309,6 @@ public class AIManager {
 
                 HttpPost post = new HttpPost("http://localhost:8080/api/chat");
                 post.setHeader("Content-Type", "application/json");
-                requestBody.put("stream", true);  // force stream true
 
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
@@ -317,7 +316,6 @@ public class AIManager {
 
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
-                    System.out.println(code);
                     if (code < 200 || code >= 300) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         throw new IOException("HTTP " + code + ": " + respBody);
@@ -343,6 +341,7 @@ public class AIManager {
 
                             if (content != null && !content.isBlank()) {
                                 onContentChunk.accept(content);
+                                System.out.println("success");
                                 builder.append(content);
                             }
                         }
@@ -399,8 +398,7 @@ public class AIManager {
                         } else {
                             return new OpenAIContainer(outer);  // Fallback: wrap entire response if not endpoint-specific
                         }
-                    } else {
-                        System.out.println(code);
+                    } else {;
                         throw new IOException("HTTP " + code + ": " + respBody);
                     }
                 }

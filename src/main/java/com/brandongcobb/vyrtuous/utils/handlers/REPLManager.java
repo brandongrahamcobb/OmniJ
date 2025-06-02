@@ -149,7 +149,7 @@ public class REPLManager {
                     });
         } else {
             // For follow-up AI requests, get the previous response ID and make a new request
-            return new OpenAIUtils(lastAIResponseContainer).completeGetPreviousResponseId()
+            return new OpenAIUtils(lastAIResponseContainer).completeGetResponseId()
                     .thenCompose(previousResponseId -> {
                         System.out.println(previousResponseId); // Print the previous response ID for debugging/logging
                         return aim.completeRequest(prompt, previousResponseId, model, "response", "openai", false, null)
