@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+
 
 public class OpenAIContainer extends MainContainer {
     
@@ -601,23 +603,42 @@ public class OpenAIContainer extends MainContainer {
                             if (outputObj instanceof List<?> outputList) {
                                 for (Object outputItemObj : outputList) {
                                     if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
+
                                     Object actionObj = outputItem.get("action");
                                     if (actionObj instanceof Map<?, ?> action) {
                                         Object cmdObj = action.get("command");
+
                                         if (cmdObj instanceof List<?> cmdList) {
-                                            List<String> commands = cmdList.stream()
-                                                .map(Object::toString)
-                                                .toList(); // Java 16+, otherwise use .collect(th.Collectors.toList())
+                                            List<String> commands = Arrays.stream(cmdObj.toString().split("&&"))
+                                                .map(String::trim)
+                                                .filter(s -> !s.isEmpty())
+                                                .map(cmdStr -> List.of("sh", "-c", cmdStr)) // for execution later as List<List<String>>
+                                                .flatMap(List::stream)
+                                                .toList();
                                             put(th.LOCALSHELLTOOL_COMMANDS, commands);
+
                                         } else if (cmdObj instanceof String singleCommand) {
-                                            put(th.LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
+                                            List<String> commands = Arrays.stream(cmdObj.toString().split("&&"))
+                                                .map(String::trim)
+                                                .filter(s -> !s.isEmpty())
+                                                .map(cmdStr -> List.of("sh", "-c", cmdStr)) // for execution later as List<List<String>>
+                                                .flatMap(List::stream)
+                                                .toList();
+                                            put(th.LOCALSHELLTOOL_COMMANDS, commands);
+
                                         } else if (cmdObj != null) {
-                                            put(th.LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
+                                            List<String> commands = Arrays.stream(cmdObj.toString().split("&&"))
+                                                .map(String::trim)
+                                                .filter(s -> !s.isEmpty())
+                                                .map(cmdStr -> List.of("sh", "-c", cmdStr)) // for execution later as List<List<String>>
+                                                .flatMap(List::stream)
+                                                .toList();
+                                            put(th.LOCALSHELLTOOL_COMMANDS, commands);
                                         }
                                     }
-                                
                                 }
                             }
+
                         }
                             
                         default -> {

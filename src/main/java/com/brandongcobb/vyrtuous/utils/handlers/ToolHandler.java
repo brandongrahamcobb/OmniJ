@@ -89,6 +89,18 @@ public class ToolHandler {
         return builder.toString().trim();
     }
 
+    private List<String> escapeCommandParts(List<String> commandParts) {
+        return commandParts.stream()
+            .map(s -> s.replace("*", "'*'")
+                       .replace(";", "\\;")
+                       .replace("&&", "\\&\\&")
+                       .replace("(", "\\(")
+                       .replace(")", "\\)")
+                       .replace("{", "\\{")
+                       .replace("}", "\\}")
+                       .replace("|", "\\|"))
+            .toList();
+    }
 
     public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -99,7 +111,11 @@ public class ToolHandler {
                     List<String> processCommand = new ArrayList<>();
                     processCommand.add("gtimeout");
                     processCommand.add("999");
-                    processCommand.addAll(commandParts);
+                    String joinedCommand = String.join(" ", commandParts);
+                    processCommand.add("sh");
+                    processCommand.add("-c");
+                    processCommand.add("joinedCommand");
+//                    processCommand.addAll(commandParts);
                     ProcessBuilder pb = new ProcessBuilder(processCommand);
                     pb.redirectErrorStream(true);
                     Process proc = pb.start();

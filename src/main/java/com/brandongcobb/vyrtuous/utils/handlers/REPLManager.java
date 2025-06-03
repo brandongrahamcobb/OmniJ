@@ -110,7 +110,6 @@ public class REPLManager {
                         OpenAIUtils openaiUtils = new OpenAIUtils(response);
                         lastAIResponseText = openaiUtils.completeGetOutput().join();
                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                        System.out.println(lastAIResponseText);
                         return response;
                     });
         } else {
@@ -226,13 +225,14 @@ public class REPLManager {
      * It prints a summary from the model if available.
      * @param response The MetadataContainer from the AI's response.
      */
-    private void completePStep(MetadataContainer response) {
+    private void completePStep(MetadataContainer response, Scanner scanner) {
         String summary = new OpenAIUtils(response).completeGetLocalShellToolSummary().join();
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]:\n" + summary + "\n");
         }
         long tokens = contextManager.getContextTokenCount();
         System.out.println("Current context token count: " + tokens);
+        completeLStep(scanner);
     }
 
     /**
@@ -244,7 +244,7 @@ public class REPLManager {
      */
     private CompletableFuture<String> completeLStep(Scanner scanner) {
         return completeRStep(scanner, false).thenCompose(response -> {
-            completePStep(response);
+            completePStep(response, scanner);
             return completeEStep(response, scanner);
         });
     }
