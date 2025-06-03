@@ -110,7 +110,7 @@ public class ToolHandler {
                 try {
                     List<String> processCommand = new ArrayList<>();
                     processCommand.add("gtimeout");
-                    processCommand.add("999");
+                    processCommand.add("20");
                     String joinedCommand = String.join(" ", commandParts);
                     processCommand.add("sh");
                     processCommand.add("-c");
