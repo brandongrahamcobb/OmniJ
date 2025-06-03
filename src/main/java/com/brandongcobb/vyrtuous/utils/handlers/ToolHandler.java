@@ -114,7 +114,7 @@ public class ToolHandler {
                     String joinedCommand = String.join(" ", commandParts);
                     processCommand.add("sh");
                     processCommand.add("-c");
-                    processCommand.add("joinedCommand");
+                    processCommand.add(joinedCommand);
 //                    processCommand.addAll(commandParts);
                     ProcessBuilder pb = new ProcessBuilder(processCommand);
                     pb.redirectErrorStream(true);
