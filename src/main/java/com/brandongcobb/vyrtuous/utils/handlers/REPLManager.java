@@ -22,69 +22,41 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
-import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.brandongcobb.metadata.*;
+import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.utils.inc.*;
 
 public class REPLManager {
 
-    private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
-    private final ContextManager contextManager = new ContextManager(3200); // ContextManager usage commented out
+    /*
+     *  Runtime variables
+     */
+    private final ContextManager contextManager = new ContextManager(3200);
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
-    private static final Logger LOGGER = Logger.getLogger(REPLManager.class.getName());
-    private String originalDirective; // Stores the initial user input
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
+    private String originalDirective;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private AIManager aim = new AIManager();
     private ToolHandler th = new ToolHandler();
-    private MetadataContainer lastAIResponseContainer = null; // Stores the MetadataContainer of the last AI response
-    private String lastAIResponseText = ""; // Stores the text content of the last AI response
-    private String lastShellOutput = ""; // Stores the output of the last executed shell command
+    private MetadataContainer lastAIResponseContainer = null;
+    private String lastAIResponseText = "";
+    private String lastShellOutput = "";
+    private ApprovalMode approvalMode;
 
     /*
-     * constructors
+     *  Constructors
      */
     public REPLManager(ApprovalMode mode) {
         setApprovalMode(mode);
     }
 
     /*
-     * basic helper methods
+     *  Helpers
      */
     public void setApprovalMode(ApprovalMode mode) {
         this.approvalMode = mode;
     }
 
-    /**
-     * Checks if a given command is considered dangerous.
-     * Dangerous commands are defined in a hardcoded list.
-     * @param command The command string to check.
-     * @return true if the command contains any dangerous keywords, false otherwise.
-     */
-    private boolean isDangerousCommand(String command) {
-        if (command == null) return false;
-        // List of commands considered dangerous
-        List<String> dangerous = List.of("rm", "mv", "git", "patch", "shutdown", "reboot", "mvn compile");
-        boolean isDangerous = dangerous.stream().anyMatch(command::contains);
-        LOGGER.fine("Checked command for danger: '" + command + "' => " + isDangerous);
-        return isDangerous;
-    }
-
-    /**
-     * Determines if a command requires user approval based on the current approval mode.
-     * @param command The command string to evaluate.
-     * @return true if approval is required, false otherwise.
-     */
-    private boolean requiresApproval(String command) {
-        boolean result = switch (approvalMode) {
-            case FULL_AUTO -> false; // No approval needed in full auto mode
-            case EDIT_APPROVE_ALL -> true; // All commands require approval
-            case EDIT_APPROVE_DESTRUCTIVE -> isDangerousCommand(command); // Only dangerous commands require approval
-        };
-        return result;
-    }
-
-    /*
-     * REPL : start
-     */
     /**
      * Starts a new thread to continuously read user input from the console.
      * Each input triggers the REPL sequence.
@@ -93,9 +65,8 @@ public class REPLManager {
         inputExecutor.submit(() -> {
             try (Scanner scanner = new Scanner(System.in)) {
                 while (true) {
-                    System.out.print("> "); // Prompt for user input
+                    System.out.print("> ");
                     String input = scanner.nextLine();
-                    // Start the REPL process for the user input
                     completeStartREPL(scanner, input).thenAcceptAsync(System.out::println, replExecutor);
                 }
             } catch (Exception e) {
@@ -112,9 +83,8 @@ public class REPLManager {
      * @return A CompletableFuture that completes with the final output of the REPL cycle.
      */
     private CompletableFuture<String> completeStartREPL(Scanner scanner, String userInput) {
-        this.originalDirective = userInput; // Store the original user directive
-        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput)); // Context entry removed
-        // Start the 'R' (Read/Response) step, indicating it's the first run
+        this.originalDirective = userInput;
+        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         return completeRStep(scanner, true).thenCompose(response -> completeEStep(response, scanner));
     }
 
@@ -128,58 +98,36 @@ public class REPLManager {
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         String model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
         String prompt;
-
         if (firstRun) {
-            // For the first run, the prompt for the AI is the original user input.
             prompt = this.originalDirective;
         } else {
-            // For subsequent runs (L-step), the prompt is the last AI response combined with the last shell output.
-            prompt = lastShellOutput;
+            prompt = contextManager.buildPromptContext();
         }
-
-        // Determine if it's the very first AI call or a follow-up
         if (firstRun) {
-            // Make the initial AI request
             return aim.completeRequest(prompt, null, model, "response", "openai", false, null)
                     .thenApply(response -> {
                         lastAIResponseContainer = response;
                         OpenAIUtils openaiUtils = new OpenAIUtils(response);
                         lastAIResponseText = openaiUtils.completeGetOutput().join();
-                        
                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                        System.out.println(lastAIResponseText);// Store the AI's response text
+                        System.out.println(lastAIResponseText);
                         return response;
                     });
         } else {
-            // For follow-up AI requests, get the previous response ID and make a new request
-            
-            System.out.println("in");
             return new OpenAIUtils(lastAIResponseContainer).completeGetResponseId()
                     .thenCompose(previousResponseId -> {
-                        System.out.println(previousResponseId); // Print the previous response ID for debugging/logging
+                        System.out.println(previousResponseId);
                         return aim.completeRequest(prompt, previousResponseId, model, "response", "openai", false, null)
                                 .thenApply(response -> {
                                     lastAIResponseContainer = response;
                                     OpenAIUtils openaiUtils = new OpenAIUtils(response);
                                     lastAIResponseText = openaiUtils.completeGetOutput().join();
-                                    
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                                    System.out.println(lastAIResponseText);// Store the AI's response text
+                                    System.out.println(lastAIResponseText);
                                     return response;
                                 });
                     });
         }
-    }
-
-    private CompletableFuture<String> promptUserAndLoop(Scanner scanner) {
-        return CompletableFuture.supplyAsync(() -> {
-            System.out.print("↪ Your input: ");
-            return scanner.nextLine();
-        }, inputExecutor).thenCompose(input -> {
-            this.originalDirective = input;
-            return completeRStep(scanner, true)
-                    .thenCompose(response -> completeEStep(response, scanner));
-        });
     }
 
     /**
@@ -190,22 +138,24 @@ public class REPLManager {
      * @return A CompletableFuture that completes with the transcript of executed commands.
      */
     private CompletableFuture<String> completeEStep(MetadataContainer response, Scanner scanner) {
-        @SuppressWarnings("unchecked")
         List<List<String>> allCommands = null;
         if (response instanceof OpenAIContainer) {
             OpenAIContainer openaiContainer = (OpenAIContainer) response;
             allCommands = (List<List<String>>) openaiContainer.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
         }
-
         boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
-
         if ((allCommands == null || allCommands.isEmpty()) && !finished) {
             System.out.println("💡 Model is awaiting your input or guidance.");
             System.out.println(lastAIResponseText);
-            return promptUserAndLoop(scanner);
+            return CompletableFuture.supplyAsync(() -> {
+                System.out.print("↪ Your input: ");
+                return scanner.nextLine();
+            }, inputExecutor).thenCompose(input -> {
+                this.originalDirective = input;
+                return completeRStep(scanner, true)
+                        .thenCompose(newResponse -> completeEStep(newResponse, scanner));
+            });
         }
-
-        // Pass the list of command parts directly
         return completeESubStep(allCommands, 0, response, scanner).thenCompose(transcript -> {
             if (finished) {
                 System.out.println("✅ Task complete.");
@@ -215,11 +165,9 @@ public class REPLManager {
         });
     }
 
-
-
     /**
      * A sub-step of the 'E' (Execute) phase, handling individual command execution and approval.
-     * @param commands The list of commands to execute.
+     * @param allCommands The list of commands to execute.
      * @param index The current index of the command to execute.
      * @param response The AI's MetadataContainer response.
      * @param scanner The scanner for user input.
@@ -234,11 +182,9 @@ public class REPLManager {
         if (index >= allCommands.size()) {
             return CompletableFuture.completedFuture(""); // All commands done
         }
-
         List<String> commandParts = allCommands.get(index);
         String commandStr = String.join(" ", commandParts);
-
-        if (requiresApproval(commandStr)) {
+        if (Helpers.requiresApproval(commandStr, approvalMode)) {
             return CompletableFuture.supplyAsync(() -> {
                 LOGGER.fine("Requesting user approval for command: " + commandStr);
                 System.out.println("Approval required for command: " + commandStr);
@@ -271,43 +217,10 @@ public class REPLManager {
         }
     }
 
-    /**
-     * The final sub-step of the 'E' (Execute) phase, handling the actual shell command execution.
-     * @param command The command to execute.
-     * @param commands The full list of commands.
-     * @param index The current index of the command.
-     * @param response The AI's MetadataContainer response.
-     * @param scanner The scanner for user input.
-     * @return A CompletableFuture that completes with the output of the command.
-     */
     private CompletableFuture<String> completeESubSubStep(List<String> commandParts) {
         return th.executeCommandsAsList(Collections.singletonList(commandParts));
     }
-
-
-    private CompletableFuture<String> executeCommandsSequentially(
-            List<List<String>> commands,
-            int index,
-            MetadataContainer response,
-            Scanner scanner
-    ) {
-        if (index >= commands.size()) {
-            return CompletableFuture.completedFuture("✅ All commands executed.");
-        }
-
-        List<String> commandParts = commands.get(index);
-        String commandString = String.join(" ", commandParts);
-        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, commandString));
-        
-        // Execute just this command parts as a single command list (one command)
-        return th.executeCommandsAsList(Collections.singletonList(commandParts)).thenCompose(output -> {
-            System.out.println("> " + commandString + "\n" + output);
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
-            this.lastShellOutput = output;
-            return executeCommandsSequentially(commands, index + 1, response, scanner);
-        });
-    }
-
+    
     /**
      * The 'P' (Print) step of the REPL.
      * It prints a summary from the model if available.
@@ -318,8 +231,8 @@ public class REPLManager {
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]:\n" + summary + "\n");
         }
-        long tokens = contextManager.getContextTokenCount(); // Context token count removed
-        System.out.println("Current context token count: " + tokens); // Context token count print removed
+        long tokens = contextManager.getContextTokenCount();
+        System.out.println("Current context token count: " + tokens);
     }
 
     /**
@@ -330,10 +243,9 @@ public class REPLManager {
      * @return A CompletableFuture that completes with the final output of the loop.
      */
     private CompletableFuture<String> completeLStep(Scanner scanner) {
-        // Loop back to the 'R' step, indicating it's not the first run for this directive
         return completeRStep(scanner, false).thenCompose(response -> {
-            completePStep(response); // Print any summary from the model
-            return completeEStep(response, scanner); // Proceed to the 'E' step
+            completePStep(response);
+            return completeEStep(response, scanner);
         });
     }
 }

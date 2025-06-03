@@ -19,30 +19,15 @@ package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.List;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.IOException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
 
 public class ToolHandler {
 
@@ -109,22 +94,17 @@ public class ToolHandler {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         return CompletableFuture.supplyAsync(() -> {
             StringBuilder result = new StringBuilder();
-
             for (List<String> commandParts : allCommands) {
                 try {
                     List<String> processCommand = new ArrayList<>();
-                    // Use "timeout" or "gtimeout" depending on your environment
                     processCommand.add("gtimeout");
-                    processCommand.add("30"); // 30 seconds timeout (without "s")
+                    processCommand.add("999");
                     processCommand.addAll(commandParts);
-
                     ProcessBuilder pb = new ProcessBuilder(processCommand);
                     pb.redirectErrorStream(true);
                     Process proc = pb.start();
-
                     String output = readStream(proc.getInputStream());
                     int exitCode = proc.waitFor();
-
                     result.append(String.join(" ", commandParts))
                           .append("\nExit code: ").append(exitCode)
                           .append("\nOutput:\n").append(output).append("\n\n");
@@ -133,7 +113,6 @@ public class ToolHandler {
                           .append(": ").append(e.getMessage()).append("\n");
                 }
             }
-
             executor.shutdown();
             return result.toString();
         }, executor);

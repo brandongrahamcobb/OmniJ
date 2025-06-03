@@ -38,31 +38,6 @@ public class OpenAIContainer extends MainContainer {
     
     private ToolHandler th = new ToolHandler();
     public static Map<String, Object> mapMap;
-    /**
-     * Normalize and sanitize the command string.
-     * - Trim whitespace
-     * - Ensure quotes around globs/wildcards if needed
-     * - Escape semicolons and special shell characters if needed
-     *
-     * This function can be expanded to fit your specific shell safety rules.
-     */
-    private String normalizeCommand(String cmd) {
-        if (cmd == null || cmd.isBlank()) return cmd;
-
-        String trimmed = cmd.trim();
-
-        // Example: if command contains unquoted *, wrap in single quotes
-        if (trimmed.contains("*") && !isQuoted(trimmed)) {
-            trimmed = "'" + trimmed + "'";
-        }
-
-        // Escape semicolons to avoid shell syntax errors
-        trimmed = trimmed.replace(";", "\\;");
-
-        // Add any other sanitization you need here
-
-        return trimmed;
-    }
 
     private boolean isQuoted(String s) {
         return (s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"));
@@ -479,18 +454,14 @@ public class OpenAIContainer extends MainContainer {
                         //if (callIdObj instanceof String callId) {
                           //  put(th.LOCALSHELLTOOL_CALL_ID, callId);
                         //}
-      
                         if (callIdObj instanceof String callId) {
                             allCallIds.add(callId);
                         }
                         Object actionObj = outputItem.get("action");
                         if (actionObj instanceof Map<?, ?> action) {
                             Object cmdObj = action.get("command");
-
                             List<String> commandsForThisCall = new ArrayList<>();
-
                             if (cmdObj instanceof List<?> cmdList) {
-                                // Just keep the command parts as-is (no escaping here)
                                 commandsForThisCall = cmdList.stream()
                                     .map(Object::toString)
                                     .toList();

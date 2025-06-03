@@ -221,36 +221,11 @@ public class AIManager {
         });
     }
 
-    public CompletableFuture<MetadataContainer> completeRequest(
-            String content,
-            String previousResponseId,
-            String model,
-            String requestType,
-            String provider,
-            boolean stream,
-            Consumer<String> onContentChunk
-    ) {
-        switch (provider.toLowerCase()) {
-            case "llama":
-                return completeLlamaRequest(content, previousResponseId, model, requestType, stream, onContentChunk);
-
-            //case "ollama":
-              //  return completeOllamaRequest(content, previousResponseId, model, requestType);
-
-            case "openai":
-                return completeOpenAIRequest(content, previousResponseId, model, requestType, stream);
-
-            case "openrouter":
-                return completeOpenRouterRequest(content, previousResponseId, model, requestType, stream);
-
-            default:
-                return CompletableFuture.failedFuture(
-                    new IllegalArgumentException("Unknown provider: " + provider)
-                );
-        }
-    }
-    
-    public CompletableFuture<MetadataContainer> completeLlamaRequest(String content, String previousResponseId, String model, String requestType, boolean stream, Consumer<String> onContentChunk) {
+    /*
+     *  llama.cpp
+     */
+    private CompletableFuture<MetadataContainer> completeLlamaRequest(String content, String previousResponseId, String model, String requestType, boolean stream, Consumer<String> onContentChunk) {
+        // Initiate request-specific finals
         SchemaMerger sm = new SchemaMerger();
         String instructions = switch (requestType) {
             case "completion" -> "";
@@ -258,46 +233,12 @@ public class AIManager {
             case "response" -> "";
             default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
         };
-        String endpoint = "completion";
+        final String endpoint = "http://localhost:8080/api/chat";
         return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "llama", stream)
-                .thenCompose(reqBody -> completeProcessStreamedLlamaRequest(reqBody, endpoint, onContentChunk));
-    }
-
-    public CompletableFuture<MetadataContainer> completeOpenAIRequest(String content, String previousResponseId, String model, String requestType, boolean stream) {
-        SchemaMerger sm = new SchemaMerger();
-        String endpoint = "moderation".equals(requestType)
-            ? moderationApiUrl
-            : "completion".equals(requestType)
-                ? completionApiUrl
-                : responseApiUrl;
-        String instructions = switch (requestType) {
-            case "completion" -> "";
-            case "moderation" -> "";
-            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
-            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
-        };
-        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "openai", stream)
-                .thenCompose(reqBody -> completeProcessOpenAIRequest(reqBody, endpoint));
+                .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
-    public CompletableFuture<MetadataContainer> completeOpenRouterRequest(String content, String previousResponseId, String model, String requestType, boolean stream) {
-        SchemaMerger sm = new SchemaMerger();
-        String endpoint = "moderation".equals(requestType)
-            ? moderationApiUrl
-            : "completion".equals(requestType)
-                ? openRouterCompletionApiUrl
-                : openRouterResponseApiUrl;
-        String instructions = switch (requestType) {
-            case "completion" -> "";
-            case "moderation" -> ""; //TODO
-            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
-            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
-        };
-        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "openrouter", stream)
-                .thenCompose(reqBody -> completeProcessOpenRouterRequest(reqBody, endpoint));
-    }
-    
-    public CompletableFuture<MetadataContainer> completeProcessStreamedLlamaRequest(
+    private CompletableFuture<MetadataContainer> completeLlamaProcessRequest(
         Map<String, Object> requestBody,
         String endpoint,
         Consumer<String> onContentChunk
@@ -306,14 +247,12 @@ public class AIManager {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
-
-                HttpPost post = new HttpPost("http://localhost:8080/api/chat");
+                HttpPost post = new HttpPost(endpoint);
                 post.setHeader("Content-Type", "application/json");
-
+                //requestBody.put("instructions", SHELL_RESPONSE_SYS_INPUT + sm.completeGetShellToolSchemaNestResponse().join());
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
-
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     if (code < 200 || code >= 300) {
@@ -322,59 +261,58 @@ public class AIManager {
                     }
                     StringBuilder builder = new StringBuilder();
                     Map<String, Object> lastChunk = null;
-
-                    try (BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
-                                
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
                             if (!line.startsWith("data:")) continue;
-
                             String data = line.substring(5).trim();
                             if (data.equals("[DONE]")) break;
-
                             Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
                             lastChunk = chunk;
-
                             Map<String, Object> delta = (Map<String, Object>) ((Map<String, Object>) ((List<?>) chunk.get("choices")).get(0)).get("delta");
                             String content = (String) delta.get("content");
-
                             if (content != null && !content.isBlank()) {
                                 onContentChunk.accept(content);
-                                System.out.println("success");
                                 builder.append(content);
                             }
                         }
                     }
-
                     if (lastChunk == null) {
                         throw new IllegalStateException("No valid chunk received.");
                     }
-
-                    // Build final metadata container with content
                     LlamaContainer container = new LlamaContainer(lastChunk);
                     container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
-
                     return container;
-
                 }
-
             } catch (Exception e) {
                 throw new RuntimeException("Local stream request failed: " + e.getMessage(), e);
             }
         });
     }
-
-
-
-
-
-    private CompletableFuture<MetadataContainer> completeProcessLMStudioRequest(Map<String, Object> requestBody, String endpoint) {
+    
+    /*
+     *  lmstudio
+     */
+    private CompletableFuture<MetadataContainer> completeLMStudioRequest(String content, String previousResponseId, String model, String requestType, boolean stream) {
+        // Initiate request-specific finals
+        SchemaMerger sm = new SchemaMerger();
+        String instructions = switch (requestType) {
+            case "completion" -> "";
+            case "moderation" -> ""; //TODO
+            case "response" -> "";
+            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
+        };
+        final String endpoint = "http://127.0.0.1:1234/v1/chat/completions";
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "llama", stream)
+                .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint));
+    }
+    
+    private CompletableFuture<MetadataContainer> completeLMStudioProcessRequest(Map<String, Object> requestBody, String endpoint) {
         return CompletableFuture.supplyAsync(() -> {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
-                HttpPost post = new HttpPost("http://127.0.0.1:1234/v1/chat/completions");
+                HttpPost post = new HttpPost(endpoint);
                 post.setHeader("Content-Type", "application/json");
                 requestBody.putIfAbsent("stream", false);
                 ObjectMapper mapper = new ObjectMapper();
@@ -408,66 +346,43 @@ public class AIManager {
         });
     }
     
-    private CompletableFuture<MetadataContainer> completeProcessOpenRouterRequest(Map<String, Object> requestBody, String endpoint) {
-        String apiKey = System.getenv("OPENROUTER_API_KEY");
-        if (apiKey == null || apiKey.isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENROUTER_API_KEY"));
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            try (CloseableHttpClient client = HttpClients.custom()
-                    .setDefaultRequestConfig(REQUEST_CONFIG)
-                    .build()) {
-
-                HttpPost post = new HttpPost("https://openrouter.ai/api/v1/chat/completions");
-                post.setHeader("Content-Type", "application/json");
-                post.setHeader("Authorization", "Bearer " + apiKey);
-
-                ObjectMapper mapper = new ObjectMapper();
-                requestBody.putIfAbsent("stream", false);
-                String json = mapper.writeValueAsString(requestBody);
-                post.setEntity(new StringEntity(json));
-                try (CloseableHttpResponse resp = client.execute(post)) {
-                    int code = resp.getStatusLine().getStatusCode();
-                    String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-
-                    if (code >= 200 && code < 300) {
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        String id = (String) outer.get("id");
-
-                        List<Map<String, Object>> choices = (List<Map<String, Object>>) outer.get("choices");
-                        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-                        String content = (String) message.get("content");
-
-                        if (id != null && id.startsWith("gen-")) {
-                            Map<String, Object> inner = mapper.readValue(content, new TypeReference<>() {});
-                            OpenAIContainer response = new OpenAIContainer(inner);
-                            return (MetadataContainer) response;
-                        } else if (id != null && id.startsWith("resp_")) {
-                            // Content is raw JSON as a string
-                            String jsonContent = content
-                                .replaceFirst("^```json\\s*", "")
-                                .replaceFirst("\\s*```$", "")
-                                .trim();
-                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            OpenAIContainer response = new OpenAIContainer(inner);
-                            return (MetadataContainer) response;
-                        } else {
-                            OllamaContainer response = new OllamaContainer(outer);
-                            return (MetadataContainer) response;
-                        }
-                    } else {
-                        System.out.println("HTTP error code: " + code);
-                        throw new IOException("HTTP " + code + ": " + respBody);
-                    }
-                }
-            } catch (Exception e) {
-                throw new RuntimeException("Local request failed: " + e.getMessage(), e);
-            }
-        });
+    /*
+     *  Ollama
+     */
+    private CompletableFuture<MetadataContainer> completeOllamaRequest(String content, String previousResponseId, String model, String requestType, boolean stream) {
+        SchemaMerger sm = new SchemaMerger();
+        String instructions = switch (requestType) {
+            case "completion" -> "";
+            case "moderation" -> ""; //TODO
+            case "response" -> "";
+            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
+        };
+        String endpoint = "completion";
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "llama", stream)
+                .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint));
     }
     
-    private CompletableFuture<MetadataContainer> completeProcessOpenAIRequest(Map<String, Object> requestBody, String endpoint) {
+    /*
+     *  OpenAI
+     */
+    private CompletableFuture<MetadataContainer> completeOpenAIRequest(String content, String previousResponseId, String model, String requestType, boolean stream) {
+        SchemaMerger sm = new SchemaMerger();
+        String endpoint = "moderation".equals(requestType)
+            ? moderationApiUrl
+            : "completion".equals(requestType)
+                ? completionApiUrl
+                : responseApiUrl;
+        String instructions = switch (requestType) {
+            case "completion" -> "";
+            case "moderation" -> "";
+            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join(); // or provide appropriate default
+            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
+        };
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "openai", stream)
+                .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint));
+    }
+    
+    private CompletableFuture<MetadataContainer> completeOpenAIProcessRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENAI_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
@@ -510,48 +425,70 @@ public class AIManager {
         });
     }
     
-    private CompletableFuture<Map<String, Object>> completeOpenRouterRequest(
-        String content,
-        String previousResponseId,
-        String model,
-        String requestType,
-        String instructions
-    ) {
-        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
-            Map<String, Object> body = new HashMap<>();
-            if (model == null) {
-                String setting = ModelRegistry.OPENROUTER_RESPONSE_MODEL.asString();
-                body.put("model", setting);
-                ModelInfo info = Maps.OPENROUTER_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
-                if (info != null && info.status()) {
-                    body.put("max_output_tokens", tokens);
-                } else {
-                    body.put("max_tokens", tokens);
+    /*
+     *  OpenRouter
+     */
+    private CompletableFuture<MetadataContainer> completeOpenRouterRequest(String content, String previousResponseId, String model, String requestType, boolean stream) {
+        SchemaMerger sm = new SchemaMerger();
+        String endpoint = "https://openrouter.ai/api/v1/chat/completions";
+        String instructions = switch (requestType) {
+            case "completion" -> "";
+            case "moderation" -> ""; //TODO
+            case "response" -> ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString() + sm.completeGetShellToolSchemaNestResponse().join();
+            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
+        };
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "openrouter", stream)
+                .thenCompose(reqBody -> completeOpenRouterProcessRequest(reqBody, endpoint));
+    }
+    
+    private CompletableFuture<MetadataContainer> completeOpenRouterProcessRequest(Map<String, Object> requestBody, String endpoint) {
+        String apiKey = System.getenv("OPENROUTER_API_KEY");
+        if (apiKey == null || apiKey.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENROUTER_API_KEY"));
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try (CloseableHttpClient client = HttpClients.custom()
+                    .setDefaultRequestConfig(REQUEST_CONFIG)
+                    .build()) {
+                HttpPost post = new HttpPost(endpoint);
+                post.setHeader("Content-Type", "application/json");
+                post.setHeader("Authorization", "Bearer " + apiKey);
+                ObjectMapper mapper = new ObjectMapper();
+                String json = mapper.writeValueAsString(requestBody);
+                post.setEntity(new StringEntity(json));
+                try (CloseableHttpResponse resp = client.execute(post)) {
+                    int code = resp.getStatusLine().getStatusCode();
+                    String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                    if (code >= 200 && code < 300) {
+                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        String id = (String) outer.get("id");
+                        List<Map<String, Object>> choices = (List<Map<String, Object>>) outer.get("choices");
+                        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+                        String content = (String) message.get("content");
+                        if (id != null && id.startsWith("gen-")) {
+                            Map<String, Object> inner = mapper.readValue(content, new TypeReference<>() {});
+                            OpenAIContainer response = new OpenAIContainer(inner);
+                            return (MetadataContainer) response;
+                        } else if (id != null && id.startsWith("resp_")) {
+                            String jsonContent = content
+                                .replaceFirst("^```json\\s*", "")
+                                .replaceFirst("\\s*```$", "")
+                                .trim();
+                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+                            OpenAIContainer response = new OpenAIContainer(inner);
+                            return (MetadataContainer) response;
+                        } else {
+                            OllamaContainer response = new OllamaContainer(outer);
+                            return (MetadataContainer) response;
+                        }
+                    } else {
+                        System.out.println("HTTP error code: " + code);
+                        throw new IOException("HTTP " + code + ": " + respBody);
+                    }
                 }
-            } else {
-                body.put("model", model);
-                ModelInfo info = Maps.OPENROUTER_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-                if (info != null && info.status()) {
-                    body.put("max_output_tokens", tokens);
-                } else {
-                    body.put("max_tokens", tokens);
-                }
+            } catch (Exception e) {
+                throw new RuntimeException("Local request failed: " + e.getMessage(), e);
             }
-            body.put("text", Map.of("format", Maps.GEMINI_RESPONSE_FORMAT));
-            body.put("instructions", instructions);
-            List<Map<String, Object>> messages = new ArrayList<>();
-            Map<String, Object> msgMap = new HashMap<>();
-            msgMap.put("role", "user");
-            msgMap.put("content", content);
-            messages.add(msgMap);
-            body.put("input", messages);
-            if (previousResponseId != null && !previousResponseId.isEmpty()) {
-                body.put("previous_response_id", previousResponseId);
-            }
-            if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-                body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-            }
-            return body;
         });
     }
 
@@ -562,11 +499,42 @@ public class AIManager {
             Map<String, Object> filters,
             Map<String, Object> rankingOptions
     ) {
-        // TODO: implement vector store/file_search lookup
         return List.of();
     }
 
-    public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) { //TODO Deprecated
+    /*
+     *  Main method
+     */
+    public CompletableFuture<MetadataContainer> completeRequest(
+            String content,
+            String previousResponseId,
+            String model,
+            String requestType,
+            String provider,
+            boolean stream,
+            Consumer<String> onContentChunk
+    ) {
+        switch (provider.toLowerCase()) {
+            case "llama":
+                return completeLlamaRequest(content, previousResponseId, model, requestType, stream, onContentChunk);
+
+            case "ollama":
+                return completeOllamaRequest(content, previousResponseId, model, requestType, stream); // TODO: implement  on contentchunk
+
+            case "openai":
+                return completeOpenAIRequest(content, previousResponseId, model, requestType, stream); // TODO: implement on content chunk
+
+            case "openrouter":
+                return completeOpenRouterRequest(content, previousResponseId, model, requestType, stream);
+
+            default:
+                return CompletableFuture.failedFuture(
+                    new IllegalArgumentException("Unknown provider: " + provider)
+                );
+        }
+    }
+    
+    public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) { // TODO: error handling for user input error.
         return CompletableFuture.supplyAsync(() -> model);
     }
 }

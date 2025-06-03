@@ -20,6 +20,8 @@
 package com.brandongcobb.vyrtuous.utils.inc;
 
 import com.brandongcobb.metadata.*;
+import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -29,9 +31,13 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.logging.*;
 import java.util.Map;
 
 public class Helpers {
+    
+    
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
 
     public static String FILE_AI_MANAGER;
     public static String FILE_DISCORD_BOT;
@@ -78,6 +84,7 @@ public class Helpers {
         FILE_RESPONSE_OBJECT      = safeRead(EnvironmentPaths.RESPONSE_OBJECT.get());
         FILE_VYRTUOUS             = safeRead(EnvironmentPaths.VYRTUOUS.get());
     }
+    
 
     public static boolean containsString(String[] array, String target) {
         for (String item : array) {
@@ -88,7 +95,6 @@ public class Helpers {
         return false;
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T convertValue(Object value, Class<T> type) {
         if (type.isInstance(value)) {
             return (T) value;
@@ -113,7 +119,6 @@ public class Helpers {
         throw new IllegalArgumentException("Unsupported type conversion for: " + type.getName());
     }
 
-    @SuppressWarnings("unchecked")
     public static Map<String, Object> deepMerge(Map<String, Object> defaults, Map<String, Object> loaded) {
         Map<String, Object> merged = new HashMap<>(defaults);
         for (Map.Entry<String, Object> entry : loaded.entrySet()) {
@@ -144,6 +149,24 @@ public class Helpers {
             }
         }
         return false;
+    }
+    
+    public static boolean isDangerousCommand(String command) {
+        if (command == null) return false;
+        // List of commands considered dangerous
+        List<String> dangerous = List.of("rm", "mv", "git", "patch", "shutdown", "reboot", "mvn compile");
+        boolean isDangerous = dangerous.stream().anyMatch(command::contains);
+        LOGGER.fine("Checked command for danger: '" + command + "' => " + isDangerous);
+        return isDangerous;
+    }
+
+    public static boolean requiresApproval(String command, ApprovalMode approvalMode) {
+        boolean result = switch (approvalMode) {
+            case FULL_AUTO -> false; // No approval needed in full auto mode
+            case EDIT_APPROVE_ALL -> true; // All commands require approval
+            case EDIT_APPROVE_DESTRUCTIVE -> isDangerousCommand(command); // Only dangerous commands require approval
+        };
+        return result;
     }
 
     public static Long parseCommaNumber(String number) {

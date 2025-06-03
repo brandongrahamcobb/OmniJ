@@ -30,22 +30,22 @@ public class SchemaMerger {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public static String mergeModeration(String baseSchemaString, String outputItemSnippet) throws IOException {
-        JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
-        JsonNode outputItemsNode = baseSchema.path("properties").path("output").path("items").path("properties");
-        if (outputItemsNode instanceof ObjectNode) {
-            JsonNode outputItemToAdd = objectMapper.readTree(outputItemSnippet);
-            ((ObjectNode) outputItemsNode).setAll((ObjectNode) outputItemToAdd);
-        }
-        return objectMapper.writeValueAsString(baseSchema);
-    }
-    
     public static String mergeLocalShell(String baseSchemaString, String metadataSnippet) throws IOException {
         JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
         JsonNode metadataNode = baseSchema.path("properties").path("metadata").path("properties");
         if (metadataNode instanceof ObjectNode) {
             JsonNode metadataToAdd = objectMapper.readTree(metadataSnippet);
             ((ObjectNode) metadataNode).set("local_shell_command_sequence_finished", metadataToAdd.path("local_shell_command_sequence_finished"));
+        }
+        return objectMapper.writeValueAsString(baseSchema);
+    }
+    
+    public static String mergeModeration(String baseSchemaString, String outputItemSnippet) throws IOException {
+        JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
+        JsonNode outputItemsNode = baseSchema.path("properties").path("output").path("items").path("properties");
+        if (outputItemsNode instanceof ObjectNode) {
+            JsonNode outputItemToAdd = objectMapper.readTree(outputItemSnippet);
+            ((ObjectNode) outputItemsNode).setAll((ObjectNode) outputItemToAdd);
         }
         return objectMapper.writeValueAsString(baseSchema);
     }

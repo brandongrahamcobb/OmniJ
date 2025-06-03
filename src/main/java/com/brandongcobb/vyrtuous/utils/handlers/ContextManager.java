@@ -29,7 +29,7 @@ public class ContextManager {
 
     private final List<ContextEntry> entries = new ArrayList<>();
     private final int maxEntries;
-    // private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry(); // Commented out as token counting is disabled
+    private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry(); // Commented out as token counting is disabled
 
     public ContextManager(int maxEntries) {
         this.maxEntries = maxEntries;
@@ -42,11 +42,11 @@ public class ContextManager {
      * @param entry The ContextEntry to add.
      */
     public synchronized void addEntry(ContextEntry entry) {
-        // entries.add(entry); // Commented out to disable adding entries
-        // if (entries.size() > maxEntries) { // TODO: Measure by token size not entry size.
-        //     summarizeOldEntries();
-        // }
-        // System.out.println("ContextManager: addEntry is currently disabled as per user request."); // Optional: add a log/print
+        entries.add(entry);
+        if (entries.size() > maxEntries) { // TODO: Measure by token size not entry size.
+            summarizeOldEntries();
+        }
+        System.out.println("ContextManager: addEntry is currently disabled as per user request.");
     }
 
     /**
@@ -55,12 +55,11 @@ public class ContextManager {
      * @return An empty string, as context building is disabled.
      */
     public synchronized String buildPromptContext() {
-        // StringBuilder sb = new StringBuilder();
-        // for (ContextEntry entry : entries) {
-        //     sb.append(entry.formatForPrompt()).append("\n");
-        // }
-        // return sb.toString();
-        return ""; // Return empty string as context building is disabled
+        StringBuilder sb = new StringBuilder();
+        for (ContextEntry entry : entries) {
+            sb.append(entry.formatForPrompt()).append("\n");
+        }
+        return sb.toString();
     }
 
     /**
@@ -68,7 +67,7 @@ public class ContextManager {
      * The core logic is commented out as context management is disabled.
      */
     public synchronized void clear() {
-        // entries.clear(); // Commented out
+        entries.clear(); // Commented out
     }
 
     /**
@@ -77,9 +76,8 @@ public class ContextManager {
      * @return 0L, as token counting is disabled.
      */
     public synchronized long getContextTokenCount() {
-        // String prompt = buildPromptContext(); // Commented out
-        // return getTokenCount(prompt); // Commented out
-        return 0L; // Return 0 as token counting is disabled
+        String prompt = buildPromptContext();
+        return getTokenCount(prompt);
     }
 
     /**
@@ -89,14 +87,13 @@ public class ContextManager {
      * @return 0L, as token counting is disabled.
      */
     private long getTokenCount(String prompt) {
-        // try {
-        //     Encoding encoding = registry.getEncoding("cl100k_base")
-        //         .orElseThrow(() -> new IllegalStateException("Encoding cl100k_base not available"));
-        //     return encoding.encode(prompt).size();
-        // } catch (Exception e) {
-        //     return 0L;
-        // }
-        return 0L; // Return 0 as token counting is disabled
+        try {
+            Encoding encoding = registry.getEncoding("cl100k_base")
+                .orElseThrow(() -> new IllegalStateException("Encoding cl100k_base not available"));
+            return encoding.encode(prompt).size();
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     /**
@@ -106,14 +103,13 @@ public class ContextManager {
      * @return An empty string, as summarization is disabled.
      */
     private String summarizeEntries(List<ContextEntry> entriesToSummarize) {
-        // StringBuilder sb = new StringBuilder();
-        // for (ContextEntry e : entriesToSummarize) {
-        //     String c = e.formatForPrompt();
-        //     String snippet = c.length() > 100 ? c.substring(0, 100) + "..." : c;
-        //     sb.append(snippet).append(" ");
-        // }
-        // return sb.toString().trim();
-        return ""; // Return empty string as summarization is disabled
+        StringBuilder sb = new StringBuilder();
+        for (ContextEntry e : entriesToSummarize) {
+            String c = e.formatForPrompt();
+            String snippet = c.length() > 100 ? c.substring(0, 100) + "..." : c;
+            sb.append(snippet).append(" ");
+        }
+        return sb.toString().trim();
     }
 
     /**
@@ -121,12 +117,12 @@ public class ContextManager {
      * The core logic is commented out as context management is disabled.
      */
     private synchronized void summarizeOldEntries() {
-        // int removeCount = entries.size() / 2; // Commented out
-        // List<ContextEntry> toSummarize = new ArrayList<>(entries.subList(0, removeCount)); // Commented out
-        // String summary = summarizeEntries(toSummarize); // Commented out
-        // for (int i = 0; i < removeCount; i++) { // Commented out
-        //     entries.remove(0); // Commented out
-        // }
-        // entries.add(0, new ContextEntry(ContextEntry.Type.SYSTEM_NOTE, "[Summary of earlier context]: " + summary)); // Commented out
+        int removeCount = entries.size() / 2;
+        List<ContextEntry> toSummarize = new ArrayList<>(entries.subList(0, removeCount));
+        String summary = summarizeEntries(toSummarize);
+        for (int i = 0; i < removeCount; i++) {
+            entries.remove(0);
+        }
+        entries.add(0, new ContextEntry(ContextEntry.Type.SYSTEM_NOTE, "[Summary of earlier context]: " + summary)); // Commented out
     }
 }

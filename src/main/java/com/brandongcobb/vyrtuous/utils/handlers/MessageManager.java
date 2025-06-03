@@ -220,14 +220,11 @@ public class MessageManager {
         int count = 0;
         Pattern pattern = Pattern.compile("```");
         Matcher matcher = pattern.matcher(text);
-
         while (matcher.find()) {
             count++;
             if (count % 2 != 0) {
-                // odd occurrence = code block start
                 lastIndex = matcher.start();
             } else {
-                // even occurrence = code block end, reset lastIndex
                 lastIndex = -1;
             }
         }
@@ -238,26 +235,18 @@ public class MessageManager {
             Message originalMessage,
             Supplier<Optional<String>> nextChunkSupplier
     ) {
-        System.out.println("test");
         AtomicReference<Message> editingMessage = new AtomicReference<>(originalMessage);
         StringBuilder buffer = new StringBuilder();
         long[] lastFlushTime = {System.currentTimeMillis()};
-
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Void> done = new CompletableFuture<>();
-
         Runnable task = () -> {
             Optional<String> nextChunkOpt = nextChunkSupplier.get();
-
             if (nextChunkOpt.isEmpty()) {
-                // no chunk yet, streaming still ongoing -> do nothing and return (no flush)
                 return;
             }
-
             String chunk = nextChunkOpt.get();
-
             if (chunk.equals("<<END>>")) {
-                // stream ended, flush and complete
                 flushBuffer(buffer, editingMessage)
                     .thenRun(() -> {
                         scheduler.shutdown();
@@ -265,31 +254,20 @@ public class MessageManager {
                     });
                 return;
             }
-
-            // normal chunk processing
             buffer.append(chunk);
-
             String current = buffer.toString();
-
             boolean insideIncompleteCodeBlock = isInsideIncompleteCodeBlock(current);
-
-            boolean readyToFlush = !insideIncompleteCodeBlock &&
-                    (buffer.length() > 1900 || System.currentTimeMillis() - lastFlushTime[0] > 10_000);
-
+            boolean readyToFlush = !insideIncompleteCodeBlock && (buffer.length() > 1900 || System.currentTimeMillis() - lastFlushTime[0] > 10_000);
             if (readyToFlush) {
                 flushBuffer(buffer, editingMessage).thenAccept(newMsg -> {
                     editingMessage.set(newMsg);
                     lastFlushTime[0] = System.currentTimeMillis();
                 });
             } else if (insideIncompleteCodeBlock) {
-                // Try to flush everything before the last incomplete code block start
                 int lastCodeBlockStart = lastIncompleteCodeBlockStartIndex(buffer.toString());
                 if (lastCodeBlockStart > 0) {
-                    // Flush up to the lastCodeBlockStart (excluding incomplete code block)
                     String toFlush = buffer.substring(0, lastCodeBlockStart);
-                    // Remove flushed part from buffer
                     buffer.delete(0, lastCodeBlockStart);
-
                     if (!toFlush.isBlank()) {
                         flushBuffer(new StringBuilder(toFlush), editingMessage).thenAccept(newMsg -> {
                             editingMessage.set(newMsg);
@@ -297,16 +275,13 @@ public class MessageManager {
                         });
                     }
                 }
-                // else: no flushing if no partial complete content available
             }
         };
-
         scheduler.scheduleAtFixedRate(task, 0, 2, TimeUnit.SECONDS);
         return done;
     }
     
     private boolean isInsideIncompleteCodeBlock(String text) {
-        // Count how many "```" are in the buffer — odd number = incomplete
         long count = Pattern.compile("```").matcher(text).results().count();
         return count % 2 != 0;
     }
@@ -315,32 +290,18 @@ public class MessageManager {
     private CompletableFuture<Message> flushBuffer(StringBuilder buffer, AtomicReference<Message> editingMessage) {
         String content = buffer.toString();
         buffer.setLength(0);
-
         if (content.isBlank()) {
             return CompletableFuture.completedFuture(editingMessage.get());
         }
-
         Message lastMsg = editingMessage.get();
         if (lastMsg == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("No message to edit."));
         }
-
-        // Append new content to the existing message content
-        String existingContent = lastMsg.getContentRaw();
-        String combined = existingContent + content;
-
-        // Truncate to fit Discord's limit
-        if (combined.length() > 1900) {
-            combined = combined.substring(0, 1900) + "\n...[truncated]";
-        }
-
-        return lastMsg.editMessage(combined).submit()
-            .thenApply(editedMsg -> {
-                editingMessage.set(editedMsg);
-                return editedMsg;
-            });
+        return handleCodeBlock(lastMsg, content).thenApply(sentMsg -> {
+            editingMessage.set(sentMsg);
+            return sentMsg;
+        });
     }
-
 
     private boolean containsCodeBlock(String text) {
         return text.contains("```");
