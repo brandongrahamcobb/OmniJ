@@ -237,6 +237,7 @@ public class MessageManager {
     ) {
         AtomicReference<Message> editingMessage = new AtomicReference<>(originalMessage);
         StringBuilder buffer = new StringBuilder();
+        StringBuilder fullContent = new StringBuilder();
         long[] lastFlushTime = {System.currentTimeMillis()};
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Void> done = new CompletableFuture<>();
@@ -247,7 +248,7 @@ public class MessageManager {
             }
             String chunk = nextChunkOpt.get();
             if (chunk.equals("<<END>>")) {
-                flushBuffer(buffer, editingMessage)
+                flushBuffer(fullContent, editingMessage)
                     .thenRun(() -> {
                         scheduler.shutdown();
                         done.complete(null);
@@ -255,11 +256,12 @@ public class MessageManager {
                 return;
             }
             buffer.append(chunk);
-            String current = buffer.toString();
+            fullContent.append(chunk);
+            String current = fullContent.toString();
             boolean insideIncompleteCodeBlock = isInsideIncompleteCodeBlock(current);
             boolean readyToFlush = !insideIncompleteCodeBlock && (buffer.length() > 1900 || System.currentTimeMillis() - lastFlushTime[0] > 10_000);
             if (readyToFlush) {
-                flushBuffer(buffer, editingMessage).thenAccept(newMsg -> {
+                flushBuffer(fullContent, editingMessage).thenAccept(newMsg -> {
                     editingMessage.set(newMsg);
                     lastFlushTime[0] = System.currentTimeMillis();
                 });
@@ -289,7 +291,6 @@ public class MessageManager {
 
     private CompletableFuture<Message> flushBuffer(StringBuilder buffer, AtomicReference<Message> editingMessage) {
         String content = buffer.toString();
-        buffer.setLength(0);
         if (content.isBlank()) {
             return CompletableFuture.completedFuture(editingMessage.get());
         }
@@ -309,26 +310,28 @@ public class MessageManager {
 
 
     private CompletableFuture<Message> handleCodeBlock(Message message, String content) {
+        // Detect if there's an over-sized code block
         Matcher matcher = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```").matcher(content);
-        if (matcher.find()) {
+        while (matcher.find()) {
             String lang = matcher.group(1) != null ? matcher.group(1) : "txt";
             String code = matcher.group(2);
 
-            if (code.length() < 1900) {
-                String msg = "```" + lang + "\n" + code + "\n```";
-                return completeSendDiscordMessage(message, msg);
-            } else {
+            if (code.length() >= 1900) {
+                // Too big — send as file
                 File file = new File(tempDirectory, "codeblock_" + System.currentTimeMillis() + "." + lang);
                 try {
                     Files.writeString(file.toPath(), code);
-                    return completeSendDiscordMessage(message, "📄 Code attached:", file);
+                    return completeSendDiscordMessage(message, "📄 Code block too long, uploaded as file:", file);
                 } catch (IOException e) {
-                    return completeSendDiscordMessage(message, "❌ Error: " + e.getMessage());
+                    return completeEditDiscordMessage(message, "❌ Error: " + e.getMessage());
                 }
             }
         }
-        return completeSendDiscordMessage(message, content);
+
+        // No large code blocks — just update with full content
+        return completeEditDiscordMessage(message, content);
     }
+
 
     private CompletableFuture<Message> completeEditDiscordMessage(Message message, String newContent) {
         return message.editMessage(newContent).submit();

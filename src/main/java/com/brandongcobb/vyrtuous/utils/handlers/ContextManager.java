@@ -46,7 +46,6 @@ public class ContextManager {
         if (entries.size() > maxEntries) { // TODO: Measure by token size not entry size.
             summarizeOldEntries();
         }
-        System.out.println("ContextManager: addEntry is currently disabled as per user request.");
     }
 
     /**
