@@ -28,7 +28,7 @@ import com.brandongcobb.metadata.*;
 public class REPLManager {
 
     private ApprovalMode approvalMode = ApprovalMode.FULL_AUTO;
-    // private final ContextManager contextManager = new ContextManager(3200); // ContextManager usage commented out
+    private final ContextManager contextManager = new ContextManager(3200); // ContextManager usage commented out
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private static final Logger LOGGER = Logger.getLogger(REPLManager.class.getName());
     private String originalDirective; // Stores the initial user input
@@ -113,7 +113,7 @@ public class REPLManager {
      */
     private CompletableFuture<String> completeStartREPL(Scanner scanner, String userInput) {
         this.originalDirective = userInput; // Store the original user directive
-        // contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput)); // Context entry removed
+        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput)); // Context entry removed
         // Start the 'R' (Read/Response) step, indicating it's the first run
         return completeRStep(scanner, true).thenCompose(response -> completeEStep(response, scanner));
     }
@@ -134,21 +134,26 @@ public class REPLManager {
             prompt = this.originalDirective;
         } else {
             // For subsequent runs (L-step), the prompt is the last AI response combined with the last shell output.
-            prompt = lastAIResponseText + "\n" + lastShellOutput;
+            prompt = lastShellOutput;
         }
 
         // Determine if it's the very first AI call or a follow-up
-        if (firstRun || lastAIResponseContainer == null) {
+        if (firstRun) {
             // Make the initial AI request
             return aim.completeRequest(prompt, null, model, "response", "openai", false, null)
                     .thenApply(response -> {
                         lastAIResponseContainer = response;
                         OpenAIUtils openaiUtils = new OpenAIUtils(response);
-                        lastAIResponseText = openaiUtils.completeGetOutput().join(); // Store the AI's response text
+                        lastAIResponseText = openaiUtils.completeGetOutput().join();
+                        
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+                        System.out.println(lastAIResponseText);// Store the AI's response text
                         return response;
                     });
         } else {
             // For follow-up AI requests, get the previous response ID and make a new request
+            
+            System.out.println("in");
             return new OpenAIUtils(lastAIResponseContainer).completeGetResponseId()
                     .thenCompose(previousResponseId -> {
                         System.out.println(previousResponseId); // Print the previous response ID for debugging/logging
@@ -156,11 +161,25 @@ public class REPLManager {
                                 .thenApply(response -> {
                                     lastAIResponseContainer = response;
                                     OpenAIUtils openaiUtils = new OpenAIUtils(response);
-                                    lastAIResponseText = openaiUtils.completeGetOutput().join(); // Store the AI's response text
+                                    lastAIResponseText = openaiUtils.completeGetOutput().join();
+                                    
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+                                    System.out.println(lastAIResponseText);// Store the AI's response text
                                     return response;
                                 });
                     });
         }
+    }
+
+    private CompletableFuture<String> promptUserAndLoop(Scanner scanner) {
+        return CompletableFuture.supplyAsync(() -> {
+            System.out.print("↪ Your input: ");
+            return scanner.nextLine();
+        }, inputExecutor).thenCompose(input -> {
+            this.originalDirective = input;
+            return completeRStep(scanner, true)
+                    .thenCompose(response -> completeEStep(response, scanner));
+        });
     }
 
     /**
@@ -171,23 +190,32 @@ public class REPLManager {
      * @return A CompletableFuture that completes with the transcript of executed commands.
      */
     private CompletableFuture<String> completeEStep(MetadataContainer response, Scanner scanner) {
-        List<String> commands = response.get(th.LOCALSHELLTOOL_COMMANDS);
-        boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
-
-        if (commands == null || commands.isEmpty()) {
-            return CompletableFuture.completedFuture("No shell commands to execute.");
+        @SuppressWarnings("unchecked")
+        List<List<String>> allCommands = null;
+        if (response instanceof OpenAIContainer) {
+            OpenAIContainer openaiContainer = (OpenAIContainer) response;
+            allCommands = (List<List<String>>) openaiContainer.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
         }
 
-        // Recursively execute commands one by one
-        return completeESubStep(commands, 0, response, scanner).thenCompose(transcript -> {
+        boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
+
+        if ((allCommands == null || allCommands.isEmpty()) && !finished) {
+            System.out.println("💡 Model is awaiting your input or guidance.");
+            System.out.println(lastAIResponseText);
+            return promptUserAndLoop(scanner);
+        }
+
+        // Pass the list of command parts directly
+        return completeESubStep(allCommands, 0, response, scanner).thenCompose(transcript -> {
             if (finished) {
                 System.out.println("✅ Task complete.");
                 return CompletableFuture.completedFuture(transcript);
             }
-            // If not finished, proceed to the 'L' (Loop) step
             return completeLStep(scanner);
         });
     }
+
+
 
     /**
      * A sub-step of the 'E' (Execute) phase, handling individual command execution and approval.
@@ -198,21 +226,22 @@ public class REPLManager {
      * @return A CompletableFuture that completes with the output of the executed commands.
      */
     private CompletableFuture<String> completeESubStep(
-            List<String> commands,
+            List<List<String>> allCommands,
             int index,
             MetadataContainer response,
             Scanner scanner
     ) {
-        if (index >= commands.size()) {
-            return CompletableFuture.completedFuture(""); // All commands executed
+        if (index >= allCommands.size()) {
+            return CompletableFuture.completedFuture(""); // All commands done
         }
-        String command = commands.get(index);
 
-        if (requiresApproval(command)) {
-            // If approval is required, prompt the user
+        List<String> commandParts = allCommands.get(index);
+        String commandStr = String.join(" ", commandParts);
+
+        if (requiresApproval(commandStr)) {
             return CompletableFuture.supplyAsync(() -> {
-                LOGGER.fine("Requesting user approval for command: " + command);
-                System.out.println("Approval required for command: " + command);
+                LOGGER.fine("Requesting user approval for command: " + commandStr);
+                System.out.println("Approval required for command: " + commandStr);
                 System.out.print("Approve? (yes/no): ");
                 while (true) {
                     String input = scanner.nextLine().trim().toLowerCase();
@@ -222,16 +251,23 @@ public class REPLManager {
                 }
             }, inputExecutor).thenCompose(approved -> {
                 if (!approved) {
-                    System.out.println("⛔ Skipping command: " + command);
-                    // If not approved, skip this command and proceed to the next
-                    return completeESubStep(commands, index + 1, response, scanner);
+                    System.out.println("⛔ Skipping command: " + commandStr);
+                    return completeESubStep(allCommands, index + 1, response, scanner);
                 }
-                // If approved, execute the command
-                return completeESubSubStep(command, commands, index, response, scanner);
+                return completeESubSubStep(commandParts).thenCompose(output -> {
+                    System.out.println("> " + commandStr + "\n" + output);
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
+                    lastShellOutput = output;
+                    return completeESubStep(allCommands, index + 1, response, scanner);
+                });
             });
         } else {
-            // No approval needed, execute directly
-            return completeESubSubStep(command, commands, index, response, scanner);
+            return completeESubSubStep(commandParts).thenCompose(output -> {
+                System.out.println("> " + commandStr + "\n" + output);
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
+                lastShellOutput = output;
+                return completeESubStep(allCommands, index + 1, response, scanner);
+            });
         }
     }
 
@@ -244,21 +280,31 @@ public class REPLManager {
      * @param scanner The scanner for user input.
      * @return A CompletableFuture that completes with the output of the command.
      */
-    private CompletableFuture<String> completeESubSubStep(
-            String command,
-            List<String> commands,
+    private CompletableFuture<String> completeESubSubStep(List<String> commandParts) {
+        return th.executeCommandsAsList(Collections.singletonList(commandParts));
+    }
+
+
+    private CompletableFuture<String> executeCommandsSequentially(
+            List<List<String>> commands,
             int index,
             MetadataContainer response,
             Scanner scanner
     ) {
-        // contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, command)); // Context entry removed
-        // Execute the shell command
-        return th.completeShellCommand(response, command).thenCompose(output -> {
-            System.out.println("> " + command + "\n" + output); // Print the command and its output
-            // contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output)); // Context entry removed
-            this.lastShellOutput = output; // Store the output of the current shell command
-            // Proceed to the next command in the list
-            return completeESubStep(commands, index + 1, response, scanner);
+        if (index >= commands.size()) {
+            return CompletableFuture.completedFuture("✅ All commands executed.");
+        }
+
+        List<String> commandParts = commands.get(index);
+        String commandString = String.join(" ", commandParts);
+        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, commandString));
+        
+        // Execute just this command parts as a single command list (one command)
+        return th.executeCommandsAsList(Collections.singletonList(commandParts)).thenCompose(output -> {
+            System.out.println("> " + commandString + "\n" + output);
+            contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
+            this.lastShellOutput = output;
+            return executeCommandsSequentially(commands, index + 1, response, scanner);
         });
     }
 
@@ -272,8 +318,8 @@ public class REPLManager {
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]:\n" + summary + "\n");
         }
-        // long tokens = contextManager.getContextTokenCount(); // Context token count removed
-        // System.out.println("Current context token count: " + tokens); // Context token count print removed
+        long tokens = contextManager.getContextTokenCount(); // Context token count removed
+        System.out.println("Current context token count: " + tokens); // Context token count print removed
     }
 
     /**

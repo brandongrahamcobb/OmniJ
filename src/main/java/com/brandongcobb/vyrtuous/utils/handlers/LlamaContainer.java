@@ -72,9 +72,9 @@ public class LlamaContainer extends MainContainer {
                     Object typeObj = contentItem.get("type");
                     if ("tool_call".equals(typeObj)) {
                         Object callIdObj = contentItem.get("call_id");
-                        if (callIdObj instanceof String callId) {
-                            put(th.LOCALSHELLTOOL_CALL_ID, callId);
-                        }
+                        //if (callIdObj instanceof String callId) {
+                        //    put(th.LOCALSHELLTOOL_CALL_ID, callId);
+                        //}
                         Object actionObj = contentItem.get("action");
                         if (actionObj instanceof Map<?, ?> action) {
                             Object cmdObj = action.get("command");

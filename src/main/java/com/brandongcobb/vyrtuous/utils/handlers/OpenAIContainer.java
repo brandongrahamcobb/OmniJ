@@ -36,7 +36,37 @@ import java.util.ArrayList;
 
 public class OpenAIContainer extends MainContainer {
     
-    ToolHandler th = new ToolHandler();
+    private ToolHandler th = new ToolHandler();
+    public static Map<String, Object> mapMap;
+    /**
+     * Normalize and sanitize the command string.
+     * - Trim whitespace
+     * - Ensure quotes around globs/wildcards if needed
+     * - Escape semicolons and special shell characters if needed
+     *
+     * This function can be expanded to fit your specific shell safety rules.
+     */
+    private String normalizeCommand(String cmd) {
+        if (cmd == null || cmd.isBlank()) return cmd;
+
+        String trimmed = cmd.trim();
+
+        // Example: if command contains unquoted *, wrap in single quotes
+        if (trimmed.contains("*") && !isQuoted(trimmed)) {
+            trimmed = "'" + trimmed + "'";
+        }
+
+        // Escape semicolons to avoid shell syntax errors
+        trimmed = trimmed.replace(";", "\\;");
+
+        // Add any other sanitization you need here
+
+        return trimmed;
+    }
+
+    private boolean isQuoted(String s) {
+        return (s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"));
+    }
     
     public OpenAIContainer(Map<String, Object> responseMap) {
         MetadataKey<String> idKey = new MetadataKey<>("id", Metadata.STRING);
@@ -125,6 +155,9 @@ public class OpenAIContainer extends MainContainer {
                     put(th.LOCALSHELLTOOL_FINISHED, localShellFinished);
                     MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
                     Object outputObj = responseMap.get("output");
+                    List<String> allCallIds = new ArrayList<>();
+
+                    List<List<String>> allCommands = new ArrayList<>();
                     if (outputObj instanceof List<?> outputList) {
                         for (Object outputItemObj : outputList) {
                             if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
@@ -132,33 +165,26 @@ public class OpenAIContainer extends MainContainer {
                             if ("tool_call".equals(typeObj)) {
                                 Object callIdObj = outputItem.get("call_id");
                                 if (callIdObj instanceof String callId) {
-                                    put(th.LOCALSHELLTOOL_CALL_ID, callId);
+                                    allCallIds.add(callId);
                                 }
                                 Object actionObj = outputItem.get("action");
                                 if (actionObj instanceof Map<?, ?> action) {
                                     Object cmdObj = action.get("command");
-    
+
+                                    List<String> commandsForThisCall = new ArrayList<>();
+
                                     if (cmdObj instanceof List<?> cmdList) {
-                                        List<String> commands = cmdList.stream()
+                                        // Just keep the command parts as-is (no escaping here)
+                                        commandsForThisCall = cmdList.stream()
                                             .map(Object::toString)
                                             .toList();
-    
-                                        boolean isSingleCommandInParts = commands.stream().noneMatch(s -> s.contains(" "));
-    
-                                        if (isSingleCommandInParts) {
-                                            // Treat as parameterized single command
-                                            String combined = String.join(" ", commands);
-                                            put(th.LOCALSHELLTOOL_COMMANDS, List.of(combined));
-                                        } else {
-                                            // Treat as list of full commands
-                                            put(th.LOCALSHELLTOOL_COMMANDS, commands);
-                                        }
                                     } else if (cmdObj instanceof String singleCommand) {
-                                        put(th.LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
+                                        commandsForThisCall = List.of(singleCommand);
                                     } else if (cmdObj != null) {
-                                        put(th.LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
+                                        commandsForThisCall = List.of(cmdObj.toString());
                                     }
-    
+
+                                    allCommands.add(commandsForThisCall);
                                 }
                             }
                             Object contentObject = outputItem.get("content");
@@ -174,6 +200,10 @@ public class OpenAIContainer extends MainContainer {
                             }
                         }
                     }
+                    Map<String, Object> myMap = new HashMap<>();
+                    myMap.put(th.LOCALSHELLTOOL_CALL_IDS, allCallIds);
+                    myMap.put(th.LOCALSHELLTOOL_COMMANDS_LIST, allCommands);
+                    mapMap = myMap;
                     MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
                     Object toolsObj = responseMap.get("tools");
                     if (toolsObj instanceof List<?> toolsListRaw) {
@@ -437,41 +467,42 @@ public class OpenAIContainer extends MainContainer {
             put(th.LOCALSHELLTOOL_FINISHED, localShellFinished);
             MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
             Object outputObj = responseMap.get("output");
+            
+            List<String> allCallIds = new ArrayList<>();
+            List<List<String>> allCommands = new ArrayList<>();
             if (outputObj instanceof List<?> outputList) {
                 for (Object outputItemObj : outputList) {
                     if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
                     Object typeObj = outputItem.get("type");
                     if ("tool_call".equals(typeObj)) {
                         Object callIdObj = outputItem.get("call_id");
+                        //if (callIdObj instanceof String callId) {
+                          //  put(th.LOCALSHELLTOOL_CALL_ID, callId);
+                        //}
+      
                         if (callIdObj instanceof String callId) {
-                            put(th.LOCALSHELLTOOL_CALL_ID, callId);
+                            allCallIds.add(callId);
                         }
                         Object actionObj = outputItem.get("action");
                         if (actionObj instanceof Map<?, ?> action) {
                             Object cmdObj = action.get("command");
 
+                            List<String> commandsForThisCall = new ArrayList<>();
+
                             if (cmdObj instanceof List<?> cmdList) {
-                                List<String> commands = cmdList.stream()
+                                // Just keep the command parts as-is (no escaping here)
+                                commandsForThisCall = cmdList.stream()
                                     .map(Object::toString)
                                     .toList();
-
-                                boolean isSingleCommandInParts = commands.stream().noneMatch(s -> s.contains(" "));
-
-                                if (isSingleCommandInParts) {
-                                    // Treat as parameterized single command
-                                    String combined = String.join(" ", commands);
-                                    put(th.LOCALSHELLTOOL_COMMANDS, List.of(combined));
-                                } else {
-                                    // Treat as list of full commands
-                                    put(th.LOCALSHELLTOOL_COMMANDS, commands);
-                                }
                             } else if (cmdObj instanceof String singleCommand) {
-                                put(th.LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
+                                commandsForThisCall = List.of(singleCommand);
                             } else if (cmdObj != null) {
-                                put(th.LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
+                                commandsForThisCall = List.of(cmdObj.toString());
                             }
 
+                            allCommands.add(commandsForThisCall);
                         }
+                        
                     }
                     Object contentObj = outputItem.get("content");
                     if (contentObj instanceof List<?> contentList) {
@@ -486,6 +517,10 @@ public class OpenAIContainer extends MainContainer {
                     }
                 }
             }
+            Map<String, Object> myMap = new HashMap<>();
+            myMap.put(th.LOCALSHELLTOOL_CALL_IDS, allCallIds);
+            myMap.put(th.LOCALSHELLTOOL_COMMANDS_LIST, allCommands);
+            mapMap = myMap;
             MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
             Object toolsObj = responseMap.get("tools");
             if (toolsObj instanceof List<?> toolsListRaw) {
@@ -738,4 +773,9 @@ public class OpenAIContainer extends MainContainer {
             }
         }
     }
+    
+    public Map<String, Object> getResponseMap() {
+        return mapMap;
+    }
+
 }

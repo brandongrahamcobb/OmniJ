@@ -42,6 +42,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.HashMap;
 
 public class ToolHandler {
 
@@ -85,92 +86,59 @@ public class ToolHandler {
     public static final MetadataKey<String> CODEINTERPRETERTOOL_TYPE = new MetadataKey<>("codeinterpretertool_type", Metadata.STRING);
     public static final MetadataKey<String> CODEINTERPRETERTOOL_CONTAINER_ID = new MetadataKey<>("codeinterpretertool_container_id", Metadata.STRING);
     public static final MetadataKey<Map<String, Object>> CODEINTERPRETERTOOL_CONTAINER_MAP = new MetadataKey<>("codeinterpretertool_container_map", Metadata.MAP);
-    public static final MetadataKey<String> LOCALSHELLTOOL_CALL_ID = new MetadataKey<>("localshelltool_call_id", Metadata.STRING);
     public static final MetadataKey<String> LOCALSHELLTOOL_COMMAND = new MetadataKey<>("localshelltool_command", Metadata.STRING);
     public static final MetadataKey<List<String>> LOCALSHELLTOOL_COMMANDS = new MetadataKey<>("localshelltool_commands", Metadata.LIST_STRING);
     public static final MetadataKey<Boolean> LOCALSHELLTOOL_FINISHED = new MetadataKey<>("localshelltool_finished", Metadata.BOOLEAN);
     public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
+    public static final String LOCALSHELLTOOL_COMMANDS_LIST = "localshelltool_commands_list";
+    public static final String LOCALSHELLTOOL_CALL_IDS = "localshelltool_call_ids";
     
     private static String readStream(InputStream stream) throws IOException {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             String line;
-            int maxLines = 200;
-            int maxChars = 8000;
-            int lineCount = 0;
-            while ((line = reader.readLine()) != null && builder.length() < maxChars && lineCount < maxLines) {
+            while ((line = reader.readLine()) != null) {
                 builder.append(line).append("\n");
-                lineCount++;
-            }
-            if (line != null) {
-                builder.append("...\n⚠️ Output truncated due to size.");
             }
         }
         return builder.toString().trim();
     }
 
-    
-    public CompletableFuture<String> completeShellCommand(MetadataContainer responseObject, String originalCommand) {
-        if (originalCommand == null || originalCommand.isBlank()) {
-            return CompletableFuture.completedFuture("⚠️ No shell command provided.");
-        }
-        
-        ContextManager cm = new ContextManager(100);
+
+    public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         return CompletableFuture.supplyAsync(() -> {
-            ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
-            try {
-                String raw = originalCommand.trim();
-                String cmd = raw.startsWith("bash -lc ") ? raw.substring("bash -lc ".length()).trim() : raw;
+            StringBuilder result = new StringBuilder();
 
-                ProcessBuilder builder = new ProcessBuilder("gtimeout", "30s", "bash", "-lc", cmd);
-                Process process = builder.start();
+            for (List<String> commandParts : allCommands) {
+                try {
+                    List<String> processCommand = new ArrayList<>();
+                    // Use "timeout" or "gtimeout" depending on your environment
+                    processCommand.add("gtimeout");
+                    processCommand.add("30"); // 30 seconds timeout (without "s")
+                    processCommand.addAll(commandParts);
 
-                Future<String> stdoutFuture = streamExecutor.submit(() -> readStream(process.getInputStream()));
-                Future<String> stderrFuture = streamExecutor.submit(() -> readStream(process.getErrorStream()));
+                    ProcessBuilder pb = new ProcessBuilder(processCommand);
+                    pb.redirectErrorStream(true);
+                    Process proc = pb.start();
 
-                int exitCode = process.waitFor();
-                String stdout = stdoutFuture.get(10, TimeUnit.SECONDS);
-                String stderr = stderrFuture.get(10, TimeUnit.SECONDS);
+                    String output = readStream(proc.getInputStream());
+                    int exitCode = proc.waitFor();
 
-                // Optionally remove these if you *only* want to use contextManager
-                // responseObject.put(SHELL_EXIT_CODE, exitCode);
-                // responseObject.put(SHELL_STDOUT, stdout);
-                // responseObject.put(SHELL_STDERR, stderr);
-
-                // Compose a clean shell summary
-                String shellSummary = """
-                    [Shell Execution Result]
-                    Exit Code: %d
-
-                    --- STDOUT ---
-                    %s
-
-                    --- STDERR ---
-                    %s
-                    """.formatted(exitCode, stdout, stderr);
-
-                System.out.println(shellSummary);
-                // Add the full result to the context
-                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, shellSummary));
-
-                if (exitCode == 0) {
-                    return stdout.isBlank() ? "✅ Command executed successfully with no output." : stdout;
-                } else {
-                    return "❌ Shell command exited with code " + exitCode + ":\n" + (stderr.isBlank() ? "No error message available." : stderr);
+                    result.append(String.join(" ", commandParts))
+                          .append("\nExit code: ").append(exitCode)
+                          .append("\nOutput:\n").append(output).append("\n\n");
+                } catch (Exception e) {
+                    result.append("Error running command ").append(commandParts)
+                          .append(": ").append(e.getMessage()).append("\n");
                 }
-            } catch (TimeoutException e) {
-                String msg = "⏱️ Shell output reading timed out.";
-                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
-                return msg;
-            } catch (Exception e) {
-                String msg = "⚠️ Shell execution failed: " + e.getMessage();
-                cm.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, msg));
-                return msg;
-            } finally {
-                streamExecutor.shutdown();
             }
-        });
+
+            executor.shutdown();
+            return result.toString();
+        }, executor);
     }
+
     
     public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {
         String type = responseObject.get(FILESEARCHTOOL_TYPE);
