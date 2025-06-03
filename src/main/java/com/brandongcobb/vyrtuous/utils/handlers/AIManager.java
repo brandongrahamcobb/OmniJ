@@ -271,7 +271,7 @@ public class AIManager {
                             lastChunk = chunk;
                             Map<String, Object> delta = (Map<String, Object>) ((Map<String, Object>) ((List<?>) chunk.get("choices")).get(0)).get("delta");
                             String content = (String) delta.get("content");
-                            if (content != null && !content.isBlank()) {
+                            if (content != null) {
                                 onContentChunk.accept(content);
                                 builder.append(content);
                             }
