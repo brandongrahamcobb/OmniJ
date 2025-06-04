@@ -271,7 +271,7 @@ public class REPLManager {
 
     private CompletableFuture<String> completeESubSubStep(List<String> commandParts) {
         final int maxRetries = 2;
-        final long timeoutMillis = 10000;
+        final long timeoutMillis = 30000;
         final String commandStr = String.join(" ", commandParts);
 
         LOGGER.info("completeESubSubStep");
@@ -306,7 +306,7 @@ public class REPLManager {
         return retryingCommand;
     }
 
-    private void completePStep(MetadataContainer response, Scanner scanner) {
+    private CompletableFuture<Void> completePStep(MetadataContainer response, Scanner scanner) {
         LOGGER.info("Starting P-step (Print)");
         String summary = new OpenAIUtils(response).completeGetLocalShellToolSummary().join();
         if (summary != null && !summary.isBlank()) {
@@ -315,15 +315,15 @@ public class REPLManager {
         }
         long tokens = contextManager.getContextTokenCount();
         LOGGER.fine("Current token count: " + tokens);
-        completeLStep(scanner);
+        return completeLStep(scanner).thenAccept(x -> {});
     }
+
 
     private CompletableFuture<String> completeLStep(Scanner scanner) {
         LOGGER.info("Looping back to R-step");
-        return completeRStepWithTimeout(scanner, false).thenCompose(response -> {
-            completePStep(response, scanner);
-            return completeEStep(response, scanner);
-        });
+        return completeRStepWithTimeout(scanner, false)
+            .thenCompose(response -> completePStep(response, scanner)
+            .thenCompose(ignored -> completeEStep(response, scanner)));
     }
     
     public void startResponseInputThread() {
