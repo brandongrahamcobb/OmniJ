@@ -382,6 +382,17 @@ public class AIManager {
                 .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint));
     }
     
+    public static String truncateString(String text, int maxLength) {
+        if (text == null) {
+            return null;
+        }
+        if (text.length() <= maxLength) {
+            return text;
+        } else {
+            return text.substring(0, maxLength);
+        }
+    }
+    
     private CompletableFuture<MetadataContainer> completeOpenAIProcessRequest(Map<String, Object> requestBody, String endpoint) {
         String apiKey = System.getenv("OPENAI_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
@@ -412,6 +423,7 @@ public class AIManager {
                         Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                         MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                         String previousResponseId = (String) openaiOuterUtils.completeGetResponseId().join();
+                        inner.put("id", previousResponseId);
                         OpenAIContainer openaiInnerResponse = new OpenAIContainer(inner);
                         openaiInnerResponse.put(previousResponseIdKey, previousResponseId);
                         return (MetadataContainer) openaiInnerResponse;

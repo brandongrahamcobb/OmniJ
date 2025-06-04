@@ -126,11 +126,17 @@ public class OpenAIUtils {
             return this.container.get(previousResponseIdKey);
         });
     }
+    
     public CompletableFuture<String> completeGetReasoning() {
         MetadataKey<String> summaryKey = new MetadataKey<>("summary", Metadata.STRING);
         return CompletableFuture.completedFuture(this.container.get(summaryKey));
     }
 
+    public CompletableFuture<String> completeGetText() {
+        MetadataKey<String> textKey = new MetadataKey<>("text", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(textKey));
+    }
+    
     public CompletableFuture<List<String>> completeGetShellToolCommand() {
         return CompletableFuture.completedFuture(this.container.get(th.LOCALSHELLTOOL_COMMANDS));
     }

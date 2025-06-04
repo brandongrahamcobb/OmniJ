@@ -53,6 +53,7 @@ import net.dv8tion.jda.api.JDA;
 public class Vyrtuous {
 
     private static Vyrtuous app;
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static Boolean isInputThreadRunning = false;
     private Map<Long, String> userModelSettings = new HashMap<>();
     

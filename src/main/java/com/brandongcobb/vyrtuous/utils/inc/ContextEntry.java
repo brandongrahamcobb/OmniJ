@@ -29,6 +29,14 @@ public class ContextEntry {
         this.content = content;
     }
     
+    public Type getType() {
+        return type;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
     public String formatForPrompt() {
         switch(type) {
             case USER_MESSAGE: return "[User]: " + content;

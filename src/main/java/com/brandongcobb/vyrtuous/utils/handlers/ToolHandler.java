@@ -112,16 +112,12 @@ public class ToolHandler {
                     processCommand.add("gtimeout");
                     processCommand.add("20");
                     List<String> escapedCommand = commandParts.stream()
-                        .map(s -> s.replace("*", "'*'")
+                        .map(s -> s//.replace("*", "'*'")
                                    .replace(";", "\\;")
-                                   .replace("&&", "\\&\\&")
-                                   .replace("(", "\\(")
-                                   .replace(")", "\\)")
                                    .replace("{", "\\{")
                                    .replace("}", "\\}")
                                    .replace("|", "\\|"))
                         .toList();
-                    
                     String joinedCommand = String.join(" ", escapedCommand);
                     processCommand.add("sh");
                     processCommand.add("-c");
@@ -132,9 +128,8 @@ public class ToolHandler {
                     Process proc = pb.start();
                     String output = readStream(proc.getInputStream());
                     int exitCode = proc.waitFor();
-                    result.append(String.join(" ", commandParts))
-                          .append("\nExit code: ").append(exitCode)
-                          .append("\nOutput:\n").append(output).append("\n\n");
+                    result.append(joinedCommand)
+                          .append("\nExit code: ").append(exitCode);
                 } catch (Exception e) {
                     result.append("Error running command ").append(commandParts)
                           .append(": ").append(e.getMessage()).append("\n");

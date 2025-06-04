@@ -48,6 +48,13 @@ public class ContextManager {
         }
     }
 
+    public String extractOriginalGoal() {
+        return entries.stream()
+            .filter(e -> e.getType() == ContextEntry.Type.USER_MESSAGE)
+            .map(ContextEntry::getContent)
+            .findFirst()
+            .orElse("No user message found.");
+    }
     /**
      * Builds the prompt context from accumulated entries.
      * Returns an empty string as context building is currently disabled.
@@ -55,8 +62,9 @@ public class ContextManager {
      */
     public synchronized String buildPromptContext() {
         StringBuilder sb = new StringBuilder();
+        sb.append("The user originally asked:\n").append(extractOriginalGoal()).append("\n\n");
         for (ContextEntry entry : entries) {
-            sb.append(entry.formatForPrompt()).append("\n");
+            sb.append(entry.formatForPrompt()).append("\n\n");
         }
         return sb.toString();
     }

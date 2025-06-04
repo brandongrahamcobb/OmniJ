@@ -16,6 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * aInteger with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+// ... [HEADER REMAINS UNCHANGED]
+
 package com.brandongcobb.vyrtuous.utils.handlers;
 
 import java.util.*;
@@ -28,143 +30,179 @@ import com.brandongcobb.vyrtuous.utils.inc.*;
 
 public class REPLManager {
 
-    /*
-     *  Runtime variables
-     */
+    private AIManager aim = new AIManager();
+    private ApprovalMode approvalMode;
     private final ContextManager contextManager = new ContextManager(3200);
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
-    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
-    private String originalDirective;
-    private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
-    private AIManager aim = new AIManager();
-    private ToolHandler th = new ToolHandler();
     private MetadataContainer lastAIResponseContainer = null;
     private String lastAIResponseText = "";
     private String lastShellOutput = "";
-    private ApprovalMode approvalMode;
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
+    private String originalDirective;
+    private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
+    private ToolHandler th = new ToolHandler();
 
-    /*
-     *  Constructors
-     */
     public REPLManager(ApprovalMode mode) {
+        LOGGER.setLevel(Level.FINE);
+        for (Handler handler : LOGGER.getParent().getHandlers()) {
+            handler.setLevel(Level.FINE); // Ensure handlers output FINE logs
+        }
+
+        LOGGER.info("Initializing REPLManager with approval mode: " + mode);
         setApprovalMode(mode);
     }
 
-    /*
-     *  Helpers
-     */
     public void setApprovalMode(ApprovalMode mode) {
+        LOGGER.fine("Setting approval mode: " + mode);
         this.approvalMode = mode;
     }
 
-    /**
-     * Starts a new thread to continuously read user input from the console.
-     * Each input triggers the REPL sequence.
-     */
-    public void startResponseInputThread() {
-        inputExecutor.submit(() -> {
-            try (Scanner scanner = new Scanner(System.in)) {
-                while (true) {
-                    System.out.print("> ");
-                    String input = scanner.nextLine();
-                    completeStartREPL(scanner, input).thenAcceptAsync(System.out::println, replExecutor);
-                }
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Input thread crashed", e);
-            }
-        });
+    public CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
+        return completeStartREPL(scanner, userInput)
+            .thenCompose(response -> handleEStepResponse(response, scanner))
+            .exceptionally(ex -> {
+                LOGGER.severe("REPL failed: " + ex);
+                return null;
+            });
     }
 
-    /**
-     * Initiates the REPL (Read-Execute-Print-Loop) sequence for a new user directive.
-     * This is the 'start' step.
-     * @param scanner The scanner for user input.
-     * @param userInput The initial directive from the user.
-     * @return A CompletableFuture that completes with the final output of the REPL cycle.
-     */
+
     private CompletableFuture<String> completeStartREPL(Scanner scanner, String userInput) {
+        LOGGER.info("Starting REPL with input: " + userInput);
         this.originalDirective = userInput;
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        return completeRStep(scanner, true).thenCompose(response -> completeEStep(response, scanner));
+        return completeRStepWithTimeout(scanner, true).thenCompose(response -> completeEStep(response, scanner));
+    }
+    
+    private CompletableFuture<MetadataContainer> completeRStepWithTimeout(Scanner scanner, boolean firstRun) {
+        CompletableFuture<MetadataContainer> promise = new CompletableFuture<>();
+        int maxRetries = 2;
+        Runnable attempt = new Runnable() {
+            int retries = 0;
+
+            @Override
+            public void run() {
+                retries++;
+                completeRStep(scanner, firstRun)
+                    .orTimeout(15, TimeUnit.SECONDS)
+                    .whenComplete((result, error) -> {
+                        if (error != null) {
+                            if (retries <= maxRetries) {
+                                LOGGER.warning("R-step timeout or failure (attempt " + retries + "). Retrying...");
+                                replExecutor.submit(this); // retry again
+                            } else {
+                                LOGGER.severe("R-step failed after " + retries + " attempts.");
+                                promise.completeExceptionally(error);
+                            }
+                        } else {
+                            LOGGER.info("R-step completed successfully.");
+                            promise.complete(result);
+                        }
+                    });
+            }
+        };
+
+        replExecutor.submit(attempt); // start first attempt
+        return promise;
     }
 
-    /**
-     * The 'R' (Read/Response) step of the REPL.
-     * It sends a prompt to the AI and processes its response.
-     * @param scanner The scanner for user input (used for subsequent steps).
-     * @param firstRun A boolean indicating if this is the initial AI request for a new user directive.
-     * @return A CompletableFuture that completes with the MetadataContainer from the AI's response.
-     */
+
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
+        LOGGER.info("Starting R-step, firstRun=" + firstRun);
         String model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-        String prompt;
-        if (firstRun) {
-            prompt = this.originalDirective;
-        } else {
-            prompt = contextManager.buildPromptContext();
-        }
+        String prompt = firstRun ? this.originalDirective : contextManager.buildPromptContext();
+        LOGGER.fine("Prompt to AI: " + prompt);
+
         if (firstRun) {
             return aim.completeRequest(prompt, null, model, "response", "openai", false, null)
-                    .thenApply(response -> {
-                        lastAIResponseContainer = response;
-                        OpenAIUtils openaiUtils = new OpenAIUtils(response);
-                        lastAIResponseText = openaiUtils.completeGetOutput().join();
-                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                        return response;
-                    });
+                .thenApply(response -> {
+                    LOGGER.info("Received AI response on first run");
+                    lastAIResponseContainer = response;
+                    OpenAIUtils openaiUtils = new OpenAIUtils(response);
+                    lastAIResponseText = openaiUtils.completeGetLocalShellToolSummary().join();
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+                    return response;
+                });
         } else {
             return new OpenAIUtils(lastAIResponseContainer).completeGetResponseId()
-                    .thenCompose(previousResponseId -> {
-                        System.out.println(previousResponseId);
-                        return aim.completeRequest(prompt, previousResponseId, model, "response", "openai", false, null)
-                                .thenApply(response -> {
-                                    lastAIResponseContainer = response;
-                                    OpenAIUtils openaiUtils = new OpenAIUtils(response);
-                                    lastAIResponseText = openaiUtils.completeGetOutput().join();
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                                    System.out.println(lastAIResponseText);
-                                    return response;
-                                });
-                    });
+                .thenCompose(previousResponseId -> {
+                    LOGGER.fine("Continuing REPL with previous response ID: " + previousResponseId);
+                    return aim.completeRequest(prompt, previousResponseId, model, "response", "openai", false, null)
+                        .thenApply(response -> {
+                            LOGGER.fine("test");
+                            lastAIResponseContainer = response;
+                            OpenAIUtils openaiUtils = new OpenAIUtils(response);
+                            lastAIResponseText = openaiUtils.completeGetLocalShellToolSummary().join();
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+                            return response;
+                        });
+                })
+                .exceptionally(ex -> {
+                    LOGGER.log(Level.SEVERE, "Failed in second REPL step", ex);
+                    return null;
+                });
         }
     }
 
-    /**
-     * The 'E' (Execute) step of the REPL.
-     * It processes the commands provided by the AI's response.
-     * @param response The MetadataContainer containing the AI's response, including commands.
-     * @param scanner The scanner for user input.
-     * @return A CompletableFuture that completes with the transcript of executed commands.
-     */
+
+    private CompletableFuture<Void> handleEStepResponse(Object responseOrInput, Scanner scanner) {
+        if (responseOrInput instanceof MetadataContainer) {
+            // continue processing normally with AI response
+            return completeEStep((MetadataContainer) responseOrInput, scanner)
+                .thenCompose(next -> handleEStepResponse(next, scanner));
+        } else if (responseOrInput instanceof String) {
+            // input from user is returned; wait for explicit next step
+            String userInput = (String) responseOrInput;
+            LOGGER.info("Received user input during waiting: " + userInput);
+            // now you can decide what to do — e.g. call completeRStepWithTimeout or completeStartREPL again
+            return completeRStepWithTimeout(scanner, true).thenCompose(newResponse ->
+                handleEStepResponse(newResponse, scanner)
+            );
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+    
     private CompletableFuture<String> completeEStep(MetadataContainer response, Scanner scanner) {
+        LOGGER.info("Starting E-step");
         List<List<String>> allCommands = null;
         if (response instanceof OpenAIContainer) {
             OpenAIContainer openaiContainer = (OpenAIContainer) response;
             allCommands = (List<List<String>>) openaiContainer.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
         }
         boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
+        LOGGER.fine("Command list size: " + (allCommands != null ? allCommands.size() : 0) + ", finished=" + finished);
+
         if ((allCommands == null || allCommands.isEmpty()) && !finished) {
-            System.out.println("💡 Model is awaiting your input or guidance.");
+            LOGGER.info("AI is waiting for further input");
             System.out.println(lastAIResponseText);
+            System.out.flush();
+            System.out.println("💡 Model is awaiting your input or guidance.");
+            System.out.flush();
+
+            // Return a CompletableFuture that completes with the user input,
+            // but do NOT continue the REPL cycle here.
             return CompletableFuture.supplyAsync(() -> {
                 System.out.print("↪ Your input: ");
                 return scanner.nextLine();
-            }, inputExecutor).thenCompose(input -> {
-                this.originalDirective = input;
-                return completeRStep(scanner, true)
-                        .thenCompose(newResponse -> completeEStep(newResponse, scanner));
-            });
+            }, inputExecutor);
         }
+
         return completeESubStep(allCommands, 0, response, scanner).thenCompose(transcript -> {
             if (finished) {
+                LOGGER.info("REPL task marked complete");
+                OpenAIUtils oaiUtils = new OpenAIUtils(response);
+                System.out.println(oaiUtils.completeGetLocalShellToolSummary().join());
+                System.out.flush();
                 System.out.println("✅ Task complete.");
-                System.out.println(lastAIResponseText);
+                System.out.flush();
                 return CompletableFuture.supplyAsync(() -> {
                     System.out.print("↪ Your input: ");
+                    System.out.flush();
                     return scanner.nextLine();
                 }, inputExecutor).thenCompose(input -> {
                     this.originalDirective = input;
-                    return completeRStep(scanner, true)
+                    return completeRStepWithTimeout(scanner, true)
                             .thenCompose(newResponse -> completeEStep(newResponse, scanner));
                 });
             }
@@ -172,14 +210,6 @@ public class REPLManager {
         });
     }
 
-    /**
-     * A sub-step of the 'E' (Execute) phase, handling individual command execution and approval.
-     * @param allCommands The list of commands to execute.
-     * @param index The current index of the command to execute.
-     * @param response The AI's MetadataContainer response.
-     * @param scanner The scanner for user input.
-     * @return A CompletableFuture that completes with the output of the executed commands.
-     */
     private CompletableFuture<String> completeESubStep(
             List<List<String>> allCommands,
             int index,
@@ -187,28 +217,39 @@ public class REPLManager {
             Scanner scanner
     ) {
         if (index >= allCommands.size()) {
-            return CompletableFuture.completedFuture(""); // All commands done
+            LOGGER.fine("All commands have been processed.");
+            return CompletableFuture.completedFuture("");
         }
+
         List<String> commandParts = allCommands.get(index);
         String commandStr = String.join(" ", commandParts);
+        LOGGER.info("Processing command: " + commandStr);
+
         if (Helpers.requiresApproval(commandStr, approvalMode)) {
+            LOGGER.fine("Approval required for command: " + commandStr);
             return CompletableFuture.supplyAsync(() -> {
-                LOGGER.fine("Requesting user approval for command: " + commandStr);
                 System.out.println("Approval required for command: " + commandStr);
+                System.out.flush();
                 System.out.print("Approve? (yes/no): ");
+                System.out.flush();
                 while (true) {
                     String input = scanner.nextLine().trim().toLowerCase();
                     if (input.equals("yes") || input.equals("y")) return true;
                     if (input.equals("no") || input.equals("n")) return false;
                     System.out.print("Please type 'yes' or 'no': ");
+                    System.out.flush();
                 }
             }, inputExecutor).thenCompose(approved -> {
                 if (!approved) {
+                    LOGGER.warning("Command not approved by user: " + commandStr);
                     System.out.println("⛔ Skipping command: " + commandStr);
+                    System.out.flush();
                     return completeESubStep(allCommands, index + 1, response, scanner);
                 }
                 return completeESubSubStep(commandParts).thenCompose(output -> {
-                    System.out.println("> " + commandStr + "\n" + output);
+                    LOGGER.fine("completeESubStep");
+                    System.out.println("> " + commandStr);
+                    System.out.flush();
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
                     lastShellOutput = output;
                     return completeESubStep(allCommands, index + 1, response, scanner);
@@ -216,7 +257,9 @@ public class REPLManager {
             });
         } else {
             return completeESubSubStep(commandParts).thenCompose(output -> {
-                System.out.println("> " + commandStr + "\n" + output);
+                //LOGGER.fine("Command output: " + output);
+                System.out.println("> " + commandStr);
+                System.out.flush();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
                 lastShellOutput = output;
                 return completeESubStep(allCommands, index + 1, response, scanner);
@@ -225,35 +268,82 @@ public class REPLManager {
     }
 
     private CompletableFuture<String> completeESubSubStep(List<String> commandParts) {
-        return th.executeCommandsAsList(Collections.singletonList(commandParts));
+        final int maxRetries = 2;
+        final long timeoutMillis = 10000;
+        final String commandStr = String.join(" ", commandParts);
+
+        LOGGER.info("completeESubSubStep");
+        Supplier<CompletableFuture<String>> tryCommand = () -> th.executeCommandsAsList(Collections.singletonList(commandParts));
+        CompletableFuture<String> retryingCommand = new CompletableFuture<>();
+
+        Runnable attempt = new Runnable() {
+            int attempts = 0;
+
+            @Override
+            public void run() {
+                attempts++;
+                tryCommand.get().orTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
+                    .whenComplete((output, ex) -> {
+                        if (ex != null) {
+                            if (attempts <= maxRetries) {
+                                LOGGER.warning("Retry " + attempts + " for command: " + commandStr);
+                                replExecutor.submit(this);
+                            } else {
+                                LOGGER.severe("Command failed after retries: " + commandStr);
+                                retryingCommand.complete("❌ Command failed after " + maxRetries + " retries: " + commandStr);
+                            }
+                        } else {
+                            LOGGER.info("Command succeeded: " + commandStr);
+                            retryingCommand.complete(output);
+                        }
+                    });
+            }
+        };
+
+        replExecutor.submit(attempt);
+        return retryingCommand;
     }
-    
-    /**
-     * The 'P' (Print) step of the REPL.
-     * It prints a summary from the model if available.
-     * @param response The MetadataContainer from the AI's response.
-     */
+
     private void completePStep(MetadataContainer response, Scanner scanner) {
+        LOGGER.info("Starting P-step (Print)");
         String summary = new OpenAIUtils(response).completeGetLocalShellToolSummary().join();
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]:\n" + summary + "\n");
+            System.out.flush();
         }
         long tokens = contextManager.getContextTokenCount();
-        System.out.println("Current context token count: " + tokens);
+        LOGGER.fine("Current token count: " + tokens);
         completeLStep(scanner);
     }
 
-    /**
-     * The 'L' (Loop) step of the REPL.
-     * It cycles back to the 'R' step to get a new response from the AI,
-     * effectively continuing the conversation or task.
-     * @param scanner The scanner for user input.
-     * @return A CompletableFuture that completes with the final output of the loop.
-     */
     private CompletableFuture<String> completeLStep(Scanner scanner) {
-        return completeRStep(scanner, false).thenCompose(response -> {
+        LOGGER.info("Looping back to R-step");
+        return completeRStepWithTimeout(scanner, false).thenCompose(response -> {
             completePStep(response, scanner);
             return completeEStep(response, scanner);
         });
     }
+    
+    public void startResponseInputThread() {
+        LOGGER.info("Starting input thread...");
+        inputExecutor.submit(() -> {
+            try (Scanner scanner = new Scanner(System.in)) {
+                while (true) {
+                    System.out.print("> ");
+                    String input = scanner.nextLine();
+                    LOGGER.info("User input received: " + input);
+                    startREPL(scanner, input)
+                        .exceptionally(ex -> {
+                            LOGGER.severe("Error during REPL execution: " + ex);
+                            return null;
+                        })
+                        .join(); // block here to ensure commands finish before next prompt
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Input thread crashed", e);
+            }
+        });
+    }
+
+
 }
