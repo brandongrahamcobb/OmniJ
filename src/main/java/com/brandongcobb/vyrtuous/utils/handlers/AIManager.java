@@ -420,6 +420,8 @@ public class AIManager {
                             .replaceFirst("^```json\\s*", "")
                             .replaceFirst("\\s*```$", "")
                             .trim();
+                        System.out.println(jsonContent);
+                        System.out.flush();
                         Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                         MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                         String previousResponseId = (String) openaiOuterUtils.completeGetResponseId().join();
