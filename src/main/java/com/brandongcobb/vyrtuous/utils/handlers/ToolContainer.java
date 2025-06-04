@@ -123,14 +123,14 @@ public class ToolContainer extends MainContainer {
 //        }
 
         MetadataKey<String> responsesReasoningEffortKey = new MetadataKey<>("effortLevel", Metadata.STRING);
-        MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summaryText", Metadata.STRING);
+        MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
         Map<String, String> responsesReasoning = responseMap != null ? (Map<String, String>) responseMap.get("analysis") : null;
         if (responsesReasoning != null) {
             String responsesReasoningEffort = responsesReasoning.get("effortLevel");
             if (responsesReasoningEffort != null) {
                 put(responsesReasoningEffortKey, responsesReasoningEffort);
             }
-            String responsesReasoningSummary = responsesReasoning.get("summaryText");
+            String responsesReasoningSummary = responsesReasoning.get("summary");
             if (responsesReasoningSummary != null) {
                 put(responsesReasoningSummaryKey, responsesReasoningSummary);
             }

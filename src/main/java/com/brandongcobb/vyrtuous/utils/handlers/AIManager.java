@@ -428,7 +428,8 @@ public class AIManager {
                         String text = (String) openaiOuterUtils.completeGetText().join();
                         String reasoning = (String) openaiOuterUtils.completeGetText().join();
                         inner.put("id", previousResponseId);
-                        inner.put("summary", text + reasoning);
+                        String summary = (String) inner.get("summary");
+                        inner.put("summary", text + reasoning + summary);
                         ToolContainer toolResponse = new ToolContainer(inner);
                         toolResponse.put(previousResponseIdKey, previousResponseId);
                         return (MetadataContainer) toolResponse;
