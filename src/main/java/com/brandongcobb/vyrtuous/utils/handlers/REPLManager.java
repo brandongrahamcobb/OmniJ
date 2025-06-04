@@ -175,17 +175,12 @@ public class REPLManager {
 
         if ((allCommands == null || allCommands.isEmpty()) && !finished) {
             LOGGER.info("AI is waiting for further input");
-            System.out.println(lastAIResponseText);
+            System.out.println(lastAIResponseText + ". I am awaiting your response.");
             System.out.flush();
-            System.out.println("💡 Model is awaiting your input or guidance.");
+            System.out.print("> ");
             System.out.flush();
-
-            // Return a CompletableFuture that completes with the user input,
-            // but do NOT continue the REPL cycle here.
-            return CompletableFuture.supplyAsync(() -> {
-                System.out.print("↪ Your input: ");
-                return scanner.nextLine();
-            }, inputExecutor);
+            String input = scanner.nextLine();
+            return CompletableFuture.completedFuture(input);
         }
 
         return completeESubStep(allCommands, 0, response, scanner).thenCompose(transcript -> {
@@ -196,19 +191,20 @@ public class REPLManager {
                 System.out.flush();
                 System.out.println("✅ Task complete.");
                 System.out.flush();
-                return CompletableFuture.supplyAsync(() -> {
-                    System.out.print("↪ Your input: ");
-                    System.out.flush();
-                    return scanner.nextLine();
-                }, inputExecutor).thenCompose(input -> {
-                    this.originalDirective = input;
-                    return completeRStepWithTimeout(scanner, true)
-                            .thenCompose(newResponse -> completeEStep(newResponse, scanner));
-                });
+                contextManager.clear();
+
+                System.out.print("> ");
+                System.out.flush();
+                String input = scanner.nextLine(); // ← synchronous
+                this.originalDirective = input;
+
+                return completeRStepWithTimeout(scanner, true)
+                        .thenCompose(newResponse -> completeEStep(newResponse, scanner));
             }
             return completeLStep(scanner);
         });
     }
+
 
     private CompletableFuture<String> completeESubStep(
             List<List<String>> allCommands,
@@ -227,37 +223,43 @@ public class REPLManager {
 
         if (Helpers.requiresApproval(commandStr, approvalMode)) {
             LOGGER.fine("Approval required for command: " + commandStr);
-            return CompletableFuture.supplyAsync(() -> {
-                System.out.println("Approval required for command: " + commandStr);
-                System.out.flush();
-                System.out.print("Approve? (yes/no): ");
-                System.out.flush();
-                while (true) {
-                    String input = scanner.nextLine().trim().toLowerCase();
-                    if (input.equals("yes") || input.equals("y")) return true;
-                    if (input.equals("no") || input.equals("n")) return false;
-                    System.out.print("Please type 'yes' or 'no': ");
-                    System.out.flush();
+            System.out.println("Approval required for command: " + commandStr);
+            System.out.flush();
+            System.out.print("Approve? (yes/no): ");
+            System.out.flush();
+
+            boolean approved = false;
+            while (true) {
+                String input = scanner.nextLine().trim().toLowerCase();
+                if (input.equals("yes") || input.equals("y")) {
+                    approved = true;
+                    break;
                 }
-            }, inputExecutor).thenCompose(approved -> {
-                if (!approved) {
-                    LOGGER.warning("Command not approved by user: " + commandStr);
-                    System.out.println("⛔ Skipping command: " + commandStr);
-                    System.out.flush();
-                    return completeESubStep(allCommands, index + 1, response, scanner);
+                if (input.equals("no") || input.equals("n")) {
+                    approved = false;
+                    break;
                 }
-                return completeESubSubStep(commandParts).thenCompose(output -> {
-                    LOGGER.fine("completeESubStep");
-                    System.out.println("> " + commandStr);
-                    System.out.flush();
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
-                    lastShellOutput = output;
-                    return completeESubStep(allCommands, index + 1, response, scanner);
-                });
+                System.out.print("Please type 'yes' or 'no': ");
+                System.out.flush();
+            }
+
+            if (!approved) {
+                LOGGER.warning("Command not approved by user: " + commandStr);
+                System.out.println("⛔ Skipping command: " + commandStr);
+                System.out.flush();
+                return completeESubStep(allCommands, index + 1, response, scanner);
+            }
+
+            return completeESubSubStep(commandParts).thenCompose(output -> {
+                LOGGER.fine("completeESubStep");
+                System.out.println("> " + commandStr);
+                System.out.flush();
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
+                lastShellOutput = output;
+                return completeESubStep(allCommands, index + 1, response, scanner);
             });
         } else {
             return completeESubSubStep(commandParts).thenCompose(output -> {
-                //LOGGER.fine("Command output: " + output);
                 System.out.println("> " + commandStr);
                 System.out.flush();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
