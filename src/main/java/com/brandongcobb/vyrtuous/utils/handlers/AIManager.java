@@ -425,10 +425,13 @@ public class AIManager {
                         Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                         MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                         String previousResponseId = (String) openaiOuterUtils.completeGetResponseId().join();
+                        String text = (String) openaiOuterUtils.completeGetText().join();
+                        String reasoning = (String) openaiOuterUtils.completeGetText().join();
                         inner.put("id", previousResponseId);
-                        OpenAIContainer openaiInnerResponse = new OpenAIContainer(inner);
-                        openaiInnerResponse.put(previousResponseIdKey, previousResponseId);
-                        return (MetadataContainer) openaiInnerResponse;
+                        inner.put("summary", text + reasoning);
+                        ToolContainer toolResponse = new ToolContainer(inner);
+                        toolResponse.put(previousResponseIdKey, previousResponseId);
+                        return (MetadataContainer) toolResponse;
                     } else {
                         throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);
                     }

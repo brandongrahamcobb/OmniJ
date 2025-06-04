@@ -53,11 +53,6 @@ public class OpenAIUtils {
     public CompletableFuture<List<String>> completeGetFileSearchToolVectorStoreIds() {
         return CompletableFuture.completedFuture(this.container.get(th.FILESEARCHTOOL_VECTOR_STORE_IDS));
     }
-
-    public CompletableFuture<String> completeGetLocalShellToolSummary() {
-        MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
-        return CompletableFuture.completedFuture(this.container.get(responsesReasoningSummaryKey));
-    }
     
     public CompletableFuture<Map<String, Object>> completeGetFileSearchToolFilters() {
         return CompletableFuture.completedFuture(this.container.get(th.FILESEARCHTOOL_FILTERS));
@@ -125,6 +120,11 @@ public class OpenAIUtils {
             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
             return this.container.get(previousResponseIdKey);
         });
+    }
+    
+    public CompletableFuture<String> completeGetCustomReasoning() {
+        MetadataKey<String> summaryKey = new MetadataKey<>("summaryText", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(summaryKey));
     }
     
     public CompletableFuture<String> completeGetReasoning() {

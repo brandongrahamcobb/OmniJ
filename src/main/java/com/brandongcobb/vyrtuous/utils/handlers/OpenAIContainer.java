@@ -18,6 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.metadata.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +33,8 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+
+import java.util.logging.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
@@ -41,6 +44,8 @@ public class OpenAIContainer extends MainContainer {
     
     private ToolHandler th = new ToolHandler();
     public static Map<String, Object> mapMap;
+    
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
 
     private boolean isQuoted(String s) {
         return (s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"));
@@ -368,14 +373,7 @@ public class OpenAIContainer extends MainContainer {
             MetadataKey<String> ownerCreatedKey = new MetadataKey<>("owned_by", Metadata.STRING);
             String ownerCreated = (String) responseMap.get("owned_by");
             put(ownerCreatedKey, ownerCreated);
-        }
-
-        else if (requestId != null && requestId.contains("resp_")) {
-            MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
-            String requestObject = responseMap != null ? (String) responseMap.get("object") : null;
-            if (requestObject != null) {
-                put(objectKey, requestObject);
-            }
+        } else if (requestId.startsWith("resp_")) {
             MetadataKey<String> responsesObjectKey = new MetadataKey<>("object", Metadata.STRING);
             String responsesObject = responseMap != null ? (String) responseMap.get("object") : null;
             if (responsesObject != null) {
@@ -508,29 +506,6 @@ public class OpenAIContainer extends MainContainer {
             if (outputObj instanceof List<?> outputList) {
                 for (Object outputItemObj : outputList) {
                     if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
-                    Object typeObj = outputItem.get("type");
-                    if ("tool_call".equals(typeObj)) {
-                        Object callIdObj = outputItem.get("call_id");
-                        if (callIdObj instanceof String callId) {
-                            allCallIds.add(callId);
-                        }
-                        Object actionObj = outputItem.get("action");
-                        if (actionObj instanceof Map<?, ?> action) {
-                            Object cmdObj = action.get("command");
-                            List<String> commandsForThisCall = new ArrayList<>();
-                            if (cmdObj instanceof List<?> cmdList) {
-                                commandsForThisCall = cmdList.stream()
-                                    .filter(Objects::nonNull)
-                                    .map(Object::toString)
-                                    .toList();
-                            } else if (cmdObj instanceof String singleCommand) {
-                                commandsForThisCall = List.of(singleCommand);
-                            } else if (cmdObj != null) {
-                                commandsForThisCall = List.of(cmdObj.toString());
-                            }
-                            allCommands.add(commandsForThisCall);
-                        }
-                    }
                     Object contentObj = outputItem.get("content");
                     if (contentObj instanceof List<?> contentList) {
                         for (Object contentItemObj : contentList) {
@@ -545,10 +520,6 @@ public class OpenAIContainer extends MainContainer {
                 }
             }
 
-            Map<String, Object> myMap = new HashMap<>();
-            myMap.put(th.LOCALSHELLTOOL_CALL_IDS, allCallIds);
-            myMap.put(th.LOCALSHELLTOOL_COMMANDS_LIST, allCommands);
-            mapMap = myMap;
             MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
             Object toolsObj = responseMap.get("tools");
             if (toolsObj instanceof List<?> toolsListRaw) {
@@ -849,8 +820,10 @@ public class OpenAIContainer extends MainContainer {
         }
     }
     
+    
     public Map<String, Object> getResponseMap() {
         return mapMap;
     }
 
 }
+

@@ -84,7 +84,7 @@ public class REPLManager {
             public void run() {
                 retries++;
                 completeRStep(scanner, firstRun)
-                    .orTimeout(15, TimeUnit.SECONDS)
+                    .orTimeout(30, TimeUnit.SECONDS)
                     .whenComplete((result, error) -> {
                         if (error != null) {
                             if (retries <= maxRetries) {
@@ -118,8 +118,8 @@ public class REPLManager {
                 .thenApply(response -> {
                     LOGGER.info("Received AI response on first run");
                     lastAIResponseContainer = response;
-                    OpenAIUtils openaiUtils = new OpenAIUtils(response);
-                    lastAIResponseText = openaiUtils.completeGetLocalShellToolSummary().join();
+                    ToolUtils toolUtils = new ToolUtils(response);
+                    lastAIResponseText = toolUtils.completeGetCustomReasoning().join();
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
                     return response;
                 });
@@ -129,10 +129,9 @@ public class REPLManager {
                     LOGGER.fine("Continuing REPL with previous response ID: " + previousResponseId);
                     return aim.completeRequest(prompt, previousResponseId, model, "response", "openai", false, null)
                         .thenApply(response -> {
-                            LOGGER.fine("test");
                             lastAIResponseContainer = response;
-                            OpenAIUtils openaiUtils = new OpenAIUtils(response);
-                            lastAIResponseText = openaiUtils.completeGetLocalShellToolSummary().join();
+                            ToolUtils toolUtils = new ToolUtils(response);
+                            lastAIResponseText = toolUtils.completeGetCustomReasoning().join();
                             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
                             return response;
                         });
@@ -155,7 +154,7 @@ public class REPLManager {
             String userInput = (String) responseOrInput;
             LOGGER.info("Received user input during waiting: " + userInput);
             // now you can decide what to do — e.g. call completeRStepWithTimeout or completeStartREPL again
-            return completeRStepWithTimeout(scanner, true).thenCompose(newResponse ->
+            return completeRStepWithTimeout(scanner, false).thenCompose(newResponse ->
                 handleEStepResponse(newResponse, scanner)
             );
         } else {
@@ -166,13 +165,10 @@ public class REPLManager {
     private CompletableFuture<String> completeEStep(MetadataContainer response, Scanner scanner) {
         LOGGER.info("Starting E-step");
         List<List<String>> allCommands = null;
-        if (response instanceof OpenAIContainer) {
-            OpenAIContainer openaiContainer = (OpenAIContainer) response;
-            allCommands = (List<List<String>>) openaiContainer.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-        }
-        boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
+        ToolContainer toolContainer = (ToolContainer) response;
+        boolean finished = toolContainer.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
+        allCommands = (List<List<String>>) toolContainer.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
         LOGGER.fine("Command list size: " + (allCommands != null ? allCommands.size() : 0) + ", finished=" + finished);
-
         if ((allCommands == null || allCommands.isEmpty()) && !finished) {
             LOGGER.info("AI is waiting for further input");
             System.out.println(lastAIResponseText + ". I am awaiting your response.");
@@ -182,12 +178,12 @@ public class REPLManager {
             String input = scanner.nextLine();
             return CompletableFuture.completedFuture(input);
         }
-
+        
         return completeESubStep(allCommands, 0, response, scanner).thenCompose(transcript -> {
             if (finished) {
                 LOGGER.info("REPL task marked complete");
-                OpenAIUtils oaiUtils = new OpenAIUtils(response);
-                System.out.println(oaiUtils.completeGetLocalShellToolSummary().join());
+                ToolUtils toolUtils = new ToolUtils(response);
+                System.out.println(toolUtils.completeGetCustomReasoning().join());
                 System.out.flush();
                 System.out.println("✅ Task complete.");
                 System.out.flush();
@@ -308,7 +304,7 @@ public class REPLManager {
 
     private CompletableFuture<Void> completePStep(MetadataContainer response, Scanner scanner) {
         LOGGER.info("Starting P-step (Print)");
-        String summary = new OpenAIUtils(response).completeGetLocalShellToolSummary().join();
+        String summary = new ToolUtils(response).completeGetCustomReasoning().join();
         if (summary != null && !summary.isBlank()) {
             System.out.println("\n[Model Summary]:\n" + summary + "\n");
             System.out.flush();
