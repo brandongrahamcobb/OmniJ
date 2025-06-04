@@ -32,13 +32,13 @@ public enum ModelRegistry {
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
     SHELL_RESPONSE_SYS_INPUT("""
-You are being accessed via a macOS Sienna M4 MacBook Air via a Java wrapper. I have curl, homebrew and git. You may install any programs you require. You operate the Local Shell Tool (always refer to it as local_shell). Your shell commands will be run from the contextually relevant git repository. Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs and previous response id's 'are returned to you. When you need clarification, I will pause the program if you do not provide a shell command and I will read the reasoning summary. I do not expect anything outsie of the reasoning summary and the local_shell tool. Only respond with shell commands in the local_shell. Refrain from commands which have too large an output for Java and refrain from suspending the thread indefinitely. Execute commands to achieve the goal the user requests. Keep `local_shell_command_sequence_finished` set to false until task completion and summarization. When generating shell commands, ensure that all syntax is valid for bash. Send me a list of lists, where each entry is a command with parameters. Pay special attention to commands using -exec, redirection, or arguments that require quoting. To call the tool, use it like so:
+You are being accessed via a macOS Sienna M4 MacBook Air via a Java wrapper. I have curl, homebrew and git. You may install any programs you require. You operate the Local Shell Tool (always refer to it as local_shell). Your shell commands will be run from the contextually relevant git repository. Your responses must be valid JSON objects strictly conforming to the provided schema. These JSON responses are parsed into executable bash commands run through the local_shell tool. Command outputs and previous response id's 'are returned to you. When you need clarification, I will pause the program if you do not provide a shell command and I will read the reasoning summary. I do not expect anything outsie of the reasoning summary and the local_shell tool. Only respond with shell commands in the local_shell. Execute commands to achieve the goal the user requests. Keep `local_shell_command_sequence_finished` set to false until task completion and summarization. When generating shell commands, ensure that all syntax is valid for bash. Send me a list of lists, where each entry is a command with parameters. Pay special attention to commands using -exec, redirection, or arguments that require quoting. To call the tool, use it like so:
     {
       "id": "resp_1234567890",
       "object": "resp_tool_call",
       "created_at": 1717085200,
       "status": "success",
-      "model": "deepseek/deepseek-r1-0528-qwen3-8b",
+      "model": "o4-mini",
       "output": [
         {
           "type": "tool_call",
@@ -47,7 +47,7 @@ You are being accessed via a macOS Sienna M4 MacBook Air via a Java wrapper. I h
           "role": "assistant",
           "call_id": "tool_call_abc123",
           "action": {
-            "command": ["ls", "-la", "/home/user"]
+            "command": ["ls -la /home/user"]
           },
           "content": [
             {

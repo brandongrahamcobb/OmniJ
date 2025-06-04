@@ -158,7 +158,15 @@ public class REPLManager {
         return completeESubStep(allCommands, 0, response, scanner).thenCompose(transcript -> {
             if (finished) {
                 System.out.println("✅ Task complete.");
-                return CompletableFuture.completedFuture(transcript);
+                System.out.println(lastAIResponseText);
+                return CompletableFuture.supplyAsync(() -> {
+                    System.out.print("↪ Your input: ");
+                    return scanner.nextLine();
+                }, inputExecutor).thenCompose(input -> {
+                    this.originalDirective = input;
+                    return completeRStep(scanner, true)
+                            .thenCompose(newResponse -> completeEStep(newResponse, scanner));
+                });
             }
             return completeLStep(scanner);
         });

@@ -111,7 +111,18 @@ public class ToolHandler {
                     List<String> processCommand = new ArrayList<>();
                     processCommand.add("gtimeout");
                     processCommand.add("20");
-                    String joinedCommand = String.join(" ", commandParts);
+                    List<String> escapedCommand = commandParts.stream()
+                        .map(s -> s.replace("*", "'*'")
+                                   .replace(";", "\\;")
+                                   .replace("&&", "\\&\\&")
+                                   .replace("(", "\\(")
+                                   .replace(")", "\\)")
+                                   .replace("{", "\\{")
+                                   .replace("}", "\\}")
+                                   .replace("|", "\\|"))
+                        .toList();
+                    
+                    String joinedCommand = String.join(" ", escapedCommand);
                     processCommand.add("sh");
                     processCommand.add("-c");
                     processCommand.add(joinedCommand);

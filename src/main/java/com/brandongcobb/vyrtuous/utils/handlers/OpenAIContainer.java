@@ -611,27 +611,22 @@ public class OpenAIContainer extends MainContainer {
                                         if (cmdObj instanceof List<?> cmdList) {
                                             List<String> commands = Arrays.stream(cmdObj.toString().split("&&"))
                                                 .map(String::trim)
-                                                .filter(s -> !s.isEmpty())
-                                                .map(cmdStr -> List.of("sh", "-c", cmdStr)) // for execution later as List<List<String>>
-                                                .flatMap(List::stream)
+                                                .filter(s -> !s.isEmpty())  // Do NOT flatten
                                                 .toList();
+                                            
                                             put(th.LOCALSHELLTOOL_COMMANDS, commands);
 
                                         } else if (cmdObj instanceof String singleCommand) {
                                             List<String> commands = Arrays.stream(cmdObj.toString().split("&&"))
                                                 .map(String::trim)
-                                                .filter(s -> !s.isEmpty())
-                                                .map(cmdStr -> List.of("sh", "-c", cmdStr)) // for execution later as List<List<String>>
-                                                .flatMap(List::stream)
+                                                .filter(s -> !s.isEmpty())  // Do NOT flatten
                                                 .toList();
                                             put(th.LOCALSHELLTOOL_COMMANDS, commands);
 
                                         } else if (cmdObj != null) {
                                             List<String> commands = Arrays.stream(cmdObj.toString().split("&&"))
                                                 .map(String::trim)
-                                                .filter(s -> !s.isEmpty())
-                                                .map(cmdStr -> List.of("sh", "-c", cmdStr)) // for execution later as List<List<String>>
-                                                .flatMap(List::stream)
+                                                .filter(s -> !s.isEmpty())  // Do NOT flatten
                                                 .toList();
                                             put(th.LOCALSHELLTOOL_COMMANDS, commands);
                                         }
