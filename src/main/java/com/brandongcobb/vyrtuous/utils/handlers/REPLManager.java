@@ -30,6 +30,15 @@ import com.brandongcobb.vyrtuous.utils.inc.*;
 
 public class REPLManager {
 
+    public static final String RESET = "\u001B[0m";
+    public static final String BLUE = "\u001B[34m";
+    public static final String BRIGHT_BLUE = "\u001B[94m";
+    public static final String CYAN = "\u001B[36m";
+    public static final String BRIGHT_CYAN = "\u001B[96m";
+    public static final String NAVY = "\u001B[38;5;18m";
+    public static final String SKY_BLUE = "\u001B[38;5;117m";
+    public static final String DODGER_BLUE = "\u001B[38;5;33m";
+    public static final String TEAL = "\u001B[38;5;30m";
     private AIManager aim = new AIManager();
     private ApprovalMode approvalMode;
     private final ContextManager contextManager = new ContextManager(3200);
@@ -43,12 +52,12 @@ public class REPLManager {
     private ToolHandler th = new ToolHandler();
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler handler : LOGGER.getParent().getHandlers()) {
-            handler.setLevel(Level.FINE); // Ensure handlers output FINE logs
+            handler.setLevel(Level.OFF); // Ensure handlers output FINE logs
         }
 
-        LOGGER.info("Initializing REPLManager with approval mode: " + mode);
+        LOGGER.fine("Initializing REPLManager with approval mode: " + mode);
         setApprovalMode(mode);
     }
 
@@ -68,7 +77,7 @@ public class REPLManager {
 
 
     private CompletableFuture<String> completeStartREPL(Scanner scanner, String userInput) {
-        LOGGER.info("Starting REPL with input: " + userInput);
+        LOGGER.fine("Starting REPL with input: " + userInput);
         this.originalDirective = userInput;
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         return completeRStepWithTimeout(scanner, true).thenCompose(response -> completeEStep(response, scanner));
@@ -84,18 +93,18 @@ public class REPLManager {
             public void run() {
                 retries++;
                 completeRStep(scanner, firstRun)
-                    .orTimeout(30, TimeUnit.SECONDS)
+                    .orTimeout(60, TimeUnit.SECONDS)
                     .whenComplete((result, error) -> {
                         if (error != null) {
                             if (retries <= maxRetries) {
-                                LOGGER.warning("R-step timeout or failure (attempt " + retries + "). Retrying...");
+                                LOGGER.fine("R-step timeout or failure (attempt " + retries + "). Retrying...");
                                 replExecutor.submit(this); // retry again
                             } else {
                                 LOGGER.severe("R-step failed after " + retries + " attempts.");
                                 promise.completeExceptionally(error);
                             }
                         } else {
-                            LOGGER.info("R-step completed successfully.");
+                            LOGGER.fine("R-step completed successfully.");
                             promise.complete(result);
                         }
                     });
@@ -108,7 +117,7 @@ public class REPLManager {
 
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
-        LOGGER.info("Starting R-step, firstRun=" + firstRun);
+        LOGGER.fine("Starting R-step, firstRun=" + firstRun);
         String model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
         String prompt = firstRun ? this.originalDirective : contextManager.buildPromptContext();
         LOGGER.fine("Prompt to AI: " + prompt);
@@ -116,7 +125,7 @@ public class REPLManager {
         if (firstRun) {
             return aim.completeRequest(prompt, null, model, "response", "openai", false, null)
                 .thenApply(response -> {
-                    LOGGER.info("Received AI response on first run");
+                    LOGGER.fine("Received AI response on first run");
                     lastAIResponseContainer = response;
                     ToolUtils toolUtils = new ToolUtils(response);
                     lastAIResponseText = toolUtils.completeGetCustomReasoning().join();
@@ -124,7 +133,7 @@ public class REPLManager {
                     return response;
                 });
         } else {
-            return new OpenAIUtils(lastAIResponseContainer).completeGetResponseId()
+            return new ToolUtils(lastAIResponseContainer).completeGetResponseId()
                 .thenCompose(previousResponseId -> {
                     LOGGER.fine("Continuing REPL with previous response ID: " + previousResponseId);
                     return aim.completeRequest(prompt, previousResponseId, model, "response", "openai", false, null)
@@ -152,7 +161,7 @@ public class REPLManager {
         } else if (responseOrInput instanceof String) {
             // input from user is returned; wait for explicit next step
             String userInput = (String) responseOrInput;
-            LOGGER.info("Received user input during waiting: " + userInput);
+            LOGGER.fine("Received user input during waiting: " + userInput);
             // now you can decide what to do — e.g. call completeRStepWithTimeout or completeStartREPL again
             return completeRStepWithTimeout(scanner, false).thenCompose(newResponse ->
                 handleEStepResponse(newResponse, scanner)
@@ -163,25 +172,36 @@ public class REPLManager {
     }
     
     private CompletableFuture<String> completeEStep(MetadataContainer response, Scanner scanner) {
-        LOGGER.info("Starting E-step");
-        List<List<String>> allCommands = null;
+        LOGGER.fine("Starting E-step");
         ToolContainer toolContainer = (ToolContainer) response;
-        boolean finished = toolContainer.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
-        allCommands = (List<List<String>>) toolContainer.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-        LOGGER.fine("Command list size: " + (allCommands != null ? allCommands.size() : 0) + ", finished=" + finished);
-        if ((allCommands == null || allCommands.isEmpty()) && !finished) {
-            LOGGER.info("AI is waiting for further input");
-            System.out.println(lastAIResponseText + ". I am awaiting your response.");
+        ToolUtils toolOtherUtils = new ToolUtils(toolContainer);
+        boolean needsClarification = toolOtherUtils.completeGetClarification().join();
+        if (needsClarification) {
+            LOGGER.fine("Model requested clarification");
+            // Prompt user and return their answer as the next “step”
+            System.out.println("🤔 I need more details" + toolContainer.getResponseMap().get("summary"));
             System.out.flush();
             System.out.print("> ");
             System.out.flush();
             String input = scanner.nextLine();
+            // Tell handleEStepResponse “hey, here’s the user reply”
             return CompletableFuture.completedFuture(input);
         }
+
+        // 2) Normal command-processing path follows
+        boolean finished = toolContainer.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
+        @SuppressWarnings("unchecked")
+        List<List<String>> allCommands =
+            (List<List<String>>) toolContainer.getResponseMap()
+                                              .get(th.LOCALSHELLTOOL_COMMANDS_LIST);
+
+        LOGGER.fine("Command list size: "
+                + (allCommands != null ? allCommands.size() : 0)
+            + ", finished=" + finished);
         
         return completeESubStep(allCommands, 0, response, scanner).thenCompose(transcript -> {
             if (finished) {
-                LOGGER.info("REPL task marked complete");
+                LOGGER.fine("REPL task marked complete");
                 ToolUtils toolUtils = new ToolUtils(response);
                 System.out.println(toolUtils.completeGetCustomReasoning().join());
                 System.out.flush();
@@ -215,7 +235,7 @@ public class REPLManager {
 
         List<String> commandParts = allCommands.get(index);
         String commandStr = String.join(" ", commandParts);
-        LOGGER.info("Processing command: " + commandStr);
+        LOGGER.fine("Processing command: " + commandStr);
 
         if (Helpers.requiresApproval(commandStr, approvalMode)) {
             LOGGER.fine("Approval required for command: " + commandStr);
@@ -240,17 +260,21 @@ public class REPLManager {
             }
 
             if (!approved) {
-                LOGGER.warning("Command not approved by user: " + commandStr);
+                LOGGER.fine("Command not approved by user: " + commandStr);
                 System.out.println("⛔ Skipping command: " + commandStr);
                 System.out.flush();
                 return completeESubStep(allCommands, index + 1, response, scanner);
             }
 
             return completeESubSubStep(commandParts).thenCompose(output -> {
-                LOGGER.fine("completeESubStep");
                 System.out.println("> " + commandStr);
                 System.out.flush();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
+                LOGGER.fine("Added shell output: “" + output + "”");
+                int i = 0;
+                for (ContextEntry e : contextManager.getEntries()) {
+                    LOGGER.fine("  → entry #" + i++ + ": " + e.getType() + " | “" + CYAN + e.getContent() + RESET + "”");
+                }
                 lastShellOutput = output;
                 return completeESubStep(allCommands, index + 1, response, scanner);
             });
@@ -259,6 +283,11 @@ public class REPLManager {
                 System.out.println("> " + commandStr);
                 System.out.flush();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.SHELL_OUTPUT, output));
+                LOGGER.fine("Added shell output: “" + output + "”");
+                int i = 0;
+                for (ContextEntry e : contextManager.getEntries()) {
+                    LOGGER.fine("  → entry #" + i++ + ": " + e.getType() + " | “" + CYAN + e.getContent() + RESET + "”");
+                }
                 lastShellOutput = output;
                 return completeESubStep(allCommands, index + 1, response, scanner);
             });
@@ -267,10 +296,9 @@ public class REPLManager {
 
     private CompletableFuture<String> completeESubSubStep(List<String> commandParts) {
         final int maxRetries = 2;
-        final long timeoutMillis = 30000;
+        final long timeoutMillis = 60000;
         final String commandStr = String.join(" ", commandParts);
 
-        LOGGER.info("completeESubSubStep");
         Supplier<CompletableFuture<String>> tryCommand = () -> th.executeCommandsAsList(Collections.singletonList(commandParts));
         CompletableFuture<String> retryingCommand = new CompletableFuture<>();
 
@@ -284,14 +312,14 @@ public class REPLManager {
                     .whenComplete((output, ex) -> {
                         if (ex != null) {
                             if (attempts <= maxRetries) {
-                                LOGGER.warning("Retry " + attempts + " for command: " + commandStr);
+                                LOGGER.fine("Retry " + attempts + " for command: " + commandStr);
                                 replExecutor.submit(this);
                             } else {
                                 LOGGER.severe("Command failed after retries: " + commandStr);
                                 retryingCommand.complete("❌ Command failed after " + maxRetries + " retries: " + commandStr);
                             }
                         } else {
-                            LOGGER.info("Command succeeded: " + commandStr);
+                            LOGGER.fine("Command succeeded: " + commandStr);
                             retryingCommand.complete(output);
                         }
                     });
@@ -303,33 +331,30 @@ public class REPLManager {
     }
 
     private CompletableFuture<Void> completePStep(MetadataContainer response, Scanner scanner) {
-        LOGGER.info("Starting P-step (Print)");
-        String summary = new ToolUtils(response).completeGetCustomReasoning().join();
-        if (summary != null && !summary.isBlank()) {
-            System.out.println("\n[Model Summary]:\n" + summary + "\n");
-            System.out.flush();
-        }
+        LOGGER.fine("Starting P-step (Print)");
+        contextManager.printEntries(true, true, true, true, true, true);
+        System.out.flush();
         long tokens = contextManager.getContextTokenCount();
-        LOGGER.fine("Current token count: " + tokens);
+        System.out.println("Current token count: " + CYAN + tokens + RESET);
         return completeLStep(scanner).thenAccept(x -> {});
     }
 
 
     private CompletableFuture<String> completeLStep(Scanner scanner) {
-        LOGGER.info("Looping back to R-step");
+        LOGGER.fine("Looping back to R-step");
         return completeRStepWithTimeout(scanner, false)
             .thenCompose(response -> completePStep(response, scanner)
             .thenCompose(ignored -> completeEStep(response, scanner)));
     }
     
     public void startResponseInputThread() {
-        LOGGER.info("Starting input thread...");
+        LOGGER.fine("Starting input thread...");
         inputExecutor.submit(() -> {
             try (Scanner scanner = new Scanner(System.in)) {
                 while (true) {
                     System.out.print("> ");
                     String input = scanner.nextLine();
-                    LOGGER.info("User input received: " + input);
+                    LOGGER.fine("User input received: " + input);
                     startREPL(scanner, input)
                         .exceptionally(ex -> {
                             LOGGER.severe("Error during REPL execution: " + ex);

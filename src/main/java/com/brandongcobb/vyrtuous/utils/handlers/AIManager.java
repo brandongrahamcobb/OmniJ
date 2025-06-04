@@ -420,7 +420,9 @@ public class AIManager {
                             .replaceFirst("^```json\\s*", "")
                             .replaceFirst("\\s*```$", "")
                             .trim();
-                        System.out.println(jsonContent);
+                        if (!jsonContent.contains("local_shell_command_sequence_finished")) {
+                            throw new Exception("CRITICAL ERROR");
+                        }
                         System.out.flush();
                         Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                         MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
@@ -432,6 +434,7 @@ public class AIManager {
                         inner.put("summary", text + reasoning + summary);
                         ToolContainer toolResponse = new ToolContainer(inner);
                         toolResponse.put(previousResponseIdKey, previousResponseId);
+                        System.out.println(jsonContent);
                         return (MetadataContainer) toolResponse;
                     } else {
                         throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);

@@ -126,10 +126,11 @@ public class ToolHandler {
                     ProcessBuilder pb = new ProcessBuilder(processCommand);
                     pb.redirectErrorStream(true);
                     Process proc = pb.start();
-                    String output = readStream(proc.getInputStream());
                     int exitCode = proc.waitFor();
+                    String output = readStream(proc.getInputStream());
                     result.append(joinedCommand)
-                          .append("\nExit code: ").append(exitCode);
+                          .append("\nExit code: ").append(exitCode)
+                          .append("\nOutput:\n").append(output).append("\n");
                 } catch (Exception e) {
                     result.append("Error running command ").append(commandParts)
                           .append(": ").append(e.getMessage()).append("\n");

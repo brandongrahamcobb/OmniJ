@@ -27,6 +27,15 @@ import java.util.ArrayList;
 
 public class ContextManager {
 
+    public static final String RESET = "\u001B[0m";
+    public static final String BLUE = "\u001B[34m";
+    public static final String BRIGHT_BLUE = "\u001B[94m";
+    public static final String CYAN = "\u001B[36m";
+    public static final String BRIGHT_CYAN = "\u001B[96m";
+    public static final String NAVY = "\u001B[38;5;18m";
+    public static final String SKY_BLUE = "\u001B[38;5;117m";
+    public static final String DODGER_BLUE = "\u001B[38;5;33m";
+    public static final String TEAL = "\u001B[38;5;30m";
     private final List<ContextEntry> entries = new ArrayList<>();
     private final int maxEntries;
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry(); // Commented out as token counting is disabled
@@ -35,6 +44,10 @@ public class ContextManager {
         this.maxEntries = maxEntries;
     }
 
+    public List<ContextEntry> getEntries() {
+        return entries;
+    }
+    
     /**
      * Adds a new context entry.
      * The core logic for adding and managing entries is commented out as per user request
@@ -102,6 +115,42 @@ public class ContextManager {
             return 0L;
         }
     }
+    
+    public void printEntries(boolean includeUserMessages,
+                             boolean includeAIResponses,
+                             boolean includeCommands,
+                             boolean includeCommandOutputs,
+                             boolean includeSystemNotes,
+                             boolean includeShellOutput) {
+
+        for (ContextEntry entry : entries) {
+            ContextEntry.Type type = entry.getType();
+
+            boolean shouldPrint =
+                (type == ContextEntry.Type.USER_MESSAGE     && includeUserMessages)   ||
+                (type == ContextEntry.Type.AI_RESPONSE      && includeAIResponses)    ||
+                (type == ContextEntry.Type.COMMAND          && includeCommands)       ||
+                (type == ContextEntry.Type.COMMAND_OUTPUT   && includeCommandOutputs) ||
+                (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
+                (type == ContextEntry.Type.SHELL_OUTPUT     && includeShellOutput);
+
+            if (shouldPrint) {
+                String color;
+                switch (type) {
+                    case USER_MESSAGE:   color = BRIGHT_BLUE; break;
+                    case AI_RESPONSE:    color = TEAL;        break;
+                    case COMMAND:        color = CYAN;        break;
+                    case COMMAND_OUTPUT: color = SKY_BLUE;    break;
+                    case SYSTEM_NOTE:    color = NAVY;        break;
+                    case SHELL_OUTPUT:   color = DODGER_BLUE; break;
+                    default:             color = RESET;       break;
+                }
+                System.out.println(color + entry.formatForPrompt() + RESET);
+            }
+        }
+    }
+
+
 
     /**
      * Summarizes old context entries.
@@ -109,7 +158,7 @@ public class ContextManager {
      * @param entriesToSummarize The list of entries to summarize.
      * @return An empty string, as summarization is disabled.
      */
-    private String summarizeEntries(List<ContextEntry> entriesToSummarize) {
+    public String summarizeEntries(List<ContextEntry> entriesToSummarize) {
         StringBuilder sb = new StringBuilder();
         for (ContextEntry e : entriesToSummarize) {
             String c = e.formatForPrompt();

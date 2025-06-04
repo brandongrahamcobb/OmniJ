@@ -56,6 +56,13 @@ public class ToolUtils {
         return CompletableFuture.completedFuture(this.container.get(th.LOCALSHELLTOOL_COMMANDS));
     }
     
+    public CompletableFuture<Boolean> completeGetClarification() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<Boolean> clarificationMetadataKey = new MetadataKey<>("needsClarification", Metadata.BOOLEAN);
+            return this.container.get(clarificationMetadataKey);
+        });
+    }
+    
     public CompletableFuture<String> completeGetResponseId() {
         return CompletableFuture.supplyAsync(() -> {
             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
