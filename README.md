@@ -1,5 +1,3 @@
----
-
 # Vyrtuous
 
 **Vyrtuous** is a modular, Java-based platform for integrating and managing local and remote AI tools—complete with Discord bot integration (via JDA), REPL support, and extensive extensibility through cogs, tools, and models. Whether you're experimenting with LLMs, building a custom toolchain, or deploying in a multi-user environment, Vyrtuous provides a solid base.
