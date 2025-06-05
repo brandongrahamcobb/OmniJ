@@ -210,7 +210,6 @@ public class REPLManager {
         List<List<String>> newCmds = (List<List<String>>) ((ToolContainer) response).getResponseMap()
             .get(th.LOCALSHELLTOOL_COMMANDS_LIST);
 
-        System.out.println(newCmds.toString());
         LOGGER.fine("AI returned commands: " + newCmds);
         if (newCmds != null) {
             for (List<String> parts : newCmds) {

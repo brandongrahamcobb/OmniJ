@@ -122,7 +122,9 @@ public class ToolHandler {
                             .replace(";", "\\;")
                             .replace("{", "\\{")
                             .replace("}", "\\}")
-                            .replace("|", "\\|"))
+                            .replace("|", "\\|")
+                            .replace("(", "\\(")
+                            .replace(")", "\\)"))
                         .collect(Collectors.joining(" "));
 
                     processCommand.add("sh");

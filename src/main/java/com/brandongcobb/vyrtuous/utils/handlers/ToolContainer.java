@@ -214,22 +214,26 @@ public class ToolContainer extends MainContainer {
 
                         Object commandsObj = operation.get("commands");
 
-                        if (commandsObj instanceof List<?> outerList && outerList.size() > 0) {
+                        if (commandsObj instanceof List<?> outerList && !outerList.isEmpty()) {
                             Object first = outerList.get(0);
 
                             if (first instanceof String) {
-                                // ✅ Treat as one full command
+                                // ✅ Treat as one full command: ["cat", "file.java"]
                                 List<String> fullCommand = outerList.stream()
                                     .map(Object::toString)
                                     .toList();
                                 allCommands.add(fullCommand);
-                            } else if (first instanceof List) {
-                                // ✅ Handle legacy nested list style
+                            } else if (first instanceof List<?>) {
+                                // ✅ Treat as list of commands: [["cat", "file1.java"], ["cat", "file2.java"]]
                                 for (Object sub : outerList) {
-                                    List<String> subCommand = ((List<?>) sub).stream()
-                                        .map(Object::toString)
-                                        .toList();
-                                    allCommands.add(subCommand);
+                                    if (sub instanceof List<?> subList) {
+                                        List<String> subCommand = subList.stream()
+                                            .map(Object::toString)
+                                            .toList();
+                                        allCommands.add(subCommand);
+                                    } else {
+                                        System.err.println("⚠️ Skipping malformed sub-command: " + sub);
+                                    }
                                 }
                             } else {
                                 System.err.println("⚠️ Unrecognized command format.");
