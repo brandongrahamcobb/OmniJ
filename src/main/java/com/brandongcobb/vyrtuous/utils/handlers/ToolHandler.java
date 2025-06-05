@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 
+import java.util.stream.Collectors;
+
+
 public class ToolHandler {
 
     public static final MetadataKey<Integer> SHELL_EXIT_CODE = new MetadataKey<>("shell.exit_code", Metadata.INTEGER);
@@ -108,38 +111,46 @@ public class ToolHandler {
             StringBuilder result = new StringBuilder();
             for (List<String> commandParts : allCommands) {
                 try {
+                    // build your “timeout sh -c …” wrapper
                     List<String> processCommand = new ArrayList<>();
                     processCommand.add("gtimeout");
                     processCommand.add("20");
-                    List<String> escapedCommand = commandParts.stream()
-                        .map(s -> s//.replace("*", "'*'")
-                                   .replace(";", "\\;")
-                                   .replace("{", "\\{")
-                                   .replace("}", "\\}")
-                                   .replace("|", "\\|"))
-                        .toList();
-                    String joinedCommand = String.join(" ", escapedCommand);
+
+                    // escape any shell-special chars
+                    String joinedCommand = commandParts.stream()
+                        .map(s -> s
+                            .replace(";", "\\;")
+                            .replace("{", "\\{")
+                            .replace("}", "\\}")
+                            .replace("|", "\\|"))
+                        .collect(Collectors.joining(" "));
+
                     processCommand.add("sh");
                     processCommand.add("-c");
                     processCommand.add(joinedCommand);
-//                    processCommand.addAll(commandParts);
+
                     ProcessBuilder pb = new ProcessBuilder(processCommand);
                     pb.redirectErrorStream(true);
                     Process proc = pb.start();
-                    int exitCode = proc.waitFor();
+
+                    // read the merged stdout+stderr
                     String output = readStream(proc.getInputStream());
-                    result.append(joinedCommand)
-                          .append("\nExit code: ").append(exitCode)
-                          .append("\nOutput:\n").append(output).append("\n");
+                    proc.waitFor();
+
+                    // *** only append the raw output ***
+                    result.append(output);
+                    // if you really want a newline separator between commands:
+                    if (!output.endsWith("\n")) result.append("\n");
                 } catch (Exception e) {
-                    result.append("Error running command ").append(commandParts)
-                          .append(": ").append(e.getMessage()).append("\n");
+                    // record only the error text
+                    result.append("Error: ").append(e.getMessage()).append("\n");
                 }
             }
             executor.shutdown();
-            return result.toString();
+            return result.toString().trim();
         }, executor);
     }
+
 
     
     public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {

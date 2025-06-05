@@ -434,7 +434,6 @@ public class AIManager {
                         inner.put("summary", text + reasoning + summary);
                         ToolContainer toolResponse = new ToolContainer(inner);
                         toolResponse.put(previousResponseIdKey, previousResponseId);
-                        System.out.println(jsonContent);
                         return (MetadataContainer) toolResponse;
                     } else {
                         throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);

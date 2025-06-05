@@ -38,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -46,6 +45,8 @@ import java.util.logging.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
+
+import java.util.stream.Collectors;
 
 
 public class ToolContainer extends MainContainer {
@@ -213,21 +214,24 @@ public class ToolContainer extends MainContainer {
                     Object operationObj = outputItem.get("operation");
                     if (operationObj instanceof Map<?, ?> operation && operation != null) {
                         Object commandsObj = operation.get("commands");
-                        List<String> commandsList = new ArrayList<>();
-
-                        if (commandsObj instanceof List<?> cmdList && cmdList != null) {
-                            commandsList = cmdList.stream()
-                                .filter(Objects::nonNull)
-                                .map(Object::toString)
-                                .toList();
-                        } else if (commandsObj instanceof String singleCommand && singleCommand != null) {
-                            commandsList = List.of(singleCommand);
-                        } else if (commandsObj != null) {
-                            commandsList = List.of(commandsObj.toString());
-                        }
-
-                        if (!commandsList.isEmpty()) {
-                            allCommands.add(commandsList);
+                        if (commandsObj instanceof List<?> outerList) {
+                            for (Object cmd : outerList) {
+                                if (cmd instanceof List<?> innerList) {
+                                    // Proper command with args
+                                    List<String> parsed = innerList.stream()
+                                        .map(Object::toString)
+                                        .toList();
+                                    allCommands.add(parsed);
+                                } else if (cmd instanceof String singleCommand) {
+                                    // Treat as raw command line string
+                                    allCommands.add(List.of(singleCommand));
+                                } else {
+                                    // Fallback: wrap unknown object as a single string command
+                                    allCommands.add(List.of(cmd.toString()));
+                                }
+                            }
+                        } else if (commandsObj instanceof String singleCommand) {
+                            allCommands.add(List.of(singleCommand));
                         }
                     }
                 }
