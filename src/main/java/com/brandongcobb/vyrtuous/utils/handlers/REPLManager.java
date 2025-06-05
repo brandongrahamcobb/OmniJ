@@ -240,7 +240,11 @@ public class REPLManager {
                 pendingShellCommands.clear();
                 seenCommandStrings.clear();
                 contextManager.clear();
-                return CompletableFuture.completedFuture(null);
+                System.out.print("> ");
+                String newInput = scanner.nextLine();
+
+                // 🌀 Restart REPL from scratch with new input
+                return startREPL(scanner, newInput);
             } else {
                 return completeLStep(scanner);
             }
@@ -267,8 +271,6 @@ public class REPLManager {
 
         // run it
         return completeESubSubStep(parts).thenCompose(out -> {
-            System.out.println("> " + cmd);
-            System.out.println(out);
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
             return completeESubStep(scanner);
         });

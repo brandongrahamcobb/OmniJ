@@ -99,7 +99,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     OPENAI_MODERATION_RESPONSE_TOP_P(1.0f),
     OPENAI_MODERATION_RESPONSE_WARNING("Please adhere to the community guidelines. Your message was flagged for moderation."),
     OPENAI_RESPONSE_FORMAT(new HashMap<>()),
-    OPENAI_RESPONSE_MODEL("gpt-4.1-nano"),
+    OPENAI_RESPONSE_MODEL("o4-mini"),
     OPENAI_RESPONSE_N(1),
     OPENAI_RESPONSE_STATUS(true),
     OPENAI_RESPONSE_STORE(false),
