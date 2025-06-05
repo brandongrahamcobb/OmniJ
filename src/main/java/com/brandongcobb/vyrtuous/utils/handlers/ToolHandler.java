@@ -119,12 +119,12 @@ public class ToolHandler {
                     // escape any shell-special chars
                     String joinedCommand = commandParts.stream()
                         .map(s -> s
-                            .replace(";", "\\;")
-                            .replace("{", "\\{")
-                            .replace("}", "\\}")
-                            .replace("|", "\\|")
-                            .replace("(", "\\(")
-                            .replace(")", "\\)"))
+                            .replaceAll("(?<!\\\\);", "\\\\;")
+                            .replaceAll("(?<!\\\\)\\{", "\\\\{")
+                            .replaceAll("(?<!\\\\)\\}", "\\\\}")
+                            .replaceAll("(?<!\\\\)\\|", "\\\\|")
+                            .replaceAll("(?<!\\\\)\\(", "\\\\(")
+                            .replaceAll("(?<!\\\\)\\)", "\\\\)"))
                         .collect(Collectors.joining(" "));
 
                     processCommand.add("sh");
