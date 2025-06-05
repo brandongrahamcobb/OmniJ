@@ -204,37 +204,40 @@ public class ToolContainer extends MainContainer {
 
                 Object entryTypeObj = outputItem.get("entryType");
                 if ("local_shell".equals(entryTypeObj)) {
-                    // Extract call ID with null check
                     Object callIdObj = outputItem.get("entryId");
                     if (callIdObj instanceof String callId && callId != null) {
                         allCallIds.add(callId);
                     }
 
-                    // Extract commands inside "operation" safely
                     Object operationObj = outputItem.get("operation");
-                    if (operationObj instanceof Map<?, ?> operation && operation != null) {
+                    if (operationObj instanceof Map<?, ?> operation) {
+
                         Object commandsObj = operation.get("commands");
-                        if (commandsObj instanceof List<?> outerList) {
-                            for (Object cmd : outerList) {
-                                if (cmd instanceof List<?> innerList) {
-                                    // Proper command with args
-                                    List<String> parsed = innerList.stream()
+
+                        if (commandsObj instanceof List<?> outerList && outerList.size() > 0) {
+                            Object first = outerList.get(0);
+
+                            if (first instanceof String) {
+                                // ✅ Treat as one full command
+                                List<String> fullCommand = outerList.stream()
+                                    .map(Object::toString)
+                                    .toList();
+                                allCommands.add(fullCommand);
+                            } else if (first instanceof List) {
+                                // ✅ Handle legacy nested list style
+                                for (Object sub : outerList) {
+                                    List<String> subCommand = ((List<?>) sub).stream()
                                         .map(Object::toString)
                                         .toList();
-                                    allCommands.add(parsed);
-                                } else if (cmd instanceof String singleCommand) {
-                                    // Treat as raw command line string
-                                    allCommands.add(List.of(singleCommand));
-                                } else {
-                                    // Fallback: wrap unknown object as a single string command
-                                    allCommands.add(List.of(cmd.toString()));
+                                    allCommands.add(subCommand);
                                 }
+                            } else {
+                                System.err.println("⚠️ Unrecognized command format.");
                             }
-                        } else if (commandsObj instanceof String singleCommand) {
-                            allCommands.add(List.of(singleCommand));
                         }
                     }
                 }
+
                 Object contentObj = outputItem.get("messages");
                 if (contentObj instanceof List<?> contentList) {
                     for (Object contentItemObj : contentList) {

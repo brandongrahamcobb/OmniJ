@@ -114,7 +114,7 @@ public class REPLManager {
             public void run() {
                 retries++;
                 completeRStep(scanner, firstRun)
-                    .orTimeout(60, TimeUnit.SECONDS)
+                    .orTimeout(600, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
                         if (err != null) {
                             if (retries <= maxRetries) {
@@ -243,7 +243,6 @@ public class REPLManager {
                 System.out.print("> ");
                 String newInput = scanner.nextLine();
 
-                // 🌀 Restart REPL from scratch with new input
                 return startREPL(scanner, newInput);
             } else {
                 return completeLStep(scanner);
@@ -278,7 +277,7 @@ public class REPLManager {
 
     private CompletableFuture<String> completeESubSubStep(List<String> parts) {
         final int    maxRetry     = 2;
-        final long   timeoutMs    = 60_000;
+        final long   timeoutMs    = 600_000;
         final String cmdStr       = String.join(" ", parts);
         Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(List.of(parts));
         CompletableFuture<String> promise = new CompletableFuture<>();
