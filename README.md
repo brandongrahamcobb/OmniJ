@@ -1,135 +1,153 @@
-# Vyrtuous Project
+Here's a cleaned-up and **merged README** for your **Vyrtuous** project, with all escape slashes removed and the content integrated logically:
 
-Vyrtuous is a Java-based application designed to integrate with OpenAI and Discord. This guide will walk you through cloning the repository, building the jar file, setting up necessary API keys, and running the application in Docker containers.
+---
+
+# Vyrtuous
+
+**Vyrtuous** is a modular, Java-based platform for integrating and managing local and remote AI tools—complete with Discord bot integration (via JDA), REPL support, and extensive extensibility through cogs, tools, and models. Whether you're experimenting with LLMs, building a custom toolchain, or deploying in a multi-user environment, Vyrtuous provides a solid base.
 
 ---
 
 ## Table of Contents
-- [Prerequisites](#prerequisites)
-- [Obtaining API Keys](#obtaining-api-keys)
-  - [OpenAI API Key](#openai-api-key)
-  - [Discord API Key](#discord-api-key)
-- [Cloning the Repository](#cloning-the-repository)
-- [Building the Project](#building-the-project)
-- [Preparing the Jar File](#preparing-the-jar-file)
-- [Setting Up Docker](#setting-up-docker)
-- [Running the Application](#running-the-application)
-- [License](#license)
+
+* [Project Structure & Scope](#project-structure--scope)
+* [Extending/Manipulating the Project](#extendingmanipulating-the-project)
+* [Prerequisites](#prerequisites)
+* [Obtaining API Keys](#obtaining-api-keys)
+* [Cloning the Repository](#cloning-the-repository)
+* [Building the Project](#building-the-project)
+* [Running the Application](#running-the-application)
+* [Setting Up Docker](#setting-up-docker)
+* [Notes](#notes)
+* [License](#license)
+
+---
+
+## Project Structure & Scope
+
+* **Core Integration**:
+  `Vyrtuous.java` orchestrates the platform, integrating local/remote AI tools through a central extensible API. The `AIManager` mediates ML model requests and tools.
+
+* **Discord Bot**:
+  Managed via `DiscordBot.java`, handling the lifecycle and API integration for Discord. Supports both slash and text commands via cogs.
+
+* **Cogs / Extensions**:
+
+  * `Cog.java`: Registers and loads bot extensions.
+  * `HybridCommands.java`: Sample cog with slash + text commands.
+  * `EventListeners.java`: Hooks into event triggers from Discord or other platforms.
+
+* **Model & Context Handling**:
+
+  * `ModelInfo.java`, `ModelRegistry.java`: Define/query model metadata. Add new models by extending these.
+  * `ContextEntry.java`, `ContextManager.java`: Maintain conversation context for users and models.
+  * `StructuredOutput.java`, `SchemaMerger.java`: For handling JSON or schema-based outputs.
+
+* **Tool Management**:
+
+  * `ToolHandler.java`, `ToolUtils.java`, `ToolContainer.java`: Support for managing pluggable tools.
+
+* **LLM Integration**:
+
+  * `LlamaContainer.java`, `OllamaContainer.java`, `OpenAIContainer.java`: Integrate AI endpoints.
+  * Corresponding utility classes (e.g., `OpenAIUtils.java`) streamline usage.
+
+* **Moderation & Messaging**:
+
+  * `ModerationManager.java`: Filters for explicit content.
+  * `MessageManager.java`: Unified output handler, e.g., for Discord.
+
+* **REPL & Utilities**:
+
+  * `REPLManager.java`: CLI-based interface for automation/testing.
+  * Misc helpers: `Helpers.java`, `Maps.java`, `EnvironmentPaths.java`.
+
+---
+
+## Extending/Manipulating the Project
+
+* **Add new models**:
+  Implement new `ModelInfo` records and register them in `ModelRegistry`.
+
+* **Add commands**:
+  Create cogs under `cogs/` and register them via `Cog.java`.
+
+* **Integrate new endpoints**:
+  Extend `*Container.java` classes as templates for new APIs.
+
+* **Add tools**:
+  Use `ToolHandler` and `ToolUtils` as base structures.
 
 ---
 
 ## Prerequisites
 
-Ensure you have the following installed:
-- [Java JDK 11 or higher](https://jdk.java.net/)
-- [Maven](https://maven.apache.org/)
-- [Docker](https://www.docker.com/get-started)
+Ensure the following are installed:
+
+* [Java JDK 11+](https://jdk.java.net/)
+* [Maven](https://maven.apache.org/)
+* [Docker](https://www.docker.com/get-started)
 
 ---
 
 ## Obtaining API Keys
 
-### OpenAI API Key
+### OpenAI
 
-1. Visit the [OpenAI API Login Page](https://platform.openai.com/api-keys)
-2. Log in or create an account.
-3. Generate a new API key.
-4. Copy the API key.
+1. Go to [OpenAI API Keys](https://platform.openai.com/api-keys)
+2. Sign in and generate a key.
+3. Save it for later use.
 
-![OpenAI API Key Page](./pictures/openai_api_key.png)
+### Discord
 
----
-
-### Discord API Key
-
-1. Visit the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create or select an existing application.
-3. Navigate to the "Bot" section.
-4. Click "Add Bot" to create a bot user.
-5. Copy the Token (your API key).
-
-![Discord API Key Page](./pictures/discord_api_key.png)
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create or select an app.
+3. Under "Bot", click “Add Bot”.
+4. Copy the bot token.
 
 ---
 
 ## Cloning the Repository
+
 ```bash
 git clone https://github.com/yourusername/vyrtuous.git
 cd vyrtuous
 ```
+
 ---
 
 ## Building the Project
+
 ```bash
 mvn clean package
 ```
-This creates the `Vyrtuous-<version>.jar` inside the `target` directory.
 
-## Preparing the Jar File
+This will generate `Vyrtuous-<version>.jar` inside the `target/` directory.
 
-Copy the built jar to the root directory and rename it:
+To move and rename it:
+
 ```bash
 cp target/Vyrtuous-*.jar Vyrtuous.jar
-```
----
-
-## Setting Up Docker
-
-### Starting Docker Service
-
-Depending on your environment, start the Docker service:
-
-- **Linux (Systemd):**
-```bash
-sudo systemctl start docker.service
-```
-
-- **MacOS / Windows:**
-
-  Start Docker Desktop from the Applications or Start menu.
-
-  *No command line needed if Docker Desktop is automatically started.*
-
-- **If Docker is not installed:**
-
-  Follow instructions from [Docker Install Guide](https://docs.docker.com/get-docker/).
-
----
-
-### Building the Docker Image
-```bash
-sudo docker build -t vyrtuous .
 ```
 
 ---
 
 ## Running the Application
 
-Run the container with required environment variables:
-```bash
-sudo docker run -e OPENAI_API_KEY="your-openai-api-key" -e DISCORD_API_KEY="your-discord-api-key" vyrtuous
-```
-Replace `"your-openai-api-key"` and `"your-discord-api-key"` with your actual API keys.
-
----
-
-## Notes
-
-- Alternatively, you can set the environment variables in your shell:
+Set API keys as environment variables:
 
 ```bash
 export OPENAI_API_KEY="your-openai-api-key"
 export DISCORD_API_KEY="your-discord-api-key"
 ```
 
-And then run:
+Then run:
 
-  
 ```bash
 java -jar Vyrtuous.jar
 ```
 
-- Or, pass as arguments:
+Or pass the keys as arguments:
 
 ```bash
 java -jar Vyrtuous.jar --openai-key="your-openai-api-key" --discord-key="your-discord-api-key"
@@ -137,8 +155,49 @@ java -jar Vyrtuous.jar --openai-key="your-openai-api-key" --discord-key="your-di
 
 ---
 
-## License
+## Setting Up Docker
 
-This project is licensed under the GPL v3+ license. See the [LICENSE](LICENSE) file for details.
+### Start Docker
+
+* **Linux (Systemd)**:
+
+```bash
+sudo systemctl start docker.service
+```
+
+* **macOS / Windows**:
+  Start Docker Desktop from the launcher.
+
+### Build Docker Image
+
+```bash
+sudo docker build -t vyrtuous .
+```
+
+### Run the Docker Container
+
+```bash
+sudo docker run \
+  -e OPENAI_API_KEY="your-openai-api-key" \
+  -e DISCORD_API_KEY="your-discord-api-key" \
+  vyrtuous
+```
 
 ---
+
+## Notes
+
+* `EnvironmentPaths.java` controls your data/model paths. Customize as needed.
+* Supports both interactive (REPL) and non-interactive (bot) operation modes.
+* Ideal for advanced automation, experimentation, and educational tools.
+
+---
+
+## License
+
+(C) 2025 [github.com/brandongrahamcobb](https://github.com/brandongrahamcobb)
+Licensed under the **GNU GPL v3+**. See [LICENSE](LICENSE) for details.
+
+---
+
+Let me know if you'd like this exported to `README.md`, or want badges, usage examples, or diagrams added.
