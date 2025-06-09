@@ -232,12 +232,12 @@ public class ToolContainer extends MainContainer {
                                 // [["git clone https://...", "cd jVyrtuous"]]
                                 for (Object sub : outerList) {
                                     if (sub instanceof List<?> subList) {
-                                        for (Object rawPart : subList) {
-                                            if (rawPart instanceof String rawStr) {
+                                        for (Object cmdString : subList) {
+                                            if (cmdString instanceof String rawStr) {
                                                 List<String> tokens = Arrays.asList(rawStr.trim().split("\\s+"));
                                                 allCommands.add(tokens);
                                             } else {
-                                                System.err.println("⚠️ Skipping non-string command part: " + rawPart);
+                                                System.err.println("⚠️ Skipping non-string command part: " + cmdString);
                                             }
                                         }
                                     } else {

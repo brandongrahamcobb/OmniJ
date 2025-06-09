@@ -172,7 +172,9 @@ public class ToolHandler {
             .replace("`", "\\`")
             .replace("(", "\\(")
             .replace(")", "\\)")
-            .replace(":", "\\:");       // avoid subshells
+            .replace(":", "\\:")
+            .replace("{", "\\{")
+            .replace("}", "\\}");       // avoid subshells
 
         return quoted;
     }
