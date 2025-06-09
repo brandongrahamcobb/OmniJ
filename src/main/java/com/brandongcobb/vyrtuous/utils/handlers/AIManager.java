@@ -90,14 +90,15 @@ public class AIManager {
             final String endpoint = (stateIndex != -1)
                 ? endpointWithState.substring(0, stateIndex)
                 : endpointWithState;
-            
-            System.out.println(Vyrtuous.CYAN + "body" + Vyrtuous.RESET);
             List<Map<String, Object>> messages = new ArrayList<>();
             Map<String, Object> msgMap = new HashMap<>();
             Map<String, Object> userMsg = new HashMap<>();
             Map<String, Object> systemMsg = new HashMap<>();
+            
+            System.out.println(Vyrtuous.CYAN + Maps.BUILD_PROTOCOL.get(endpoint) + Vyrtuous.RESET);
             switch (Maps.BUILD_PROTOCOL.get(endpoint)) {
                 case "deprecated":
+                    
                     body.put("model", model);
                     systemMsg.put("role", "system");
                     systemMsg.put("content", instructions);
@@ -205,7 +206,7 @@ public class AIManager {
         final String endpoint = (stateIndex != -1)
             ? endpointWithState.substring(0, stateIndex)
             : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream)
+        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
 
@@ -276,7 +277,7 @@ public class AIManager {
         final String endpoint = (stateIndex != -1)
             ? endpointWithState.substring(0, stateIndex)
             : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream)
+        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
                 .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -327,7 +328,7 @@ public class AIManager {
         final String endpoint = (stateIndex != -1)
             ? endpointWithState.substring(0, stateIndex)
             : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream)
+        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
                 .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -339,7 +340,7 @@ public class AIManager {
         final String endpoint = (stateIndex != -1)
             ? endpointWithState.substring(0, stateIndex)
             : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream) // TODO: remove the get shell tool schema from this definition and embed it into the instruction
+        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream) // TODO: remove the get shell tool schema from this definition and embed it into the instruction
                 .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
