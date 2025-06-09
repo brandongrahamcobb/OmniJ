@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 
 import java.util.stream.Collectors;
 
@@ -105,6 +106,27 @@ public class ToolHandler {
             .toList();
     }
 
+    private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");
+    private static final Pattern SHELL_SPECIALS = Pattern.compile("(?<!\\\\)([;{}()|])");
+
+    private String quoteAndEscapeForShell(String token) {
+        if (SAFE_TOKEN.matcher(token).matches()) {
+            return token;
+        }
+
+        // If it's already quoted, we leave it alone
+        if ((token.startsWith("\"") && token.endsWith("\"")) || (token.startsWith("'") && token.endsWith("'"))) {
+            return token;
+        }
+
+        // Escape special shell chars outside of quotes by inserting backslashes
+        String escaped = SHELL_SPECIALS.matcher(token).replaceAll("\\\\$1");
+
+        // Now quote it for the shell, escaping single quotes if needed
+        return "'" + escaped.replace("'", "'\"'\"'") + "'";
+    }
+
+    
     public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         return CompletableFuture.supplyAsync(() -> {
@@ -115,14 +137,18 @@ public class ToolHandler {
                     processCommand.add("gtimeout");
                     processCommand.add("20");
                     String joinedCommand = commandParts.stream()
-                        .map(s -> s
-                            .replaceAll("(?<!\\\\);", "\\\\;")
-                            .replaceAll("(?<!\\\\)\\{", "\\\\{")
-                            .replaceAll("(?<!\\\\)\\}", "\\\\}")
-                            .replaceAll("(?<!\\\\)\\|", "\\\\|")
-                            .replaceAll("(?<!\\\\)\\(", "\\\\(")
-                            .replaceAll("(?<!\\\\)\\)", "\\\\)"))
+                        .map(this::quoteAndEscapeForShell)
                         .collect(Collectors.joining(" "));
+
+//String joinedCommand = commandParts.stream()
+  //                      .map(s -> s
+    //                        .replaceAll("(?<!\\\\);", "\\\\;")
+      //                      .replaceAll("(?<!\\\\)\\{", "\\\\{")
+        //                    .replaceAll("(?<!\\\\)\\}", "\\\\}")
+          //                  //.replaceAll("(?<!\\\\)\\|", "\\\\|")
+           //                 .replaceAll("(?<!\\\\)\\(", "\\\\(")
+             //               .replaceAll("(?<!\\\\)\\)", "\\\\)"))
+               //         .collect(Collectors.joining(" "));
                     processCommand.add("sh");
                     processCommand.add("-c");
                     processCommand.add(joinedCommand);
