@@ -66,7 +66,7 @@ public class SchemaMerger {
         });
     }
     
-    public CompletableFuture<String> completeGetShellToolSchemaNestResponse() {
+    public static CompletableFuture<String> completeGetShellToolSchemaNestResponse() {
         return CompletableFuture.supplyAsync(() -> {
             String baseSchema = StructuredOutput.RESPONSE.asString();
             try {

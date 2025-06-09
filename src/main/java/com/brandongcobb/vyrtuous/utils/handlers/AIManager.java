@@ -86,10 +86,10 @@ public class AIManager {
     ) {
         return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
             Map<String, Object> body = new HashMap<>();
-            String endpoint = null;
-            if (endpointWithState.length() >= 7) {
-                endpoint = endpointWithState.substring(0, endpointWithState.length() - 7);
-            }
+            final int stateIndex = endpointWithState.indexOf("?state");
+            final String endpoint = (stateIndex != -1)
+                ? endpointWithState.substring(0, stateIndex)
+                : endpointWithState;
             List<Map<String, Object>> messages = new ArrayList<>();
             Map<String, Object> msgMap = new HashMap<>();
             Map<String, Object> userMsg = new HashMap<>();
@@ -199,10 +199,10 @@ public class AIManager {
         boolean stream,
         Consumer<String> onContentChunk
     ) {
-        final String endpoint = endpointWithState.length() >= 7
-            ? endpointWithState.substring(0, endpointWithState.length() - 7)
-            : null;
-
+        final int stateIndex = endpointWithState.indexOf("?state");
+        final String endpoint = (stateIndex != -1)
+            ? endpointWithState.substring(0, stateIndex)
+            : endpointWithState;
         return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream)
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
@@ -269,9 +269,10 @@ public class AIManager {
      *  lmstudio
      */
     private CompletableFuture<MetadataContainer> completeLMStudioRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final String endpoint = endpointWithState.length() >= 7
-            ? endpointWithState.substring(0, endpointWithState.length() - 7)
-            : null;
+        final int stateIndex = endpointWithState.indexOf("?state");
+        final String endpoint = (stateIndex != -1)
+            ? endpointWithState.substring(0, stateIndex)
+            : endpointWithState;
         return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream)
                 .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint, onContentChunk));
     }
@@ -319,9 +320,10 @@ public class AIManager {
      *  Ollama
      */
     private CompletableFuture<MetadataContainer> completeOllamaRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final String endpoint = endpointWithState.length() >= 7
-            ? endpointWithState.substring(0, endpointWithState.length() - 7)
-            : null;
+        final int stateIndex = endpointWithState.indexOf("?state");
+        final String endpoint = (stateIndex != -1)
+            ? endpointWithState.substring(0, stateIndex)
+            : endpointWithState;
         return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream)
                 .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint, onContentChunk));
     }
@@ -330,9 +332,10 @@ public class AIManager {
      *  OpenAI
      */
     private CompletableFuture<MetadataContainer> completeOpenAIRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final String endpoint = endpointWithState.length() >= 7
-            ? endpointWithState.substring(0, endpointWithState.length() - 7)
-            : null;
+        final int stateIndex = endpointWithState.indexOf("?state");
+        final String endpoint = (stateIndex != -1)
+            ? endpointWithState.substring(0, stateIndex)
+            : endpointWithState;
         return completeBuildRequestBody(content, previousResponseId, model, Maps.INSTRUCTIONS.get(endpointWithState), endpointWithState, stream) // TODO: remove the get shell tool schema from this definition and embed it into the instruction
                 .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint, onContentChunk));
     }
@@ -393,9 +396,10 @@ public class AIManager {
      *  OpenRouter
      */
     private CompletableFuture<MetadataContainer> completeOpenRouterRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final String endpoint = endpointWithState.length() >= 7
-            ? endpointWithState.substring(0, endpointWithState.length() - 7)
-            : null;
+        final int stateIndex = endpointWithState.indexOf("?state");
+        final String endpoint = (stateIndex != -1)
+            ? endpointWithState.substring(0, stateIndex)
+            : endpointWithState;
         return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
                 .thenCompose(reqBody -> completeOpenRouterProcessRequest(reqBody, endpoint, onContentChunk));
     }
@@ -472,9 +476,10 @@ public class AIManager {
             boolean stream,
             Consumer<String> onContentChunk
     ) throws Exception {  // <-- declare exception here
-        final String endpoint = endpointWithState.length() >= 7
-            ? endpointWithState.substring(0, endpointWithState.length() - 7)
-            : null;
+        final int stateIndex = endpointWithState.indexOf("?state");
+        final String endpoint = (stateIndex != -1)
+            ? endpointWithState.substring(0, stateIndex)
+            : endpointWithState;
         System.out.println(Vyrtuous.CYAN + endpoint + Vyrtuous.RESET);
         if (Maps.LLAMA_ENDPOINT_URLS.containsKey(endpoint)) {
             return completeLlamaRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
@@ -492,7 +497,6 @@ public class AIManager {
     
     public CompletableFuture<String> getAIEndpointWithState(boolean multimodal, String requestedSource, String sourceOfRequest, String requestType) {
         String endpoint = null;
-        
         if ("cli".equals(sourceOfRequest)) {
             if ("latest".equals(requestedSource)) {
                 endpoint = Maps.LATEST_CLI_ENDPOINT_URLS.get(requestType);

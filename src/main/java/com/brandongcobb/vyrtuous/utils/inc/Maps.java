@@ -78,13 +78,13 @@ public class Maps {
     );
 
     public static final Map<String, String> INSTRUCTIONS = Map.ofEntries(
-        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=cli", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=cli", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
         Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=discord", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
         Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=twitch", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
         Map.entry("http://127.0.0.1:8080/api/chat?state=cli", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_CLI.toString()),
         Map.entry("http://127.0.0.1:8080/api/chat?state=discord", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
         Map.entry("http://127.0.0.1:8080/api/chat?state=twitch", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
-        Map.entry("https://api.openai.com/v1/completions?state=cli", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("https://api.openai.com/v1/completions?state=cli", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
         Map.entry("https://api.openai.com/v1/completions?state=discord", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
         Map.entry("https://api.openai.com/v1/completions?state=twitch", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
         Map.entry("https://api.openai.com/v1/embeddings", ""),
@@ -95,11 +95,11 @@ public class Maps {
         Map.entry("https://api.openai.com/v1/images/generations?state=twitch", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_TWITCH.toString()),
         Map.entry("https://api.openai.com/v1/models", ""),
         Map.entry("https://api.openai.com/v1/moderations", ""),
-        Map.entry("https://api.openai.com/v1/responses?state=cli", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("https://api.openai.com/v1/responses?state=cli", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
         Map.entry("https://api.openai.com/v1/responses?state=discord", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_DISCORD.toString()),
         Map.entry("https://api.openai.com/v1/responses?state=twitch", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_TWITCH.toString()),
         Map.entry("https://api.openai.com/v1/uploads?state=", ""),
-        Map.entry("https://openrouter.api/v1/chat/completions?state=cli", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("https://openrouter.api/v1/chat/completions?state=cli", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
         Map.entry("https://openrouter.api/v1/chat/completions?state=discord", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
         Map.entry("https://openrouter.api/v1/chat/completions?state=twitch", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_TWITCH.toString())
     );
@@ -173,12 +173,6 @@ public class Maps {
     public static final Map<String, String> OPENAI_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("completions", "https://api.openai.com/v1/completions"),
         Map.entry("responses", "https://api.openai.com/v1/responses")
-    );
-    
-    public static final Map<String, String> CLI_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("llama", LLAMA_ENDPOINT_URLS.get("chat")),
-        Map.entry("openai", OPENAI_ENDPOINT_URLS.get("completions")),
-        Map.entry("openai", OPENAI_ENDPOINT_URLS.get("responses"))
     );
     
     public static Map<String, Object> createModerationSchema() {

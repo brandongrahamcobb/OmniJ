@@ -272,7 +272,6 @@ public enum StructuredOutput {
                 "properties": {
                     "command": {
                         { "type": "string" }
-                    ]
                     }
                 },
                 "required": ["command"],
