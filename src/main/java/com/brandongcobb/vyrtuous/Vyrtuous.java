@@ -55,7 +55,9 @@ public class Vyrtuous {
     private static Vyrtuous app;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static Boolean isInputThreadRunning = false;
-    private Map<Long, String> userModelSettings = new HashMap<>();
+    private Map<Long, String> userModelPairs = new HashMap<>();
+    private Map<Long, String> userSourcePairs = new HashMap<>();
+    
     
     public static void main(String[] args) {
         app = new Vyrtuous();
@@ -74,19 +76,9 @@ public class Vyrtuous {
         }
     }
 
-    public static CompletableFuture<Vyrtuous> completeGetInstance() {
+    public static CompletableFuture<Vyrtuous> completeGetAppInstance() {
         return CompletableFuture.completedFuture(app);
     }
 
-    public CompletableFuture<Map<Long, String>> completeGetUserModelSettings() {
-        return CompletableFuture.completedFuture(app.userModelSettings);
-    }
 
-    /*
-     * Setters
-     *
-     */
-    public void completeSetUserModelSettings(Map<Long, String> userModelSettings) {
-        app.userModelSettings = userModelSettings;
-    }
 }

@@ -88,16 +88,12 @@ public class AIManager {
         String model,
         String requestType,
         String instructions,
-        String provider,
         boolean stream
     ) {
         return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
             Map<String, Object> body = new HashMap<>();
-            if (provider.toLowerCase().equals("openrouter")) {
-                
-            } else if (provider.toLowerCase().equals("llama")) {
-                // TODO: consider other endpoints other than chat/completions
-                body.put("model", ModelRegistry.LOCAL_RESPONSE_MODEL.asString());
+            if ("completion".equals(requestType)) {
+                body.put("model", model);
                 List<Map<String, Object>> messages = new ArrayList<>();
                 Map<String, Object> msgMap = new HashMap<>();
                 Map<String, Object> systemMsg = new HashMap<>();
@@ -106,67 +102,37 @@ public class AIManager {
                 Map<String, Object> userMsg = new HashMap<>();
                 userMsg.put("role", "user");
                 userMsg.put("content", content);
-                body.put("stream", true);
+                body.put("stream", stream);
                 messages.add(systemMsg);
                 messages.add(userMsg);
                 body.put("messages", messages);
-            } else if (provider.toLowerCase().equals("openai")) {
-                if ("completion".equals(requestType)) {
-                    body.put("model", ModelRegistry.OPENAI_RESPONSE_MODEL.asString());
-                    List<Map<String, Object>> messages = new ArrayList<>();
-                    Map<String, Object> msgMap = new HashMap<>();
-                    Map<String, Object> systemMsg = new HashMap<>();
-                    systemMsg.put("role", "system");
-                    systemMsg.put("content", instructions);
-                    Map<String, Object> userMsg = new HashMap<>();
-                    userMsg.put("role", "user");
-                    userMsg.put("content", content);
-                    messages.add(systemMsg);
-                    messages.add(userMsg);
-                    body.put("messages", messages);
+            } else if ("moderation".equals(requestType)) {
+                body.put("model", model);
+                body.put("input", content);
+                body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+            } else if ("latest".equals(requestType) || "response".equals(requestType)){
+                body.put("model", model);
+                ModelInfo info = Maps.RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                if (info != null && info.status()) {
+                    body.put("max_output_tokens", tokens);
+                } else {
+                    body.put("max_tokens", tokens);
                 }
-                else if ("moderation".equals(requestType)) {
-                    body.put("model", model);
-                    ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-                    body.put("input", content);
-                    if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-                        body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                    }
+                body.put("instructions", instructions);
+                List<Map<String, Object>> messages = new ArrayList<>();
+                Map<String, Object> msgMap = new HashMap<>();
+                systemMsg.put("role", "system");
+                systemMsg.put("content", instructions);
+                userMsg.put("role", "user");
+                userMsg.put("content", content);
+                messages.add(systemMsg);
+                messages.add(msgMsg);
+                body.put("input", messages);
+                body.put("stream", stream);
+                if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                    body.put("previous_response_id", previousResponseId);
                 }
-                else if ("response".equals(requestType)){
-                    if (model == null) {
-                        String setting = ModelRegistry.LOCAL_RESPONSE_MODEL.asString();
-                        body.put("model", setting);
-                        ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(setting);
-                        if (info != null && info.status()) {
-                            body.put("max_output_tokens", tokens);
-                        } else {
-                            body.put("max_tokens", tokens);
-                        }
-                    } else {
-                        body.put("model", model);
-                        ModelInfo info = Maps.OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-                        if (info != null && info.status()) {
-                            body.put("max_output_tokens", tokens);
-                        } else {
-                            body.put("max_tokens", tokens);
-                        }
-                    }
-                    body.put("instructions", ModelRegistry.SHELL_RESPONSE_SYS_INPUT.asString());
-                    List<Map<String, Object>> messages = new ArrayList<>();
-                    Map<String, Object> msgMap = new HashMap<>();
-                    msgMap.put("role", "user");
-                    msgMap.put("content", content);
-                    messages.add(msgMap);
-                    body.put("input", messages);
-                    body.put("stream", stream);
-                    if (previousResponseId != null && !previousResponseId.isEmpty()) {
-                        body.put("previous_response_id", previousResponseId);
-                    }
-                    if (ModelRegistry.OPENAI_RESPONSE_STORE.asBoolean()) {
-                        body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                    }
-                }
+                body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
             }
             return body;
         });
@@ -224,17 +190,9 @@ public class AIManager {
     /*
      *  llama.cpp
      */
-    private CompletableFuture<MetadataContainer> completeLlamaRequest(String content, String previousResponseId, String model, String requestType, boolean stream, Consumer<String> onContentChunk) {
-        // Initiate request-specific finals
+    private CompletableFuture<MetadataContainer> completeLlamaRequest(String content, String previousResponseId, String model, String endpoint, boolean stream, Consumer<String> onContentChunk) {
         SchemaMerger sm = new SchemaMerger();
-        String instructions = switch (requestType) {
-            case "completion" -> "";
-            case "moderation" -> ""; //TODO
-            case "response" -> "";
-            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
-        };
-        final String endpoint = "http://localhost:8080/api/chat";
-        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "llama", stream)
+        return completeBuildRequestBody(content, previousResponseId, model, instructions, "completion", stream)
                 .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -249,7 +207,6 @@ public class AIManager {
                     .build()) {
                 HttpPost post = new HttpPost(endpoint);
                 post.setHeader("Content-Type", "application/json");
-                //requestBody.put("instructions", SHELL_RESPONSE_SYS_INPUT + sm.completeGetShellToolSchemaNestResponse().join());
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
@@ -293,16 +250,7 @@ public class AIManager {
     /*
      *  lmstudio
      */
-    private CompletableFuture<MetadataContainer> completeLMStudioRequest(String content, String previousResponseId, String model, String requestType, boolean stream) {
-        // Initiate request-specific finals
-        SchemaMerger sm = new SchemaMerger();
-        String instructions = switch (requestType) {
-            case "completion" -> "";
-            case "moderation" -> ""; //TODO
-            case "response" -> "";
-            default -> throw new IllegalArgumentException("Unsupported requestType: " + requestType);
-        };
-        final String endpoint = "http://127.0.0.1:1234/v1/chat/completions";
+    private CompletableFuture<MetadataContainer> completeLMStudioRequest(String content, String previousResponseId, String model, String endpoint, boolean stream) {
         return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, "llama", stream)
                 .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint));
     }
@@ -554,7 +502,51 @@ public class AIManager {
         }
     }
     
-    public CompletableFuture<String> completeResolveModel(String content, Boolean multiModal, String model) { // TODO: error handling for user input error.
-        return CompletableFuture.supplyAsync(() -> model);
+    public CompletableFuture<String> getAIEndpoint(Boolean multiModal, String requestedSource, String sourceOfRequest) { // TODO: other sources ollama, llmstudio, etc.
+        if ("cli".equals(sourceOfRequest)) {
+             if "latest".equals(requestedSource)) {
+                 if (multimodal == true) {
+                     throw new Exception(new IllegalStateException("Multimodal is not supported by this source of request: " + sourceOfRequest));
+                 } else {
+                     String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.CLI_ENDPOINTS.get("latest"));
+                 }
+             } else if "llama".equals(requestedSource) {
+                 if (multimodal == true) {
+                     throw new Exception(new IllegalStateException("Multimodal is not supported by this source of request: " + sourceOfRequest));
+                 } else {
+                     String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.CLI_ENDPOINTS.get("llama"));
+                 }
+             } else if "openai".equals(requestedSource) {
+                 if (multimodal == true) {
+                     throw new Exception(new IllegalStateException("Multimodal is not supported by this source of request: " + sourceOfRequest));
+                 } else {
+                     String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.CLI_ENDPOINTS.get("openai"));
+                 }
+             }
+        } else if ("discord".equals(sourceOfRequest)) {
+            if "latest".equals(requestedSource)) {
+                if (multimodal == true) {
+                    String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.DISCORD_MULTIMODAL_ENDPOINTS.get("latest"));
+                } else {
+                    String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.DISCORD_TEXT_ENDPOINTS.get("latest"));
+                }
+            } else if "llama".equals(requestedSource) {
+                if (multimodal == true) {
+                    String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.DISCORD_MULTIMODAL_ENDPOINTS.get("llama"));
+                } else {
+                    String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.DISCORD_TEXT_ENDPOINTS.get("llama"));
+                }
+            } else if "openai".equals(requestedSource) {
+                if (multimodal == true) {
+                    String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.DISCORD_MULTIMODAL_ENDPOINTS.get("openai"));
+                } else {
+                    String endpoint = Maps.ENDPOINT_URL_TO_OBJECT.get(Maps.DISCORD_TEXT_ENDPOINTS.get("openai"));
+                }
+            }
+
+        } else {
+            throw new Exception(new IllegalStateException("Unknown source of request of type: " + sourceOfRequest));
+        }
+        return endpoint;
     }
 }

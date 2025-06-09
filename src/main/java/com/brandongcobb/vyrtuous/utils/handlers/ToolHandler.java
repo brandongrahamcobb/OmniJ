@@ -111,12 +111,9 @@ public class ToolHandler {
             StringBuilder result = new StringBuilder();
             for (List<String> commandParts : allCommands) {
                 try {
-                    // build your “timeout sh -c …” wrapper
                     List<String> processCommand = new ArrayList<>();
                     processCommand.add("gtimeout");
                     processCommand.add("20");
-
-                    // escape any shell-special chars
                     String joinedCommand = commandParts.stream()
                         .map(s -> s
                             .replaceAll("(?<!\\\\);", "\\\\;")
@@ -126,25 +123,17 @@ public class ToolHandler {
                             .replaceAll("(?<!\\\\)\\(", "\\\\(")
                             .replaceAll("(?<!\\\\)\\)", "\\\\)"))
                         .collect(Collectors.joining(" "));
-
                     processCommand.add("sh");
                     processCommand.add("-c");
                     processCommand.add(joinedCommand);
-
                     ProcessBuilder pb = new ProcessBuilder(processCommand);
                     pb.redirectErrorStream(true);
                     Process proc = pb.start();
-
-                    // read the merged stdout+stderr
                     String output = readStream(proc.getInputStream());
                     proc.waitFor();
-
-                    // *** only append the raw output ***
                     result.append(output);
-                    // if you really want a newline separator between commands:
                     if (!output.endsWith("\n")) result.append("\n");
                 } catch (Exception e) {
-                    // record only the error text
                     result.append("Error: ").append(e.getMessage()).append("\n");
                 }
             }

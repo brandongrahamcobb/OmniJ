@@ -41,6 +41,15 @@ public class Maps {
         Map.entry("responses", "https://openrouter.api/v1/chat/completions")
     );
     
+    public static final Map<String, String> LLAMA_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("chat", "http://localhost:8080/api/chat")
+    );
+    
+    public static final Map<String, String> LMSTUDIO_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("chat", "http://127.0.0.1:1234/v1/chat/completions")
+    );
+    
+    final String endpoint = "http://127.0.0.1:1234/v1/chat/completions";
     public static final Map<String, String> OPENAI_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("audio", "https://api.openai.com/v1/audio/speech"),
         Map.entry("batch", "https://api.openai.com/v1/audio/batches"),

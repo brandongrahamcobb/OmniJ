@@ -61,18 +61,49 @@ public class HybridCommands extends ListenerAdapter implements Cog {
         if (args.length == 0) return;
         String command = args[0].toLowerCase();
         User sender = event.getAuthor();
-        if (command.equals("openai")) {
+        if (command.equals("llama")) {
             if (args.length > 2 && "model".equalsIgnoreCase(args[1])) {
                 Vyrtuous.completeGetInstance()
                     .thenCompose(vyr -> vyr.completeGetUserModelSettings())
                     .thenAccept(userModelSettings -> {
                         @SuppressWarnings("unchecked")
                         Map<Long, String> userModelObject = (Map<Long, String>) userModelSettings;
+                        Map<Long, String> userSourceObject = (Map<Long, String>) userSourceSettings;
+                        TextChannel channel = (TextChannel) event.getChannel();
+                        String arg = args[2].toLowerCase();
+                        if (Helpers.containsString(Maps.LLAMA_MODELS, arg)) {
+                            userModelObject.put(sender.getIdLong(), arg);
+                            userSourceObject.put(sender.getIdLong(), "llama");
+                            app.completeSetUserModelSettings(userModelObject);
+                            app.completeSetUserSourceSettings(userSourceObject);
+                            channel.sendMessage("Llama model: " + arg + " for " + sender.getName()).queue();
+                        } else {
+                            String[] options = Maps.LLAMA_MODELS;
+                            StringBuilder sb = new StringBuilder("[");
+                            for (int i = 0; i < options.length; i++) {
+                                sb.append(options[i]);
+                                if (i < options.length - 1) sb.append(", ");
+                            }
+                            sb.append("]");
+                            channel.sendMessage("Your options are " + sb).queue();
+                        }
+                    });
+            }
+        } else if (command.equals("openai")) {
+            if (args.length > 2 && "model".equalsIgnoreCase(args[1])) {
+                Vyrtuous.completeGetInstance()
+                    .thenCompose(vyr -> vyr.completeGetUserModelSettings())
+                    .thenAccept(userModelSettings -> {
+                        @SuppressWarnings("unchecked")
+                        Map<Long, String> userModelObject = (Map<Long, String>) userModelSettings;
+                        Map<Long, String> userSourceObject = (Map<Long, String>) userSourceSettings;
                         TextChannel channel = (TextChannel) event.getChannel();
                         String arg = args[2].toLowerCase();
                         if (Helpers.containsString(Maps.OPENAI_RESPONSE_MODELS, arg)) {
                             userModelObject.put(sender.getIdLong(), arg);
+                            userSourceObject.put(sender.getIdLong(), "openai");
                             app.completeSetUserModelSettings(userModelObject);
+                            app.completeSetUserSourceSettings(userSourceObject);
                             channel.sendMessage("OpenAI model: " + arg + " for " + sender.getName()).queue();
                         } else {
                             String[] options = Maps.OPENAI_RESPONSE_MODELS;
