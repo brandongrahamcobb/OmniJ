@@ -171,7 +171,8 @@ public class ToolHandler {
             .replace("$", "\\$")        // avoid unintended var expansion
             .replace("`", "\\`")
             .replace("(", "\\(")
-            .replace(")", "\\)");       // avoid subshells
+            .replace(")", "\\)")
+            .replace(":", "\\:");       // avoid subshells
 
         return quoted;
     }
