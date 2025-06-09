@@ -90,6 +90,8 @@ public class AIManager {
             final String endpoint = (stateIndex != -1)
                 ? endpointWithState.substring(0, stateIndex)
                 : endpointWithState;
+            
+            System.out.println(Vyrtuous.CYAN + "body" + Vyrtuous.RESET);
             List<Map<String, Object>> messages = new ArrayList<>();
             Map<String, Object> msgMap = new HashMap<>();
             Map<String, Object> userMsg = new HashMap<>();

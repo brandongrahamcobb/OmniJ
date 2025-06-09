@@ -63,9 +63,9 @@ public class Maps {
     public static final String[] LLAMA_MODELS = {"gemma-3-12B-it-QAT-Q4_0.gguf"}; // TODO: enable user installations of models.
     
     public static final Map<String, String> BUILD_PROTOCOL = Map.ofEntries (
-        Map.entry("http://127.0.0.1:1234/v1/chat/completion", "completions"),
-        Map.entry("http://127.0.0.1:8080/api/chat", "completions"),
-        Map.entry("https://api.openai.com/v1/completions", "completions"),
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion", "deprecated"),
+        Map.entry("http://127.0.0.1:8080/api/chat", "deprecated"),
+        Map.entry("https://api.openai.com/v1/completions", "deprecated"),
         Map.entry("https://api.openai.com/v1/embeddings", "embeddings"),
         Map.entry("https://api.openai.com/v1/files", "files"),
         Map.entry("https://api.openai.com/v1/fine_tuning/jobs", "fine_tuning"),
@@ -74,7 +74,7 @@ public class Maps {
         Map.entry("https://api.openai.com/v1/moderations", "moderations"),
         Map.entry("https://api.openai.com/v1/responses", "responses"),
         Map.entry("https://api.openai.com/v1/uploads", "uploads"),
-        Map.entry("https://openrouter.api/v1/chat/completions", "completions")
+        Map.entry("https://openrouter.api/v1/chat/completions", "deprecated")
     );
 
     public static final Map<String, String> INSTRUCTIONS = Map.ofEntries(
