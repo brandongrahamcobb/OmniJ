@@ -236,6 +236,7 @@ public class AIManager {
                                 .replaceFirst("^```json\\s*", "")
                                 .replaceFirst("\\s*```$", "")
                                 .trim();
+                            System.out.println(Vyrtuous.CYAN + jsonContent + Vyrtuous.RESET);
                             Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();

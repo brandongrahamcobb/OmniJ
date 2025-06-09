@@ -218,26 +218,38 @@ public class ToolContainer extends MainContainer {
                             Object first = outerList.get(0);
 
                             if (first instanceof String) {
-                                // ✅ Treat as one full command: ["cat", "file.java"]
-                                List<String> fullCommand = outerList.stream()
-                                    .map(Object::toString)
-                                    .toList();
-                                allCommands.add(fullCommand);
-                            } else if (first instanceof List<?>) {
-                                // ✅ Treat as list of commands: [["cat", "file1.java"], ["cat", "file2.java"]]
-                                for (Object sub : outerList) {
-                                    if (sub instanceof List<?> subList) {
-                                        List<String> subCommand = subList.stream()
-                                            .map(Object::toString)
-                                            .toList();
-                                        allCommands.add(subCommand);
+                                // ["git clone https://..."]
+                                for (Object obj : outerList) {
+                                    if (obj instanceof String raw) {
+                                        List<String> tokens = Arrays.asList(raw.trim().split("\\s+"));
+                                        allCommands.add(tokens);
                                     } else {
-                                        System.err.println("⚠️ Skipping malformed sub-command: " + sub);
+                                        System.err.println("⚠️ Unexpected non-string in single command list: " + obj);
                                     }
                                 }
+
+                            } else if (first instanceof List<?>) {
+                                // [["git clone https://...", "cd jVyrtuous"]]
+                                for (Object sub : outerList) {
+                                    if (sub instanceof List<?> subList) {
+                                        for (Object rawPart : subList) {
+                                            if (rawPart instanceof String rawStr) {
+                                                List<String> tokens = Arrays.asList(rawStr.trim().split("\\s+"));
+                                                allCommands.add(tokens);
+                                            } else {
+                                                System.err.println("⚠️ Skipping non-string command part: " + rawPart);
+                                            }
+                                        }
+                                    } else {
+                                        System.err.println("⚠️ Skipping malformed sub-command (not a list): " + sub);
+                                    }
+                                }
+
                             } else {
-                                System.err.println("⚠️ Unrecognized command format.");
+                                System.err.println("⚠️ Unknown command structure: " + outerList);
                             }
+                        } else {
+                            System.err.println("⚠️ No commands found or commands not in list form.");
                         }
                     }
                 }

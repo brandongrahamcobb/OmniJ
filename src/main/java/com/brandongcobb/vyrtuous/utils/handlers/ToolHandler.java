@@ -162,15 +162,18 @@ public class ToolHandler {
         }
         return path;
     }
+    
     private String shellQuote(String segment) {
-        // Escape literal backslashes and quotes
+        // Order matters: escape backslash first
         String quoted = segment
-            .replace("\\", "\\\\")    // double backslashes
-            .replace("\"", "\\\"")    // escape double quotes
-            .replace("$", "\\$")      // avoid unintended var expansion
-            .replace("`", "\\`");     // avoid subshells
+            .replace("\\", "\\\\\\\\")  // quadruple backslashes: Java \\ -> JSON \\\\
+            .replace("\"", "\\\"")      // escape double quotes
+            .replace("$", "\\$")        // avoid unintended var expansion
+            .replace("`", "\\`")
+            .replace("(", "\\(")
+            .replace(")", "\\)");       // avoid subshells
 
-        return quoted;  // wrap in double quotes
+        return quoted;
     }
     
     public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
