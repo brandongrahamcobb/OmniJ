@@ -78,30 +78,30 @@ public class Maps {
     );
 
     public static final Map<String, String> INSTRUCTIONS = Map.ofEntries(
-        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=cli", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
-        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=discord", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
-        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=twitch", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
-        Map.entry("http://127.0.0.1:8080/api/chat?state=cli", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_CLI.toString()),
-        Map.entry("http://127.0.0.1:8080/api/chat?state=discord", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
-        Map.entry("http://127.0.0.1:8080/api/chat?state=twitch", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
-        Map.entry("https://api.openai.com/v1/completions?state=cli", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
-        Map.entry("https://api.openai.com/v1/completions?state=discord", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
-        Map.entry("https://api.openai.com/v1/completions?state=twitch", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=cli", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join()),
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=discord", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD.asString()),
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=twitch", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH.asString()),
+        Map.entry("http://127.0.0.1:8080/api/chat?state=cli", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_CLI.asString()),
+        Map.entry("http://127.0.0.1:8080/api/chat?state=discord", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD.asString()),
+        Map.entry("http://127.0.0.1:8080/api/chat?state=twitch", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH.asString()),
+        Map.entry("https://api.openai.com/v1/completions?state=cli", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join()),
+        Map.entry("https://api.openai.com/v1/completions?state=discord", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_DISCORD.asString()),
+        Map.entry("https://api.openai.com/v1/completions?state=twitch", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_TWITCH.asString()),
         Map.entry("https://api.openai.com/v1/embeddings", ""),
         Map.entry("https://api.openai.com/v1/files", ""),
         Map.entry("https://api.openai.com/v1/fine_tuning/jobs", ""),
-        Map.entry("https://api.openai.com/v1/images/generations?state=cli", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_CLI.toString()),
-        Map.entry("https://api.openai.com/v1/images/generations?state=discord", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_DISCORD.toString()),
-        Map.entry("https://api.openai.com/v1/images/generations?state=twitch", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("https://api.openai.com/v1/images/generations?state=cli", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_CLI.asString()),
+        Map.entry("https://api.openai.com/v1/images/generations?state=discord", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_DISCORD.asString()),
+        Map.entry("https://api.openai.com/v1/images/generations?state=twitch", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_TWITCH.asString()),
         Map.entry("https://api.openai.com/v1/models", ""),
         Map.entry("https://api.openai.com/v1/moderations", ""),
-        Map.entry("https://api.openai.com/v1/responses?state=cli", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
-        Map.entry("https://api.openai.com/v1/responses?state=discord", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_DISCORD.toString()),
-        Map.entry("https://api.openai.com/v1/responses?state=twitch", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("https://api.openai.com/v1/responses?state=cli", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join()),
+        Map.entry("https://api.openai.com/v1/responses?state=discord", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_DISCORD.asString()),
+        Map.entry("https://api.openai.com/v1/responses?state=twitch", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_TWITCH.asString()),
         Map.entry("https://api.openai.com/v1/uploads?state=", ""),
-        Map.entry("https://openrouter.api/v1/chat/completions?state=cli", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse().join()),
-        Map.entry("https://openrouter.api/v1/chat/completions?state=discord", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
-        Map.entry("https://openrouter.api/v1/chat/completions?state=twitch", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_TWITCH.toString())
+        Map.entry("https://openrouter.api/v1/chat/completions?state=cli", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join()),
+        Map.entry("https://openrouter.api/v1/chat/completions?state=discord", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_DISCORD.asString()),
+        Map.entry("https://openrouter.api/v1/chat/completions?state=twitch", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_TWITCH.asString())
     );
     
     public static final Map<String, String> LLAMA_ENDPOINT_URLS = Map.ofEntries(

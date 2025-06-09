@@ -226,8 +226,9 @@ public class AIManager {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = null;
                     System.out.println(Vyrtuous.CYAN + code + Vyrtuous.RESET);
-                    if (code < 200 || code >= 300) {
+                    if (code <= 200 || code > 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                        System.out.println(respBody);
                         if (onContentChunk == null) {
                             Map<String, Object> fullResponse = mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
                             return new LlamaContainer(fullResponse);
