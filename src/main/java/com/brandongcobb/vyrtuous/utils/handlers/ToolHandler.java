@@ -170,7 +170,7 @@ public class ToolHandler {
             .replace("$", "\\$")      // avoid unintended var expansion
             .replace("`", "\\`");     // avoid subshells
 
-        return "\"" + quoted + "\"";  // wrap in double quotes
+        return quoted;  // wrap in double quotes
     }
     
     public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
@@ -195,64 +195,58 @@ public class ToolHandler {
             }
         }, executor);
     }
-
+    
     private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
         List<Process> processes = new ArrayList<>();
-        int n = segments.size();
-
-        InputStream lastProcessOutput = null;
         Process lastProcess = null;
 
-        for (int i = 0; i < n; i++) {
-
+        int i = 0;
+        while (i < segments.size()) {
             List<String> segment = segments.get(i);
-            List<String> parts = new ArrayList<>();
-            parts.add("gtimeout");  // or "timeout" on Linux
-            parts.add("20");
-            parts.add("sh");
-            parts.add("-c");
-            String joinedCommand = segment.stream()
-                                    .map(s -> s)
-                                    .collect(Collectors.joining(" "));
-            parts.add(joinedCommand);
-            
-            ProcessBuilder pb = new ProcessBuilder(parts);
+            String command = shellQuote(String.join(" ", segment));
+
+            List<String> commandList = List.of("gtimeout", "20", "sh", "-c", command);
+            ProcessBuilder pb = new ProcessBuilder(commandList);
             pb.redirectErrorStream(true);
 
-            // Handle input/output redirection operators if present just after the command
+            // Handle redirection operator that follows current segment
             if (i < operators.size()) {
                 String op = operators.get(i);
-
                 if (op.equals(">") || op.equals(">>")) {
-                    // Redirect stdout to file
-                    File outFile = new File(segments.get(i + 1).get(0)); // assuming next segment is the filename
+                    if (i + 1 >= segments.size()) throw new IllegalArgumentException("Expected filename after " + op);
+                    File outFile = new File(segments.get(i + 1).get(0));
                     pb.redirectOutput(op.equals(">") ?
                         ProcessBuilder.Redirect.to(outFile) :
                         ProcessBuilder.Redirect.appendTo(outFile));
-                    i++; // skip the filename segment in next iteration
+                    i += 2;
+                    Process proc = pb.start();
+                    processes.add(proc);
+                    lastProcess = proc;
+                    continue;
                 } else if (op.equals("<")) {
-                    // Redirect stdin from file
+                    if (i + 1 >= segments.size()) throw new IllegalArgumentException("Expected filename after <");
                     File inFile = new File(segments.get(i + 1).get(0));
                     pb.redirectInput(ProcessBuilder.Redirect.from(inFile));
-                    i++; // skip filename segment
+                    i += 2;
+                    Process proc = pb.start();
+                    processes.add(proc);
+                    lastProcess = proc;
+                    continue;
                 }
             }
 
-            if (i > 0 && i - 1 < operators.size() && "|".equals(operators.get(i - 1))) {
-                // Pipe previous process output to this process input
-                Process prevProcess = processes.get(processes.size() - 1);
-
+            // Handle piping
+            if (i > 0 && "|".equals(operators.get(i - 1))) {
+                Process prevProc = processes.get(processes.size() - 1);
                 pb.redirectInput(ProcessBuilder.Redirect.PIPE);
                 Process currProc = pb.start();
 
-                OutputStream currProcIn = currProc.getOutputStream();
-                InputStream prevProcOut = prevProcess.getInputStream();
+                InputStream prevOut = prevProc.getInputStream();
+                OutputStream currIn = currProc.getOutputStream();
 
-                // Pipe output of prev process to input of current process in a thread
                 Thread pipeThread = new Thread(() -> {
-                    try {
-                        pipeStreams(prevProcOut, currProcIn);
-                        currProcIn.close();
+                    try (prevOut; currIn) {
+                        pipeStreams(prevOut, currIn);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -261,35 +255,32 @@ public class ToolHandler {
 
                 processes.add(currProc);
                 lastProcess = currProc;
-            } else {
-                // Not piping, so just start the process normally
-                Process proc = pb.start();
-
-                // For conditional operators &&, || wait for previous process and check exit value
-                if (i > 0 && i - 1 < operators.size()) {
-                    String op = operators.get(i - 1);
-                    Process prevProc = processes.get(processes.size() - 1);
-                    int prevExit = prevProc.waitFor();
-
-                    if ("&&".equals(op) && prevExit != 0) {
-                        // Stop pipeline if previous failed and operator is &&
-                        break;
-                    } else if ("||".equals(op) && prevExit == 0) {
-                        // Stop pipeline if previous succeeded and operator is ||
-                        break;
-                    }
+            }
+            // Handle conditionals: &&, ||
+            else if (i > 0 && List.of("&&", "||").contains(operators.get(i - 1))) {
+                Process prevProc = processes.get(processes.size() - 1);
+                int prevExit = prevProc.waitFor();
+                String op = operators.get(i - 1);
+                if (("&&".equals(op) && prevExit != 0) || ("||".equals(op) && prevExit == 0)) {
+                    break;
                 }
-
+                Process proc = pb.start();
                 processes.add(proc);
                 lastProcess = proc;
             }
+            // Sequential (e.g. `;`) or first process
+            else {
+                Process proc = pb.start();
+                processes.add(proc);
+                lastProcess = proc;
+            }
+
+            i++;
         }
 
-        if (lastProcess == null) {
-            throw new IllegalStateException("No process executed");
-        }
+        if (lastProcess == null) throw new IllegalStateException("No process executed");
 
-        // Read output of last process
+        // Read last process output
         String output;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(lastProcess.getInputStream()))) {
             StringBuilder sb = new StringBuilder();
@@ -300,7 +291,7 @@ public class ToolHandler {
             output = sb.toString();
         }
 
-        // Wait for all started processes to finish
+        // Wait for all processes
         for (Process proc : processes) {
             proc.waitFor();
         }

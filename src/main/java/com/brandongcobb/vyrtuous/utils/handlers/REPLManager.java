@@ -30,7 +30,6 @@ import java.util.logging.*;
 
 public class REPLManager {
 
-    
     private AIManager aim = new AIManager();
     private ApprovalMode approvalMode;
     private final ContextManager contextManager = new ContextManager(3200);
@@ -44,7 +43,6 @@ public class REPLManager {
     private ToolHandler th = new ToolHandler();
     private final List<List<String>> pendingShellCommands = new ArrayList<>();
     private final String responseSource = System.getenv("REPL_RESPONSE_SOURCE");
-
     private final Set<String> seenCommandStrings = new HashSet<>();
 
     public void setApprovalMode(ApprovalMode mode) {
