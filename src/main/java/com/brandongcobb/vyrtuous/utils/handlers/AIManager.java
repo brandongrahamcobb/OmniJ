@@ -475,6 +475,7 @@ public class AIManager {
         final String endpoint = endpointWithState.length() >= 7
             ? endpointWithState.substring(0, endpointWithState.length() - 7)
             : null;
+        System.out.println(Vyrtuous.CYAN + endpoint + Vyrtuous.RESET);
         if (Maps.LLAMA_ENDPOINT_URLS.containsKey(endpoint)) {
             return completeLlamaRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
         } else if (Maps.OLLAMA_ENDPOINT_URLS.containsKey(endpoint)) {
@@ -491,6 +492,7 @@ public class AIManager {
     
     public CompletableFuture<String> getAIEndpointWithState(boolean multimodal, String requestedSource, String sourceOfRequest, String requestType) {
         String endpoint = null;
+        
         if ("cli".equals(sourceOfRequest)) {
             if ("latest".equals(requestedSource)) {
                 endpoint = Maps.LATEST_CLI_ENDPOINT_URLS.get(requestType);

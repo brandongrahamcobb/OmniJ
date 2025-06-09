@@ -30,15 +30,7 @@ import java.util.logging.*;
 
 public class REPLManager {
 
-    public static final String RESET = "\u001B[0m";
-    public static final String BLUE = "\u001B[34m";
-    public static final String BRIGHT_BLUE = "\u001B[94m";
-    public static final String CYAN = "\u001B[36m";
-    public static final String BRIGHT_CYAN = "\u001B[96m";
-    public static final String NAVY = "\u001B[38;5;18m";
-    public static final String SKY_BLUE = "\u001B[38;5;117m";
-    public static final String DODGER_BLUE = "\u001B[38;5;33m";
-    public static final String TEAL = "\u001B[38;5;30m";
+    
     private AIManager aim = new AIManager();
     private ApprovalMode approvalMode;
     private final ContextManager contextManager = new ContextManager(3200);
@@ -146,10 +138,10 @@ public class REPLManager {
         try {
             if ("llama".equals(responseSource)) {
                 model = ModelRegistry.LLAMA_MODEL.asString();
-                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "llama");
+                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "completion");
             } else if ("openai".equals(responseSource)) {
                 model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "openai");
+                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "response");
             } else {
                 CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
                 failed.completeExceptionally(new IllegalStateException("Unknown model for response source of type: " + responseSource));
@@ -160,8 +152,8 @@ public class REPLManager {
             failed.completeExceptionally(e);
             return failed;
         }
-
         return endpointFuture.thenCompose(endpoint -> {
+            
             CompletableFuture<MetadataContainer> call;
             try {
                 if (firstRun) {

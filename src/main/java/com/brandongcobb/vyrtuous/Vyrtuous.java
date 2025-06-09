@@ -57,7 +57,15 @@ public class Vyrtuous {
     private static Boolean isInputThreadRunning = false;
     public Map<Long, String> userModelPairs = new HashMap<>();
     public Map<Long, String> userSourcePairs = new HashMap<>();
-    
+    public static final String RESET = "\u001B[0m";
+    public static final String BLUE = "\u001B[34m";
+    public static final String BRIGHT_BLUE = "\u001B[94m";
+    public static final String CYAN = "\u001B[36m";
+    public static final String BRIGHT_CYAN = "\u001B[96m";
+    public static final String NAVY = "\u001B[38;5;18m";
+    public static final String SKY_BLUE = "\u001B[38;5;117m";
+    public static final String DODGER_BLUE = "\u001B[38;5;33m";
+    public static final String TEAL = "\u001B[38;5;30m";
     
     public static void main(String[] args) {
         app = new Vyrtuous();
