@@ -199,6 +199,7 @@ public class AIManager {
         boolean stream,
         Consumer<String> onContentChunk
     ) {
+        System.out.println(Vyrtuous.CYAN + "llamarequest" + Vyrtuous.RESET);
         final int stateIndex = endpointWithState.indexOf("?state");
         final String endpoint = (stateIndex != -1)
             ? endpointWithState.substring(0, stateIndex)
@@ -225,6 +226,7 @@ public class AIManager {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = null;
+                    System.out.println(Vyrtuous.CYAN + code + Vyrtuous.RESET);
                     if (code < 200 || code >= 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         throw new IOException("HTTP " + code + ": " + respBody);
@@ -480,14 +482,13 @@ public class AIManager {
         final String endpoint = (stateIndex != -1)
             ? endpointWithState.substring(0, stateIndex)
             : endpointWithState;
-        System.out.println(Vyrtuous.CYAN + endpoint + Vyrtuous.RESET);
-        if (Maps.LLAMA_ENDPOINT_URLS.containsKey(endpoint)) {
+        if (Maps.LLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeLlamaRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
-        } else if (Maps.OLLAMA_ENDPOINT_URLS.containsKey(endpoint)) {
+        } else if (Maps.OLLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeOllamaRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
-        } else if (Maps.OPENAI_ENDPOINT_URLS.containsKey(endpoint)) {
+        } else if (Maps.OPENAI_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeOpenAIRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
-        } else if (Maps.OLLAMA_ENDPOINT_URLS.containsKey(endpoint)) {
+        } else if (Maps.OLLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeOpenRouterRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
         } else {
             return CompletableFuture.failedFuture(new IllegalStateException("Invalid endpoint.")); // Prefer throwing unchecked exceptions here
