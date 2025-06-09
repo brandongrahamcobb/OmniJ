@@ -243,13 +243,18 @@ public class REPLManager {
             }
         });
     }
+    
+    
+
+
+
 
     private CompletableFuture<Void> completeESubStep(Scanner scanner) {
         if (pendingShellCommands.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
         List<String> parts = pendingShellCommands.remove(0);
-        String       cmd   = String.join(" ", parts);
+        String cmd = String.join(" ", parts);
         LOGGER.fine("Running shell command: " + cmd);
         if (Helpers.requiresApproval(cmd, approvalMode)) {
             System.out.println("Approve command? " + cmd + " (yes/no)");
@@ -260,17 +265,18 @@ public class REPLManager {
                 return completeESubStep(scanner);
             }
         }
-        return completeESubSubStep(parts).thenCompose(out -> {
+        // Wrap parts (List<String>) in a singleton list to create List<List<String>>
+        return completeESubSubStep(Collections.singletonList(parts)).thenCompose(out -> {
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
             return completeESubStep(scanner);
         });
     }
 
-    private CompletableFuture<String> completeESubSubStep(List<String> parts) {
+
+    private CompletableFuture<String> completeESubSubStep(List<List<String>> commands) {
         final int    maxRetry     = 2;
         final long   timeoutMs    = 600_000;
-        final String cmdStr       = String.join(" ", parts);
-        Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(List.of(parts));
+        Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(commands);
         CompletableFuture<String> promise = new CompletableFuture<>();
         Runnable attempt = new Runnable() {
             int tries = 0;
@@ -281,10 +287,9 @@ public class REPLManager {
                     .orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
                     .whenComplete((out, err) -> {
                         if (err != null && tries < maxRetry) {
-                            LOGGER.fine("Retrying command: " + cmdStr);
                             replExecutor.submit(this);
                         } else if (err != null) {
-                            promise.complete("❌ Failed: " + cmdStr + err);
+                            promise.complete("❌ Failed: " + err);
                         } else {
                             promise.complete(out);
                         }

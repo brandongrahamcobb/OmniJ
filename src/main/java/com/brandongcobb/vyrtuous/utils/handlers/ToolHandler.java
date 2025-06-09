@@ -17,8 +17,13 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
+import java.util.AbstractMap.SimpleEntry;
+
+import java.util.AbstractMap;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,7 +45,8 @@ import java.util.Set;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.File;
-
+import java.util.Arrays;
+import java.util.AbstractMap;
 
 import java.util.stream.Collectors;
 
@@ -121,6 +127,32 @@ public class ToolHandler {
     private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");
     private static final Pattern SHELL_SPECIALS = Pattern.compile("(?<!\\\\)([;{}()|])");
     private static final Set<String> SHELL_OPERATORS = Set.of("|", ";", "&&", "||", ">", "<", ">>");
+    
+    private AbstractMap.SimpleEntry<List<List<String>>, List<String>> splitIntoSegmentsAndOperators(List<List<String>> tokens) {
+        List<List<String>> segments = new ArrayList<>();
+        List<String> operators = new ArrayList<>();
+
+        for (int i = 0; i < tokens.size(); i++) {
+            List<String> part = tokens.get(i);
+            if (part.size() == 1 && SHELL_OPERATORS.contains(part.get(0))) {
+                if (segments.isEmpty()) {
+                    throw new IllegalArgumentException("Command cannot start with operator: " + part.get(0));
+                }
+                operators.add(part.get(0));
+            } else {
+                segments.add(part);
+                if (segments.size() > 1 && operators.size() < segments.size() - 1) {
+                    operators.add(";");
+                }
+            }
+        }
+        if (segments.size() != operators.size() + 1) {
+            throw new IllegalStateException("Segments and operators misaligned.");
+        }
+
+        return new AbstractMap.SimpleEntry<>(segments, operators);
+    }
+    
     private String expandHome(String path) {
         String home = System.getProperty("user.home");
         if (path.equals("~")) {
@@ -130,85 +162,32 @@ public class ToolHandler {
         }
         return path;
     }
-    
+    private String shellQuote(String segment) {
+        // Escape literal backslashes and quotes
+        String quoted = segment
+            .replace("\\", "\\\\")    // double backslashes
+            .replace("\"", "\\\"")    // escape double quotes
+            .replace("$", "\\$")      // avoid unintended var expansion
+            .replace("`", "\\`");     // avoid subshells
+
+        return "\"" + quoted + "\"";  // wrap in double quotes
+    }
     
     public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Parse input into segments and operators,
-                // but treat pipes inside a segment (do not split on pipes)
-                List<String> segments = new ArrayList<>();
-                List<String> operators = new ArrayList<>();
-
-                StringBuilder currentSegment = new StringBuilder();
-
-                for (List<String> part : allCommands) {
-                    if (part.size() == 1 && SHELL_OPERATORS.contains(part.get(0)) && !part.get(0).equals("|")) {
-                        // Operator (not pipe) ends a segment
-                        if (currentSegment.length() == 0) {
-                            throw new IllegalArgumentException("Empty command segment before operator " + part.get(0));
-                        }
-                        segments.add(currentSegment.toString().trim());
-                        operators.add(part.get(0));
-                        currentSegment.setLength(0);
-                    } else {
-                        // Add tokens to current segment, joining with spaces
-                        if (currentSegment.length() > 0) currentSegment.append(" ");
-                        // Expand ~ in tokens
-                        String expanded = part.stream()
-                            .map(this::expandHome)
-                            .collect(Collectors.joining(" "));
-                        currentSegment.append(expanded);
-                    }
-                }
-
-                if (currentSegment.length() == 0) {
-                    throw new IllegalArgumentException("Command cannot end with an operator");
-                }
-                segments.add(currentSegment.toString().trim());
-
-                StringBuilder overallOutput = new StringBuilder();
-                int lastExitCode = 0;
-
-                for (int i = 0; i < segments.size(); i++) {
-                    // Handle operators logic
-                    if (i > 0) {
-                        String op = operators.get(i - 1);
-                        if ("&&".equals(op) && lastExitCode != 0) {
-                            // skip running this command
-                            continue;
-                        }
-                        if ("||".equals(op) && lastExitCode == 0) {
-                            // skip running this command
-                            continue;
-                        }
-                        // ; and others always run next command
-                    }
-
-                    List<String> processCommand = new ArrayList<>();
-                    processCommand.add("gtimeout");  // or "timeout" if on Linux
-                    processCommand.add("20");
-                    processCommand.add("sh");
-                    processCommand.add("-c");
-                    processCommand.add(segments.get(i));
-
-                    ProcessBuilder pb = new ProcessBuilder(processCommand);
-                    pb.redirectErrorStream(true);
-                    Process proc = pb.start();
-
-                    String output = readStream(proc.getInputStream());
-                    int exitCode = proc.waitFor();
-
-                    overallOutput.append(output);
-                    if (!output.endsWith("\n")) overallOutput.append("\n");
-
-                    lastExitCode = exitCode;
-                }
-
-                return overallOutput.toString().trim();
-
+                // Construct segments as List<List<String>> for executePipeline
+                List<List<String>> segmentTokens = allCommands.stream()
+                    .map(segment -> segment.stream()
+                        .map(this::expandHome)   // if you want to expand ~ in each token
+                        .collect(Collectors.toList()))
+                    .collect(Collectors.toList());
+                AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);
+                List<List<String>> segments = split.getKey();         // Correct type: List<List<String>>
+                List<String> operators = split.getValue();
+                return executePipeline(segments, operators);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             } finally {
@@ -216,7 +195,6 @@ public class ToolHandler {
             }
         }, executor);
     }
-
 
     private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
         List<Process> processes = new ArrayList<>();
@@ -226,8 +204,19 @@ public class ToolHandler {
         Process lastProcess = null;
 
         for (int i = 0; i < n; i++) {
+
             List<String> segment = segments.get(i);
-            ProcessBuilder pb = new ProcessBuilder(segment);
+            List<String> parts = new ArrayList<>();
+            parts.add("gtimeout");  // or "timeout" on Linux
+            parts.add("20");
+            parts.add("sh");
+            parts.add("-c");
+            String joinedCommand = segment.stream()
+                                    .map(s -> s)
+                                    .collect(Collectors.joining(" "));
+            parts.add(joinedCommand);
+            
+            ProcessBuilder pb = new ProcessBuilder(parts);
             pb.redirectErrorStream(true);
 
             // Handle input/output redirection operators if present just after the command
