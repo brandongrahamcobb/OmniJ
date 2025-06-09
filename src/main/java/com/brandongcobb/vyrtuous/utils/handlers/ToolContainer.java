@@ -40,7 +40,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.logging.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,6 +63,20 @@ public class ToolContainer extends MainContainer {
         return (s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"));
     }
     
+    private static List<String> smartSplit(String command) {
+        List<String> tokens = new ArrayList<>();
+        Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|\\S+").matcher(command);
+        while (m.find()) {
+            if (m.group(1) != null)
+                tokens.add(m.group(1)); // double-quoted
+            else if (m.group(2) != null)
+                tokens.add(m.group(2)); // single-quoted
+            else
+                tokens.add(m.group());  // unquoted
+        }
+        return tokens;
+    }
+
     public ToolContainer(Map<String, Object> responseMap) {
         
         MetadataKey<String> responsesObjectKey = new MetadataKey<>("entityType", Metadata.STRING);
@@ -218,13 +235,12 @@ public class ToolContainer extends MainContainer {
                             Object first = outerList.get(0);
 
                             if (first instanceof String) {
-                                // ["git clone https://..."]
                                 for (Object obj : outerList) {
                                     if (obj instanceof String raw) {
-                                        List<String> tokens = Arrays.asList(raw.trim().split("\\s+"));
+                                        List<String> tokens = smartSplit(raw.trim());
                                         allCommands.add(tokens);
                                     } else {
-                                        System.err.println("⚠️ Unexpected non-string in single command list: " + obj);
+                                        System.err.println("⚠ Unexpected non-string in single command list: " + obj);
                                     }
                                 }
 
@@ -234,7 +250,7 @@ public class ToolContainer extends MainContainer {
                                     if (sub instanceof List<?> subList) {
                                         for (Object cmdString : subList) {
                                             if (cmdString instanceof String rawStr) {
-                                                List<String> tokens = Arrays.asList(rawStr.trim().split("\\s+"));
+                                                List<String> tokens = smartSplit(rawStr.trim()); // updated here too
                                                 allCommands.add(tokens);
                                             } else {
                                                 System.err.println("⚠️ Skipping non-string command part: " + cmdString);
