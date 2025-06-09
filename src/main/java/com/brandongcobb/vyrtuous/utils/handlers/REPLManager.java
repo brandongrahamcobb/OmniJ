@@ -138,10 +138,10 @@ public class REPLManager {
         try {
             if ("llama".equals(responseSource)) {
                 model = ModelRegistry.LLAMA_MODEL.asString();
-                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "completion");
+                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "completions");
             } else if ("openai".equals(responseSource)) {
                 model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "response");
+                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "responses");
             } else {
                 CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
                 failed.completeExceptionally(new IllegalStateException("Unknown model for response source of type: " + responseSource));
