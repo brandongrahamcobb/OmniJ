@@ -228,37 +228,37 @@ public class AIManager {
                     System.out.println(Vyrtuous.CYAN + code + Vyrtuous.RESET);
                     if (code < 200 || code >= 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        throw new IOException("HTTP " + code + ": " + respBody);
-                    }
-                    if (onContentChunk == null) {
-                        Map<String, Object> fullResponse = mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
-                        System.out.println(Vyrtuous.CYAN + respBody + Vyrtuous.RESET);
-                        return new LlamaContainer(fullResponse);
-                    } else {
-                        StringBuilder builder = new StringBuilder();
-                        Map<String, Object> lastChunk = null;
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                if (!line.startsWith("data:")) continue;
-                                String data = line.substring(5).trim();
-                                if (data.equals("[DONE]")) break;
-                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
-                                lastChunk = chunk;
-                                Map<String, Object> delta = (Map<String, Object>) ((Map<String, Object>) ((List<?>) chunk.get("choices")).get(0)).get("delta");
-                                String content = (String) delta.get("content");
-                                if (content != null) {
-                                    onContentChunk.accept(content);
-                                    builder.append(content);
+                        if (onContentChunk == null) {
+                            Map<String, Object> fullResponse = mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
+                            return new LlamaContainer(fullResponse);
+                        } else {
+                            StringBuilder builder = new StringBuilder();
+                            Map<String, Object> lastChunk = null;
+                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    if (!line.startsWith("data:")) continue;
+                                    String data = line.substring(5).trim();
+                                    if (data.equals("[DONE]")) break;
+                                    Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+                                    lastChunk = chunk;
+                                    Map<String, Object> delta = (Map<String, Object>) ((Map<String, Object>) ((List<?>) chunk.get("choices")).get(0)).get("delta");
+                                    String content = (String) delta.get("content");
+                                    if (content != null) {
+                                        onContentChunk.accept(content);
+                                        builder.append(content);
+                                    }
                                 }
                             }
+                            if (lastChunk == null) {
+                                throw new IllegalStateException("No valid chunk received.");
+                            }
+                            LlamaContainer container = new LlamaContainer(lastChunk);
+                            container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+                            return container;
                         }
-                        if (lastChunk == null) {
-                            throw new IllegalStateException("No valid chunk received.");
-                        }
-                        LlamaContainer container = new LlamaContainer(lastChunk);
-                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
-                        return container;
+                    } else {
+                        throw new IOException("HTTP " + code + ": " + respBody);
                     }
                 }
             } catch (Exception e) {
