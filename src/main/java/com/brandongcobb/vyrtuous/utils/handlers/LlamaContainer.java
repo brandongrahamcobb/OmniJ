@@ -40,29 +40,20 @@ public class LlamaContainer extends MainContainer {
         MetadataKey<String> idKey = new MetadataKey<>("id", Metadata.STRING);
         MetadataKey<String> modelKey = new MetadataKey<>("model", Metadata.STRING);
         MetadataKey<Integer> createdKey = new MetadataKey<>("created", Metadata.INTEGER);
-
         put(idKey, (String) responseMap.get("id"));
         put(modelKey, (String) responseMap.get("model"));
         put(createdKey, (Integer) responseMap.get("created"));
-
-        // Extract usage object as-is
         MetadataKey<Map<String, Object>> usageKey = new MetadataKey<>("usage", Metadata.MAP);
         put(usageKey, (Map<String, Object>) responseMap.get("usage"));
-
-        // Extract message info
         List<Map<String, Object>> choices = (List<Map<String, Object>>) responseMap.get("choices");
         if (choices == null || choices.isEmpty()) return;
-
         Map<String, Object> choice = choices.get(0);
         Map<String, Object> message = (Map<String, Object>) choice.get("message");
-
         if (message != null) {
             MetadataKey<String> roleKey = new MetadataKey<>("role", Metadata.STRING);
             put(roleKey, (String) message.get("role"));
-
             Object contentObj = message.get("content");
             MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
-            
             if (contentObj instanceof String contentStr) {
                 put(contentKey, contentStr);
             }
@@ -78,20 +69,15 @@ public class LlamaContainer extends MainContainer {
                         Object actionObj = contentItem.get("action");
                         if (actionObj instanceof Map<?, ?> action) {
                             Object cmdObj = action.get("command");
-
                             if (cmdObj instanceof List<?> cmdList) {
                                 List<String> commands = cmdList.stream()
                                     .map(Object::toString)
                                     .toList();
-
                                 boolean isSingleCommandInParts = commands.stream().noneMatch(s -> s.contains(" "));
-
                                 if (isSingleCommandInParts) {
-                                    // Treat as parameterized single command
                                     String combined = String.join(" ", commands);
                                     put(th.LOCALSHELLTOOL_COMMANDS, List.of(combined));
                                 } else {
-                                    // Treat as list of full commands
                                     put(th.LOCALSHELLTOOL_COMMANDS, commands);
                                 }
                             } else if (cmdObj instanceof String singleCommand) {

@@ -244,11 +244,6 @@ public class REPLManager {
         });
     }
     
-    
-
-
-
-
     private CompletableFuture<Void> completeESubStep(Scanner scanner) {
         if (pendingShellCommands.isEmpty()) {
             return CompletableFuture.completedFuture(null);
@@ -265,7 +260,6 @@ public class REPLManager {
                 return completeESubStep(scanner);
             }
         }
-        // Wrap parts (List<String>) in a singleton list to create List<List<String>>
         return completeESubSubStep(Collections.singletonList(parts)).thenCompose(out -> {
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
             return completeESubStep(scanner);
