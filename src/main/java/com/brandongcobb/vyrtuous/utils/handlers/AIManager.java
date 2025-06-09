@@ -42,7 +42,7 @@ import java.io.InputStreamReader;
 
 // For Charset
 import java.nio.charset.StandardCharsets;
-
+import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -230,8 +230,24 @@ public class AIManager {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         System.out.println(respBody);
                         if (onContentChunk == null) {
-                            Map<String, Object> fullResponse = mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
-                            return new LlamaContainer(fullResponse);
+                            Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                            LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
+                            LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
+                            String content = llamaOuterUtils.completeGetContent().join();
+                            String jsonContent = content
+                                .replaceFirst("^```json\\s*", "")
+                                .replaceFirst("\\s*```$", "")
+                                .trim();
+                            if (!jsonContent.contains("local_shell_command_sequence_finished")) {
+                                throw new Exception("CRITICAL ERROR");
+                            }
+                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+                            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
+                            String previousResponseId = UUID.randomUUID().toString();
+                            inner.put("id", previousResponseId);
+                            ToolContainer toolResponse = new ToolContainer(inner);
+                            toolResponse.put(previousResponseIdKey, previousResponseId);
+                            return (MetadataContainer) toolResponse;
                         } else {
                             StringBuilder builder = new StringBuilder();
                             Map<String, Object> lastChunk = null;

@@ -53,9 +53,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -153,7 +153,6 @@ public class REPLManager {
             return failed;
         }
         return endpointFuture.thenCompose(endpoint -> {
-            
             CompletableFuture<MetadataContainer> call;
             try {
                 if (firstRun) {
