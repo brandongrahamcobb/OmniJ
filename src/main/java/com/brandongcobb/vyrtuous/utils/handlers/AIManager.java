@@ -199,7 +199,6 @@ public class AIManager {
         boolean stream,
         Consumer<String> onContentChunk
     ) {
-        System.out.println(Vyrtuous.CYAN + "llamarequest" + Vyrtuous.RESET);
         final int stateIndex = endpointWithState.indexOf("?state");
         final String endpoint = (stateIndex != -1)
             ? endpointWithState.substring(0, stateIndex)

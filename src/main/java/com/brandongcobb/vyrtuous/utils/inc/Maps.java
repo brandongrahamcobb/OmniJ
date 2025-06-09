@@ -105,7 +105,7 @@ public class Maps {
     );
     
     public static final Map<String, String> LLAMA_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://localhost:8080/api/chat")
+        Map.entry("completions", "http://127.0.0.1:8080/api/chat")
     );
 
     public static final Map<String, String> LATEST_CLI_ENDPOINT_URLS = Map.ofEntries(
@@ -121,15 +121,15 @@ public class Maps {
     );
 
     public static final Map<String, String> LLAMA_CLI_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://localhost:8080/api/chat?state=cli")
+        Map.entry("completions", "http://127.0.0.1:8080/api/chat?state=cli")
     );
     
     public static final Map<String, String> LLAMA_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://localhost:8080/api/chat?state=discord")
+        Map.entry("completions", "http://127.0.0.1:8080/api/chat?state=discord")
     );
     
     public static final Map<String, String> LLAMA_DISCORD_TEXT_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://localhost:8080/api/chat?state=discord")
+        Map.entry("completions", "http://127.0.0.1:8080/api/chat?state=discord")
     );
 
     public static final Map<String, String> OLLAMA_ENDPOINT_URLS = Map.ofEntries(
