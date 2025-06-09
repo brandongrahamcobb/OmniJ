@@ -236,9 +236,6 @@ public class AIManager {
                                 .replaceFirst("^```json\\s*", "")
                                 .replaceFirst("\\s*```$", "")
                                 .trim();
-                            if (!jsonContent.contains("local_shell_command_sequence_finished")) {
-                                throw new Exception("CRITICAL ERROR");
-                            }
                             Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();
