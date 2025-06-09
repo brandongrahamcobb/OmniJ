@@ -17,6 +17,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.inc;
 
+import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
 import java.nio.file.Files;
@@ -27,6 +28,8 @@ import java.util.Map;
 
 public class Maps {
 
+    private static SchemaMerger sm = new SchemaMerger();
+    
     public static final Map<String, ModelInfo> OPENROUTER_RESPONSE_MODEL_CONTEXT_LIMITS = Map.ofEntries(
         Map.entry("deepseek/deepseek-r1-0528:free", new ModelInfo(Helpers.parseCommaNumber("128,000"), true))
     );
@@ -41,15 +44,112 @@ public class Maps {
         Map.entry("responses", "https://openrouter.api/v1/chat/completions")
     );
     
+    public static final Map<String, String> DISCORD_TEXT_ENDPOINTS = Map.ofEntries(
+        Map.entry("latest", "http://127.0.0.1:8080/api/chat?state=discord"),
+        Map.entry("llama", "http://127.0.0.1:8080/api/chat?state=discord"),
+        Map.entry("lmstudio", "http://127.0.0.1:1234/v1/chat/completion?state=discord"),
+        Map.entry("openai", "https://api.openai.com/v1/completions?state=discord"),
+        Map.entry("openrouter", "https://openrouter.api/v1/chat/completions?state=discord")
+    );
+    
+    public static final Map<String, String> DISCORD_MULTIMODAL_ENDPOINTS = Map.ofEntries(
+        Map.entry("latest", "http://127.0.0.1:8080/api/chat?state=discord"),
+        Map.entry("llama", "http://127.0.0.1:8080/api/chat?state=discord"),
+        Map.entry("lmstudio", "http://127.0.0.1:1234/v1/chat/completion?state=discord"),
+        Map.entry("openai", "https://api.openai.com/v1/completions?state=discord"),
+        Map.entry("openrouter", "https://openrouter.api/v1/chat/completions?state=discord")
+    );
+                                    
+    public static final String[] LLAMA_MODELS = {"gemma-3-12B-it-QAT-Q4_0.gguf"}; // TODO: enable user installations of models.
+    
+    public static final Map<String, String> BUILD_PROTOCOL = Map.ofEntries (
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion", "completions"),
+        Map.entry("http://127.0.0.1:8080/api/chat", "completions"),
+        Map.entry("https://api.openai.com/v1/completions", "completions"),
+        Map.entry("https://api.openai.com/v1/embeddings", "embeddings"),
+        Map.entry("https://api.openai.com/v1/files", "files"),
+        Map.entry("https://api.openai.com/v1/fine_tuning/jobs", "fine_tuning"),
+        Map.entry("https://api.openai.com/v1/images/generations", "generations"),
+        Map.entry("https://api.openai.com/v1/models", "models"),
+        Map.entry("https://api.openai.com/v1/moderations", "moderations"),
+        Map.entry("https://api.openai.com/v1/responses", "responses"),
+        Map.entry("https://api.openai.com/v1/uploads", "uploads"),
+        Map.entry("https://openrouter.api/v1/chat/completions", "completions")
+    );
+
+    public static final Map<String, String> INSTRUCTIONS = Map.ofEntries(
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=cli", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=discord", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
+        Map.entry("http://127.0.0.1:1234/v1/chat/completion?state=twitch", ModelRegistry.LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("http://127.0.0.1:8080/api/chat?state=cli", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_CLI.toString()),
+        Map.entry("http://127.0.0.1:8080/api/chat?state=discord", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
+        Map.entry("http://127.0.0.1:8080/api/chat?state=twitch", ModelRegistry.LLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("https://api.openai.com/v1/completions?state=cli", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("https://api.openai.com/v1/completions?state=discord", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
+        Map.entry("https://api.openai.com/v1/completions?state=twitch", ModelRegistry.OPENAI_COMPLETIONS_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("https://api.openai.com/v1/embeddings", ""),
+        Map.entry("https://api.openai.com/v1/files", ""),
+        Map.entry("https://api.openai.com/v1/fine_tuning/jobs", ""),
+        Map.entry("https://api.openai.com/v1/images/generations?state=cli", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_CLI.toString()),
+        Map.entry("https://api.openai.com/v1/images/generations?state=discord", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_DISCORD.toString()),
+        Map.entry("https://api.openai.com/v1/images/generations?state=twitch", ModelRegistry.OPENAI_GENERATIONS_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("https://api.openai.com/v1/models", ""),
+        Map.entry("https://api.openai.com/v1/moderations", ""),
+        Map.entry("https://api.openai.com/v1/responses?state=cli", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("https://api.openai.com/v1/responses?state=discord", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_DISCORD.toString()),
+        Map.entry("https://api.openai.com/v1/responses?state=twitch", ModelRegistry.OPENAI_RESPONSES_INSTRUCTIONS_TWITCH.toString()),
+        Map.entry("https://api.openai.com/v1/uploads?state=", ""),
+        Map.entry("https://openrouter.api/v1/chat/completions?state=cli", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_CLI.toString() + sm.completeGetShellToolSchemaNestResponse()),
+        Map.entry("https://openrouter.api/v1/chat/completions?state=discord", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_DISCORD.toString()),
+        Map.entry("https://openrouter.api/v1/chat/completions?state=twitch", ModelRegistry.OPENROUTER_COMPLETIONS_INSTRUCTIONS_TWITCH.toString())
+    );
+    
     public static final Map<String, String> LLAMA_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("chat", "http://localhost:8080/api/chat")
+        Map.entry("completions", "http://localhost:8080/api/chat")
+    );
+
+    public static final Map<String, String> LATEST_CLI_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("placeholder", "placeholder")
+    );
+    
+    public static final Map<String, String> LATEST_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("placeholder", "placeholder")
+    );
+    
+    public static final Map<String, String> LATEST_DISCORD_TEXT_ENDPOINT_URLS = Map.ofEntries(
+         Map.entry("placeholder", "placeholder")
+    );
+
+    public static final Map<String, String> LLAMA_CLI_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("completions", "http://localhost:8080/api/chat?state=cli")
+    );
+    
+    public static final Map<String, String> LLAMA_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("completions", "http://localhost:8080/api/chat?state=discord")
+    );
+    
+    public static final Map<String, String> LLAMA_DISCORD_TEXT_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("completions", "http://localhost:8080/api/chat?state=discord")
+    );
+
+    public static final Map<String, String> OLLAMA_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("placeholder", "placeholder")
     );
     
     public static final Map<String, String> LMSTUDIO_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("chat", "http://127.0.0.1:1234/v1/chat/completions")
+        Map.entry("completions", "http://127.0.0.1:1234/v1/chat/completions")
     );
     
-    final String endpoint = "http://127.0.0.1:1234/v1/chat/completions";
+    public static final Map<String, String> OPENAI_DISCORD_MULTIMODAL_URLS = Map.ofEntries(
+        Map.entry("completions", "https://api.openai.com/v1/completions?state=discord"),
+        Map.entry("responses", "https://api.openai.com/v1/responses?state=discord")
+    );
+    
+    public static final Map<String, String> OPENAI_CLI_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("completions", "https://api.openai.com/v1/completions?state=cli"),
+        Map.entry("responses", "https://api.openai.com/v1/responses?state=cli")
+    );
+    
     public static final Map<String, String> OPENAI_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("audio", "https://api.openai.com/v1/audio/speech"),
         Map.entry("batch", "https://api.openai.com/v1/audio/batches"),
@@ -63,7 +163,24 @@ public class Maps {
         Map.entry("responses", "https://api.openai.com/v1/responses"),
         Map.entry("uploads", "https://api.openai.com/v1/uploads")
     );
-
+    
+    public static final Map<String, String> OPENAI_DISCORD_TEXT_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("completions", "https://api.openai.com/v1/completions"),
+        Map.entry("images", "https://api.openai.com/v1/images/generations"),
+        Map.entry("responses", "https://api.openai.com/v1/responses")
+    );
+    
+    public static final Map<String, String> OPENAI_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("completions", "https://api.openai.com/v1/completions"),
+        Map.entry("responses", "https://api.openai.com/v1/responses")
+    );
+    
+    public static final Map<String, String> CLI_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("llama", LLAMA_ENDPOINT_URLS.get("chat")),
+        Map.entry("openai", OPENAI_ENDPOINT_URLS.get("completions")),
+        Map.entry("openai", OPENAI_ENDPOINT_URLS.get("responses"))
+    );
+    
     public static Map<String, Object> createModerationSchema() {
         Map<String, Object> properties = new HashMap<>();
         properties.put("id", Map.of("type", "string"));
@@ -293,7 +410,7 @@ public class Maps {
         "OpenAI-Project", "proj_u5htBCWX0LSHxkw45po1Vfz9"
     );
     
-    public static final Map<String, ModelInfo> OPENAI_RESPONSE_MODEL_CONTEXT_LIMITS = Map.ofEntries(
+    public static final Map<String, ModelInfo> RESPONSE_MODEL_CONTEXT_LIMITS = Map.ofEntries(
         Map.entry("ft:gpt-4o-mini-2024-07-18:spawd:vyrtuous:AjZpTNN2", new ModelInfo(Helpers.parseCommaNumber("16,384"), false)),
         Map.entry("gpt-4.1", new ModelInfo(Helpers.parseCommaNumber("300,000"), true)),
         Map.entry("gpt-4.1-mini", new ModelInfo(Helpers.parseCommaNumber("1,047,576"), true)),
@@ -306,7 +423,7 @@ public class Maps {
         Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("200,000"), true))
     );
     
-    public static final Map<String, ModelInfo> OPENAI_RESPONSE_MODEL_OUTPUT_LIMITS = Map.ofEntries(
+    public static final Map<String, ModelInfo> RESPONSE_MODEL_OUTPUT_LIMITS = Map.ofEntries(
         Map.entry("ft:gpt-4o-mini-2024-07-18:spawd:vyrtuous:AjZpTNN2", new ModelInfo(Helpers.parseCommaNumber("128,000"), false)),
         Map.entry("gpt-4.1", new ModelInfo(Helpers.parseCommaNumber("32,768"), true)),
         Map.entry("gpt-4.1-mini", new ModelInfo(Helpers.parseCommaNumber("32,768"), true)),

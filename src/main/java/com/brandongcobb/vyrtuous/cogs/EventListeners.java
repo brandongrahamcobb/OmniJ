@@ -52,7 +52,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
     private JDA api;
     private DiscordBot bot;
     final StringBuilder messageBuilder = new StringBuilder();
-    private final String responseSource = System.getenv("DISCORD_RESPONSE_SOURCE");
+    private final String discordResponseSource = System.getenv("DISCORD_RESPONSE_SOURCE");
     
     @Override
     public void register(JDA api, DiscordBot bot) {
@@ -87,29 +87,34 @@ public class EventListeners extends ListenerAdapter implements Cog {
         }
         fullContentFuture
             .thenCompose(fullContent -> {
-                if (true) { //TODO: moderation logic here later
+                if (true) { // TODO: moderation logic here later
                     return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
                 }
-                return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "moderation", "openai", false, null)
-                    .thenCompose(moderationOpenAIContainer -> {
-                        OpenAIUtils utils = new OpenAIUtils(moderationOpenAIContainer);
-                        return utils.completeGetFlagged()
-                            .thenCompose(flagged -> {
-                                if (flagged) {
-                                    ModerationManager mom = new ModerationManager(api);
-                                    return utils.completeGetFormatFlaggedReasons()
-                                        .thenCompose(reason -> mom.completeHandleModeration(message, reason)
-                                            .thenApply(ignored -> null));
-                                } else {
-                                    return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
-                                }
-                            });
-                    });
-            })
-            .exceptionally(ex -> {
-                ex.printStackTrace();
-                return null;
-            });
+                try {
+                    return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "placeholder", false, null)
+                        .thenCompose(moderationOpenAIContainer -> {
+                            OpenAIUtils utils = new OpenAIUtils(moderationOpenAIContainer);
+                            return utils.completeGetFlagged()
+                                .thenCompose(flagged -> {
+                                    if (flagged) {
+                                        ModerationManager mom = new ModerationManager(api);
+                                        return utils.completeGetFormatFlaggedReasons()
+                                            .thenCompose(reason -> mom.completeHandleModeration(message, reason)
+                                                .thenApply(ignored -> null));
+                                    } else {
+                                        return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
+                                    }
+                                });
+                        });
+                } catch (Exception e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+        })
+        .exceptionally(ex -> {
+            ex.printStackTrace();
+            return null;
+        });
+
     }
     
     private CompletableFuture<Void> handleNormalFlow(
@@ -121,108 +126,79 @@ public class EventListeners extends ListenerAdapter implements Cog {
         String fullContent,
         boolean multimodal
     ) {
-        return completeGetUserSettings(senderId))
-            .thenCompose(userSettings -> {
-                String userModel = userSettings[0];
-                String source = userSettings[1];
-                return aim.getAIEndpoint(multimodal, source, "discord")
-                    .thenCompose(endpoint -> {
-                        switch (source) {
-                            case "llama":
-                                CompletableFuture<String> prevIdFut = previousResponse != null
-                                    ? new LlamaUtils(previousResponse).completeGetResponseId()
-                                    : CompletableFuture.completedFuture(null);
-                            case "openai":
-                                CompletableFuture<String> prevIdFut = previousResponse != null
-                                    ? new OpenAIUtils(previousResponse).completeGetResponseId()
-                                    : CompletableFuture.completedFuture(null);
-                            default "":
-                                return CompletableFuture.completedFuture("");
-                        }
-                        return prevIdFut.thenCompose(previousResponseId ->
-                            message.getChannel().sendMessage("Hi I'm Vyrtuous...").submit()
-                                .thenCompose(sentMessage -> {
-                                    BlockingQueue<String> queue = new LinkedBlockingQueue<>();
-                                    Supplier<Optional<String>> nextChunkSupplier = () -> {
-                                        try {
-                                            String chunk = queue.take();  // blocks until a chunk is available
-                                            if ("<<END>>".equals(chunk)) {
-                                                return Optional.empty(); // signal stream ended
+        return SettingsManager.completeGetSettingsInstance()
+            .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
+                .thenCompose(userSettings -> {
+                    String userModel = userSettings[0];
+                    String source = userSettings[1];
+
+                    return aim.getAIEndpointWithState(multimodal, source, "discord", "completion") // TODO: make the requestType a setting.
+                        .thenCompose(endpoint -> {
+                            CompletableFuture<String> prevIdFut;
+
+                            switch (source) {
+                                case "openai":
+                                    prevIdFut = previousResponse != null
+                                        ? new OpenAIUtils(previousResponse).completeGetResponseId()
+                                        : CompletableFuture.completedFuture(null);
+                                    break;
+                                default:
+                                    prevIdFut = CompletableFuture.completedFuture(null);
+                                    break;
+                            }
+
+                            return prevIdFut.thenCompose(previousResponseId ->
+                                message.getChannel().sendMessage("Hi I'm Vyrtuous...").submit()
+                                    .thenCompose(sentMessage -> {
+                                        BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+                                        Supplier<Optional<String>> nextChunkSupplier = () -> {
+                                            try {
+                                                String chunk = queue.take();
+                                                if ("<<END>>".equals(chunk)) return Optional.empty();
+                                                return Optional.of(chunk);
+                                            } catch (InterruptedException e) {
+                                                Thread.currentThread().interrupt();
+                                                return Optional.empty();
                                             }
-                                            return Optional.of(chunk);
-                                        } catch (InterruptedException e) {
-                                            Thread.currentThread().interrupt();
-                                            return Optional.empty();
+                                        };
+
+                                        final CompletableFuture<MetadataContainer> responseFuture;
+                                        try {
+                                            responseFuture = aim.completeRequest(
+                                                fullContent,
+                                                previousResponseId,
+                                                userModel,
+                                                endpoint,
+                                                true,
+                                                queue::offer
+                                            );
+                                        } catch (Exception e) {
+                                            return CompletableFuture.failedFuture(e);
                                         }
-                                    };
-                                    CompletableFuture<MetadataContainer> responseFuture =
-                                        aim.completeRequest(
-                                            fullContent,
-                                            previousResponseId,
-                                            userModel,
-                                            endpoint,
-                                            source,
-                                            "true",
-                                            queue::offer
-                                        );
-                                    CompletableFuture<Void> streamFuture =
-                                        mem.completeStreamResponse(sentMessage, nextChunkSupplier);
-                                    return CompletableFuture.allOf(responseFuture, streamFuture)
-                                        .thenCompose(v -> {
-                                            MetadataContainer responseObject = responseFuture.join();
-                                            userResponseMap.put(senderId, responseObject);
-                                            if (previousResponse != null)
-                                                if (previousResponse instanceof LlamaContainer) {
-                                                    LlamaUtils(previousResponse).completeGetPreviousResponseId()
-                                                        .thenCompose(prevId ->
-                                                            new LlamaUtils(responseObject).completeSetPreviousResponseId(prevId)
-                                                        );
-                                                } else if (previousResponse instanceof OpenAIContainer) {
-                                                    OpenAIUtils(previousResponse).completeGetPreviousResponseId()
+
+                                        CompletableFuture<Void> streamFuture =
+                                            mem.completeStreamResponse(sentMessage, nextChunkSupplier);
+
+                                        return CompletableFuture.allOf(responseFuture, streamFuture)
+                                            .thenCompose(v -> responseFuture)
+                                            .thenCompose(responseObject -> {
+                                                userResponseMap.put(senderId, responseObject);
+
+                                                if (previousResponse == null) return CompletableFuture.completedFuture(null);
+
+                                                if (previousResponse instanceof OpenAIContainer) {
+                                                    return new OpenAIUtils(previousResponse).completeGetPreviousResponseId()
                                                         .thenCompose(prevId ->
                                                             new OpenAIUtils(responseObject).completeSetPreviousResponseId(prevId)
                                                         );
+                                                } else {
+                                                    return CompletableFuture.completedFuture(null);
                                                 }
-                                            }
-                                        });
-                                }));
-                    });
-            });
-    }
-    
-    public CompletableFuture<Object[]> completeGetUserSettings(Long userId) {
-        String model = completeGetUserModel(userId).join();
-        String source = completeGetUserSource(userId).join();
-        Object[] settings = new Object{model, source};
-        return CompletableFuture.completedFuture(settings);
-    }
-    
-    public CompletableFuture<String> completeGetUserModel(Long userId) {
-        Vyrtuous.completeGetAppInstance().thenCompose(app ->
-            return CompletableFuture.completedFuture(app.userModelPairs.getOrDefault(userId, ModelRegistry.LLAMA_MODEL().toString()));
-        );
-    }
-    
-    public CompletableFuture<String> completeGetUserSource(Long userId) {
-        Vyrtuous.completeGetAppInstance().thenCompose(app ->
-            return CompletableFuture.completedFuture(app.userSourcePairs.getOrDefault(userId, responseSource));
-        );
+                                            });
+                                    }));
+                        });
+                }));
     }
 
-    /*
-     * Setters
-     *
-     */
-    public void completeSetUserModelSettings(Map<Long, String> userModelPairs) {
-        Vyrtuous.completeGetAppInstance().thenCompose(app ->
-            app.userModelPairs = userModelPairs;
-        );
-    }
-    
-    public void completeSetUserSourceSettings(Map<Long, String> userSourcePairs) {
-        Vyrtuous.completeGetAppInstance().thenCompose(app ->
-            app.userSourcePairs = userSourcePairs;
-        );
-    }
-    
+
 }

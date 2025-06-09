@@ -42,7 +42,7 @@ public class HybridCommands extends ListenerAdapter implements Cog {
     private JDA api;
     private Vyrtuous app;
     private DiscordBot bot;
-
+    
     @Override
     public void register (JDA api, DiscordBot bot) {
         this.api = api;
@@ -63,59 +63,43 @@ public class HybridCommands extends ListenerAdapter implements Cog {
         User sender = event.getAuthor();
         if (command.equals("llama")) {
             if (args.length > 2 && "model".equalsIgnoreCase(args[1])) {
-                Vyrtuous.completeGetInstance()
-                    .thenCompose(vyr -> vyr.completeGetUserModelSettings())
-                    .thenAccept(userModelSettings -> {
-                        @SuppressWarnings("unchecked")
-                        Map<Long, String> userModelObject = (Map<Long, String>) userModelSettings;
-                        Map<Long, String> userSourceObject = (Map<Long, String>) userSourceSettings;
-                        TextChannel channel = (TextChannel) event.getChannel();
-                        String arg = args[2].toLowerCase();
-                        if (Helpers.containsString(Maps.LLAMA_MODELS, arg)) {
-                            userModelObject.put(sender.getIdLong(), arg);
-                            userSourceObject.put(sender.getIdLong(), "llama");
-                            app.completeSetUserModelSettings(userModelObject);
-                            app.completeSetUserSourceSettings(userSourceObject);
-                            channel.sendMessage("Llama model: " + arg + " for " + sender.getName()).queue();
-                        } else {
-                            String[] options = Maps.LLAMA_MODELS;
-                            StringBuilder sb = new StringBuilder("[");
-                            for (int i = 0; i < options.length; i++) {
-                                sb.append(options[i]);
-                                if (i < options.length - 1) sb.append(", ");
+                SettingsManager.completeGetSettingsInstance()
+                    .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(sender.getIdLong())
+                        .thenCompose(userSettingsObj -> {
+                            String[] userSettings = (String[]) userSettingsObj;
+                            String newModel = args[2].toLowerCase();
+                            TextChannel channel = (TextChannel) event.getChannel();
+                            if (Helpers.containsString(Maps.LLAMA_MODELS, newModel)) {
+                                return settingsManager.completeSetUserModel(sender.getIdLong(), newModel)
+                                    .thenCompose(v -> settingsManager.completeSetUserSource(sender.getIdLong(), "llama"))
+                                    .thenRun(() -> channel.sendMessage("Llama model: " + newModel + " for " + sender.getName()).queue());
+                            } else {
+                                String[] options = Maps.LLAMA_MODELS; // Assume this is a defined array of model keys
+                                String optionList = String.join(", ", options);
+                                channel.sendMessage("Your options are [" + optionList + "]").queue();
+                                return CompletableFuture.completedFuture(null);
                             }
-                            sb.append("]");
-                            channel.sendMessage("Your options are " + sb).queue();
-                        }
-                    });
+                        }));
             }
         } else if (command.equals("openai")) {
             if (args.length > 2 && "model".equalsIgnoreCase(args[1])) {
-                Vyrtuous.completeGetInstance()
-                    .thenCompose(vyr -> vyr.completeGetUserModelSettings())
-                    .thenAccept(userModelSettings -> {
-                        @SuppressWarnings("unchecked")
-                        Map<Long, String> userModelObject = (Map<Long, String>) userModelSettings;
-                        Map<Long, String> userSourceObject = (Map<Long, String>) userSourceSettings;
-                        TextChannel channel = (TextChannel) event.getChannel();
-                        String arg = args[2].toLowerCase();
-                        if (Helpers.containsString(Maps.OPENAI_RESPONSE_MODELS, arg)) {
-                            userModelObject.put(sender.getIdLong(), arg);
-                            userSourceObject.put(sender.getIdLong(), "openai");
-                            app.completeSetUserModelSettings(userModelObject);
-                            app.completeSetUserSourceSettings(userSourceObject);
-                            channel.sendMessage("OpenAI model: " + arg + " for " + sender.getName()).queue();
-                        } else {
-                            String[] options = Maps.OPENAI_RESPONSE_MODELS;
-                            StringBuilder sb = new StringBuilder("[");
-                            for (int i = 0; i < options.length; i++) {
-                                sb.append(options[i]);
-                                if (i < options.length - 1) sb.append(", ");
+                SettingsManager.completeGetSettingsInstance()
+                    .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(sender.getIdLong())
+                        .thenCompose(userSettingsObj -> {
+                            String[] userSettings = (String[]) userSettingsObj;
+                            String newModel = args[2].toLowerCase();
+                            TextChannel channel = (TextChannel) event.getChannel();
+                            if (Helpers.containsString(Maps.OPENAI_RESPONSE_MODELS, newModel)) {
+                                return settingsManager.completeSetUserModel(sender.getIdLong(), newModel)
+                                    .thenCompose(v -> settingsManager.completeSetUserSource(sender.getIdLong(), "openai"))
+                                    .thenRun(() -> channel.sendMessage("OpenAI model: " + newModel + " for " + sender.getName()).queue());
+                            } else {
+                                String[] options = Maps.OPENAI_RESPONSE_MODELS; // You define this separately
+                                String optionList = String.join(", ", options);
+                                channel.sendMessage("Your options are [" + optionList + "]").queue();
+                                return CompletableFuture.completedFuture(null);
                             }
-                            sb.append("]");
-                            channel.sendMessage("Your options are " + sb).queue();
-                        }
-                    });
+                        }));
             }
         } else if (command.equals("wipe")) {
             boolean wipeAll = false, wipeBot = false, wipeCommands = false;

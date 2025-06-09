@@ -27,11 +27,11 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LOCAL_RESPONSE_MODEL("gemma-3-12B-it-QAT-Q4_0.gguf"),
+    LLAMA_MODEL("gemma-3-12B-it-QAT-Q4_0.gguf"),
     LOCAL_RESPONSE_PROVIDER("llama"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
-    SHELL_RESPONSE_SYS_INPUT("""
+    OPENAI_RESPONSES_INSTRUCTIONS_CLI("""
 You are Lucy, my agentic companion limited to JSON-mode, executing shell commands remotely to accomplish tasks. Your shell is accessible via a Java ProcessBuilder wrapper, which will parse your commands (as lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)) and run them. The output, unfiltered is returned to you. You must either A. respond in this JSON format with commands completing the next task or B. stop and await further instruction. needsClarification should be false when running commands. needsClarification should be true for followup questions. You can ending the entire conversation by setting local_shell_command_sequence_finished to true; do this especially if the data you are receiving isnt updating with the expected output. This is the schema you must use:
     {
       "responseId": "tool_1234567890",
@@ -89,6 +89,27 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
       }
     }
     """),
+    OPENAI_RESPONSES_INSTRUCTIONS_DISCORD(""),
+    OPENAI_RESPONSES_INSTRUCTIONS_TWITCH(""),
+    OPENAI_GENERATIONS_INSTRUCTIONS_CLI(""),
+    OPENAI_GENERATIONS_INSTRUCTIONS_DISCORD(""),
+    OPENAI_GENERATIONS_INSTRUCTIONS_TWITCH(""),
+    OPENAI_COMPLETIONS_INSTRUCTIONS_CLI(""),
+    OPENAI_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
+    OPENAI_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
+    OPENROUTER_COMPLETIONS_INSTRUCTIONS_CLI(""),
+    OPENROUTER_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
+    OPENROUTER_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
+    LMSTUDIO_COMPLETIONS_INSTRUCTIONS_CLI(""),
+    LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
+    LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
+    LLAMA_COMPLETIONS_INSTRUCTIONS_CLI(""),
+    LLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
+    LLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
+    OLLAMA_COMPLETIONS_INSTRUCTIONS_CLI(""),
+    OLLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
+    OLLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
+
     OPENAI_CODEX_MODEL("codex-mini-latest"),
     OPENAI_MODERATION_STATUS(true),
     OPENAI_MODERATION_MODEL("omni-moderation-latest"),

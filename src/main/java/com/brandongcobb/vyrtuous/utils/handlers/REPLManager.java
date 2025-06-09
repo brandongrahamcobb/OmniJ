@@ -137,43 +137,61 @@ public class REPLManager {
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
-        if ("openai".equals(responseSource)) {
-            String model  = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-        }
-        else if ("llama".equals(responseSource)) {
-            String model  = ModelRegistry.LLAMA_RESPONSE_MODEL.asString();
-        }
-        else {
-            throw new Exception(new IllegalStateException("Unknown model for response source of type: " + responseSource));
-        }
         String prompt = firstRun
             ? originalDirective
             : contextManager.buildPromptContext();
         LOGGER.fine("Prompt to AI: " + prompt);
+        CompletableFuture<String> endpointFuture;
+        String model;
         try {
-            CompletableFuture<MetadataContainer> call;
-            if (firstRun) {
-                call = aim.completeRequest(prompt, null, model, "response", responseSource, false, null);
+            if ("llama".equals(responseSource)) {
+                model = ModelRegistry.LLAMA_MODEL.asString();
+                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "llama");
+            } else if ("openai".equals(responseSource)) {
+                model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
+                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "openai");
             } else {
-                String prevId = new ToolUtils(lastAIResponseContainer).completeGetResponseId().join();
-                call = aim.completeRequest(prompt, prevId, model, "response", responseSource, false, null);
+                CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
+                failed.completeExceptionally(new IllegalStateException("Unknown model for response source of type: " + responseSource));
+                return failed;
             }
-            return call.thenApply(resp -> {
-                if (resp == null) {
-                    throw new CompletionException(new IllegalStateException("AI returned null"));
-                }
-                lastAIResponseContainer = resp;
-                lastAIResponseText      = new ToolUtils(resp).completeGetCustomReasoning().join();
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                return resp;
-            });
         } catch (Exception e) {
             CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
             failed.completeExceptionally(e);
             return failed;
         }
-    }
 
+        return endpointFuture.thenCompose(endpoint -> {
+            CompletableFuture<MetadataContainer> call;
+            try {
+                if (firstRun) {
+                    call = aim.completeRequest(prompt, null, model, endpoint, false, null);
+                } else {
+                    String prevId = new ToolUtils(lastAIResponseContainer).completeGetResponseId().join(); // may throw
+                    call = aim.completeRequest(prompt, prevId, model, endpoint, false, null);
+                }
+            } catch (Exception e) {
+                CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
+                failed.completeExceptionally(e);
+                return failed;
+            }
+            return call.handle((resp, ex) -> {
+                if (ex != null) {
+                    LOGGER.severe("completeRequest failed: " + ex.getMessage());
+                    throw new CompletionException(ex);
+                }
+                if (resp == null) {
+                    throw new CompletionException(new IllegalStateException("AI returned null"));
+                }
+                lastAIResponseContainer = resp;
+                lastAIResponseText = new ToolUtils(resp).completeGetCustomReasoning().join();
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+                return resp;
+            });
+        });
+
+    }
+    
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner) {
         pendingShellCommands.clear();
         seenCommandStrings.clear();

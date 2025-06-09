@@ -55,8 +55,8 @@ public class Vyrtuous {
     private static Vyrtuous app;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static Boolean isInputThreadRunning = false;
-    private Map<Long, String> userModelPairs = new HashMap<>();
-    private Map<Long, String> userSourcePairs = new HashMap<>();
+    public Map<Long, String> userModelPairs = new HashMap<>();
+    public Map<Long, String> userSourcePairs = new HashMap<>();
     
     
     public static void main(String[] args) {
