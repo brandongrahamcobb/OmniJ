@@ -29,6 +29,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.io.File;
+
 
 import java.util.stream.Collectors;
 
@@ -108,66 +120,214 @@ public class ToolHandler {
 
     private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");
     private static final Pattern SHELL_SPECIALS = Pattern.compile("(?<!\\\\)([;{}()|])");
-
-    private String quoteAndEscapeForShell(String token) {
-        if (SAFE_TOKEN.matcher(token).matches()) {
-            return token;
+    private static final Set<String> SHELL_OPERATORS = Set.of("|", ";", "&&", "||", ">", "<", ">>");
+    private String expandHome(String path) {
+        String home = System.getProperty("user.home");
+        if (path.equals("~")) {
+            return home;
+        } else if (path.startsWith("~/")) {
+            return home + path.substring(1);
         }
-
-        // If it's already quoted, we leave it alone
-        if ((token.startsWith("\"") && token.endsWith("\"")) || (token.startsWith("'") && token.endsWith("'"))) {
-            return token;
-        }
-
-        // Escape special shell chars outside of quotes by inserting backslashes
-        String escaped = SHELL_SPECIALS.matcher(token).replaceAll("\\\\$1");
-
-        // Now quote it for the shell, escaping single quotes if needed
-        return "'" + escaped.replace("'", "'\"'\"'") + "'";
+        return path;
     }
-
+    
     
     public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        return CompletableFuture.supplyAsync(() -> {
-            StringBuilder result = new StringBuilder();
-            for (List<String> commandParts : allCommands) {
-                try {
-                    List<String> processCommand = new ArrayList<>();
-                    processCommand.add("gtimeout");
-                    processCommand.add("20");
-                    String joinedCommand = commandParts.stream()
-                        .map(this::quoteAndEscapeForShell)
-                        .collect(Collectors.joining(" "));
 
-//String joinedCommand = commandParts.stream()
-  //                      .map(s -> s
-    //                        .replaceAll("(?<!\\\\);", "\\\\;")
-      //                      .replaceAll("(?<!\\\\)\\{", "\\\\{")
-        //                    .replaceAll("(?<!\\\\)\\}", "\\\\}")
-          //                  //.replaceAll("(?<!\\\\)\\|", "\\\\|")
-           //                 .replaceAll("(?<!\\\\)\\(", "\\\\(")
-             //               .replaceAll("(?<!\\\\)\\)", "\\\\)"))
-               //         .collect(Collectors.joining(" "));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Parse input into segments and operators,
+                // but treat pipes inside a segment (do not split on pipes)
+                List<String> segments = new ArrayList<>();
+                List<String> operators = new ArrayList<>();
+
+                StringBuilder currentSegment = new StringBuilder();
+
+                for (List<String> part : allCommands) {
+                    if (part.size() == 1 && SHELL_OPERATORS.contains(part.get(0)) && !part.get(0).equals("|")) {
+                        // Operator (not pipe) ends a segment
+                        if (currentSegment.length() == 0) {
+                            throw new IllegalArgumentException("Empty command segment before operator " + part.get(0));
+                        }
+                        segments.add(currentSegment.toString().trim());
+                        operators.add(part.get(0));
+                        currentSegment.setLength(0);
+                    } else {
+                        // Add tokens to current segment, joining with spaces
+                        if (currentSegment.length() > 0) currentSegment.append(" ");
+                        // Expand ~ in tokens
+                        String expanded = part.stream()
+                            .map(this::expandHome)
+                            .collect(Collectors.joining(" "));
+                        currentSegment.append(expanded);
+                    }
+                }
+
+                if (currentSegment.length() == 0) {
+                    throw new IllegalArgumentException("Command cannot end with an operator");
+                }
+                segments.add(currentSegment.toString().trim());
+
+                StringBuilder overallOutput = new StringBuilder();
+                int lastExitCode = 0;
+
+                for (int i = 0; i < segments.size(); i++) {
+                    // Handle operators logic
+                    if (i > 0) {
+                        String op = operators.get(i - 1);
+                        if ("&&".equals(op) && lastExitCode != 0) {
+                            // skip running this command
+                            continue;
+                        }
+                        if ("||".equals(op) && lastExitCode == 0) {
+                            // skip running this command
+                            continue;
+                        }
+                        // ; and others always run next command
+                    }
+
+                    List<String> processCommand = new ArrayList<>();
+                    processCommand.add("gtimeout");  // or "timeout" if on Linux
+                    processCommand.add("20");
                     processCommand.add("sh");
                     processCommand.add("-c");
-                    processCommand.add(joinedCommand);
+                    processCommand.add(segments.get(i));
+
                     ProcessBuilder pb = new ProcessBuilder(processCommand);
                     pb.redirectErrorStream(true);
                     Process proc = pb.start();
+
                     String output = readStream(proc.getInputStream());
-                    proc.waitFor();
-                    result.append(output);
-                    if (!output.endsWith("\n")) result.append("\n");
-                } catch (Exception e) {
-                    result.append("Error: ").append(e.getMessage()).append("\n");
+                    int exitCode = proc.waitFor();
+
+                    overallOutput.append(output);
+                    if (!output.endsWith("\n")) overallOutput.append("\n");
+
+                    lastExitCode = exitCode;
                 }
+
+                return overallOutput.toString().trim();
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } finally {
+                executor.shutdown();
             }
-            executor.shutdown();
-            return result.toString().trim();
         }, executor);
     }
 
+
+    private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
+        List<Process> processes = new ArrayList<>();
+        int n = segments.size();
+
+        InputStream lastProcessOutput = null;
+        Process lastProcess = null;
+
+        for (int i = 0; i < n; i++) {
+            List<String> segment = segments.get(i);
+            ProcessBuilder pb = new ProcessBuilder(segment);
+            pb.redirectErrorStream(true);
+
+            // Handle input/output redirection operators if present just after the command
+            if (i < operators.size()) {
+                String op = operators.get(i);
+
+                if (op.equals(">") || op.equals(">>")) {
+                    // Redirect stdout to file
+                    File outFile = new File(segments.get(i + 1).get(0)); // assuming next segment is the filename
+                    pb.redirectOutput(op.equals(">") ?
+                        ProcessBuilder.Redirect.to(outFile) :
+                        ProcessBuilder.Redirect.appendTo(outFile));
+                    i++; // skip the filename segment in next iteration
+                } else if (op.equals("<")) {
+                    // Redirect stdin from file
+                    File inFile = new File(segments.get(i + 1).get(0));
+                    pb.redirectInput(ProcessBuilder.Redirect.from(inFile));
+                    i++; // skip filename segment
+                }
+            }
+
+            if (i > 0 && i - 1 < operators.size() && "|".equals(operators.get(i - 1))) {
+                // Pipe previous process output to this process input
+                Process prevProcess = processes.get(processes.size() - 1);
+
+                pb.redirectInput(ProcessBuilder.Redirect.PIPE);
+                Process currProc = pb.start();
+
+                OutputStream currProcIn = currProc.getOutputStream();
+                InputStream prevProcOut = prevProcess.getInputStream();
+
+                // Pipe output of prev process to input of current process in a thread
+                Thread pipeThread = new Thread(() -> {
+                    try {
+                        pipeStreams(prevProcOut, currProcIn);
+                        currProcIn.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+                pipeThread.start();
+
+                processes.add(currProc);
+                lastProcess = currProc;
+            } else {
+                // Not piping, so just start the process normally
+                Process proc = pb.start();
+
+                // For conditional operators &&, || wait for previous process and check exit value
+                if (i > 0 && i - 1 < operators.size()) {
+                    String op = operators.get(i - 1);
+                    Process prevProc = processes.get(processes.size() - 1);
+                    int prevExit = prevProc.waitFor();
+
+                    if ("&&".equals(op) && prevExit != 0) {
+                        // Stop pipeline if previous failed and operator is &&
+                        break;
+                    } else if ("||".equals(op) && prevExit == 0) {
+                        // Stop pipeline if previous succeeded and operator is ||
+                        break;
+                    }
+                }
+
+                processes.add(proc);
+                lastProcess = proc;
+            }
+        }
+
+        if (lastProcess == null) {
+            throw new IllegalStateException("No process executed");
+        }
+
+        // Read output of last process
+        String output;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(lastProcess.getInputStream()))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            output = sb.toString();
+        }
+
+        // Wait for all started processes to finish
+        for (Process proc : processes) {
+            proc.waitFor();
+        }
+
+        return output.trim();
+    }
+
+
+    private void pipeStreams(InputStream input, OutputStream output) throws IOException {
+        byte[] buffer = new byte[8192];
+        int length;
+        while ((length = input.read(buffer)) != -1) {
+            output.write(buffer, 0, length);
+            output.flush();
+        }
+    }
 
     
     public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {

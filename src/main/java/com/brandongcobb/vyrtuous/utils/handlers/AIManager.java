@@ -225,10 +225,8 @@ public class AIManager {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = null;
-                    System.out.println(Vyrtuous.CYAN + code + Vyrtuous.RESET);
                     if (code <= 200 || code > 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        System.out.println(respBody);
                         if (onContentChunk == null) {
                             Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             LlamaContainer llamaOuterResponse = new LlamaContainer(outer);

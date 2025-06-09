@@ -284,7 +284,7 @@ public class REPLManager {
                             LOGGER.fine("Retrying command: " + cmdStr);
                             replExecutor.submit(this);
                         } else if (err != null) {
-                            promise.complete("❌ Failed: " + cmdStr);
+                            promise.complete("❌ Failed: " + cmdStr + err);
                         } else {
                             promise.complete(out);
                         }
