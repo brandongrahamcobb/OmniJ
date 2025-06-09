@@ -94,11 +94,8 @@ public class AIManager {
             Map<String, Object> msgMap = new HashMap<>();
             Map<String, Object> userMsg = new HashMap<>();
             Map<String, Object> systemMsg = new HashMap<>();
-            
-            System.out.println(Vyrtuous.CYAN + Maps.BUILD_PROTOCOL.get(endpoint) + Vyrtuous.RESET);
             switch (Maps.BUILD_PROTOCOL.get(endpoint)) {
                 case "deprecated":
-                    
                     body.put("model", model);
                     systemMsg.put("role", "system");
                     systemMsg.put("content", instructions);
@@ -235,6 +232,7 @@ public class AIManager {
                     }
                     if (onContentChunk == null) {
                         Map<String, Object> fullResponse = mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
+                        System.out.println(Vyrtuous.CYAN + respBody + Vyrtuous.RESET);
                         return new LlamaContainer(fullResponse);
                     } else {
                         StringBuilder builder = new StringBuilder();
