@@ -39,6 +39,7 @@ public class ContextManager {
     private final List<ContextEntry> entries = new ArrayList<>();
     private final int maxEntries;
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry(); // Commented out as token counting is disabled
+    private int lastSeenIndex = 0;
 
     public ContextManager(int maxEntries) {
         this.maxEntries = maxEntries;
@@ -47,6 +48,55 @@ public class ContextManager {
     public List<ContextEntry> getEntries() {
         return entries;
     }
+    
+    public void printNewEntries(boolean includeUserMessages,
+                                boolean includeAIResponses,
+                                boolean includeCommands,
+                                boolean includeCommandOutputs,
+                                boolean includeTokens,
+                                boolean includeSystemNotes,
+                                boolean includeShellOutput) {
+
+        List<ContextEntry> newEntries = getNewEntriesSinceLastCall();
+
+        for (ContextEntry entry : newEntries) {
+            ContextEntry.Type type = entry.getType();
+
+            boolean shouldPrint =
+                (type == ContextEntry.Type.USER_MESSAGE     && includeUserMessages)   ||
+                (type == ContextEntry.Type.AI_RESPONSE      && includeAIResponses)    ||
+                (type == ContextEntry.Type.COMMAND          && includeCommands)       ||
+                (type == ContextEntry.Type.COMMAND_OUTPUT   && includeCommandOutputs) ||
+                (type == ContextEntry.Type.TOKENS           && includeTokens)         ||
+                (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
+                (type == ContextEntry.Type.SHELL_OUTPUT     && includeShellOutput);
+
+            if (shouldPrint) {
+                String color;
+                switch (type) {
+                    case USER_MESSAGE:   color = BRIGHT_BLUE; break;
+                    case AI_RESPONSE:    color = TEAL;        break;
+                    case COMMAND:        color = CYAN;        break;
+                    case COMMAND_OUTPUT: color = SKY_BLUE;    break;
+                    case TOKENS:         color = BRIGHT_CYAN; break;
+                    case SYSTEM_NOTE:    color = NAVY;        break;
+                    case SHELL_OUTPUT:   color = DODGER_BLUE; break;
+                    default:             color = RESET;       break;
+                }
+                System.out.println(color + entry.formatForPrompt() + RESET);
+            }
+        }
+    }
+
+    public synchronized List<ContextEntry> getNewEntriesSinceLastCall() {
+        if (lastSeenIndex >= entries.size()) {
+            return new ArrayList<>();
+        }
+        List<ContextEntry> newEntries = new ArrayList<>(entries.subList(lastSeenIndex, entries.size()));
+        lastSeenIndex = entries.size();
+        return newEntries;
+    }
+
     
     /**
      * Adds a new context entry.

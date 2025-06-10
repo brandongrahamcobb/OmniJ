@@ -281,7 +281,6 @@ public class AIManager {
                                 value = jsonContent;
                             }
                             
-                            System.out.println(Vyrtuous.CYAN + value + Vyrtuous.RESET);
                             Map<String, Object> inner = mapper.readValue(value, new TypeReference<>() {});
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();
