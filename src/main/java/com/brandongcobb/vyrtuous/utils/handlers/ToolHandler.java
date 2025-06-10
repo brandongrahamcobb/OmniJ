@@ -210,7 +210,7 @@ public class ToolHandler {
         int i = 0;
         while (i < segments.size()) {
             List<String> segment = segments.get(i);
-            String command = shellQuote(String.join(" ", segment));
+            String command = String.join(" ", segment);
 
             List<String> commandList = List.of("gtimeout", "20", "sh", "-c", command);
             ProcessBuilder pb = new ProcessBuilder(commandList);

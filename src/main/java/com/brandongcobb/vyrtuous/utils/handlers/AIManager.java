@@ -39,6 +39,8 @@ import java.util.Map;
 // For BufferedReader and InputStreamReader
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 // For Charset
 import java.nio.charset.StandardCharsets;
@@ -232,12 +234,41 @@ public class AIManager {
                             LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
                             LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
                             String content = llamaOuterUtils.completeGetContent().join();
+                            // Remove ```json markers if present
                             String jsonContent = content
                                 .replaceFirst("^```json\\s*", "")
                                 .replaceFirst("\\s*```$", "")
                                 .trim();
-                            System.out.println(Vyrtuous.CYAN + jsonContent + Vyrtuous.RESET);
-                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
+
+                            // Match the "commands": [ ... ] section
+                            Pattern pattern = Pattern.compile("\"commands\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
+                            Matcher matcher = pattern.matcher(jsonContent);
+                            String value = null;
+                            if (matcher.find()) {
+                                String originalCommands = matcher.group(1); // everything inside the brackets
+
+                                // Apply escapes
+                                String escaped = originalCommands
+                                    .replace("\\", "\\\\\\\\")  // quadruple backslashes
+                                    .replace("\"", "\\\"")      // escape double quotes
+                                    .replace("$", "\\$")        // escape $
+                                    .replace("`", "\\`")
+                                    .replace("(", "\\(")
+                                    .replace(")", "\\)")
+                                    .replace(":", "\\:")
+                                    .replace("{", "\\{")
+                                    .replace("}", "\\}");
+
+                                // Reconstruct
+                                String replacedJson = matcher.replaceFirst("\"commands\": [" + escaped + "]");
+                                value = replacedJson;
+                            } else {
+                                // No commands section found
+                                value = jsonContent;
+                            }
+                            
+                            System.out.println(Vyrtuous.CYAN + value + Vyrtuous.RESET);
+                            Map<String, Object> inner = mapper.readValue(value, new TypeReference<>() {});
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();
                             inner.put("id", previousResponseId);
