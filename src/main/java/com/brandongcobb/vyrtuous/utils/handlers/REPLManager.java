@@ -295,24 +295,18 @@ public class REPLManager {
                             promise.complete("❌ Failed: " + err);
                         } else {
                             ToolUtils toolUtils = new ToolUtils(lastAIResponseContainer);
-                            boolean withinLimit = toolUtils.completeGetAcceptingTokens().join();
+                            boolean acceptingTokens = toolUtils.completeGetAcceptingTokens().join();
 
-                            if (out != null && withinLimit) {
-                                if (firstRun) {
-                                    promise.complete(out);
-                                } else {
-                                    th.executeCommandsAsList(oldCommands)
-                                        .thenAccept(ignored -> promise.complete(out))
-                                        .exceptionally(ex -> {
-                                            promise.complete("❌ Error re-running old commands: " + ex);
-                                            return null;
-                                        });
-                                }
+                            if (out != null && acceptingTokens) {
+//                                if (firstRun) {
+//                                    promise.complete(out);
+//                                }
+                                promise.complete(out);
                             } else {
                                 long tokenCount = contextManager.getTokenCount(out);
                                 StringBuilder response = new StringBuilder();
                                 response.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
-
+    
                                 // Append oldCommands for visibility
                                 response.append("📋 Do you want to accept the console output?\n");
                                 oldCommands = commands;
@@ -326,8 +320,6 @@ public class REPLManager {
         replExecutor.submit(attempt);
         return promise;
     }
-
-
 
     private CompletableFuture<Void> completePStep(MetadataContainer resp, Scanner scanner) {
         LOGGER.fine("Print-step");

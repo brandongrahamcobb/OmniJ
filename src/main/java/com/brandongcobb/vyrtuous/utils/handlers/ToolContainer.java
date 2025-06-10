@@ -68,14 +68,15 @@ public class ToolContainer extends MainContainer {
         Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|\\S+").matcher(command);
         while (m.find()) {
             if (m.group(1) != null)
-                tokens.add(m.group(1)); // double-quoted
+                tokens.add("\"" + m.group(1) + "\""); // keep double quotes
             else if (m.group(2) != null)
-                tokens.add(m.group(2)); // single-quoted
+                tokens.add("'" + m.group(2) + "'");   // keep single quotes
             else
-                tokens.add(m.group());  // unquoted
+                tokens.add(m.group());  // unquoted token
         }
         return tokens;
     }
+
 
     public ToolContainer(Map<String, Object> responseMap) {
         

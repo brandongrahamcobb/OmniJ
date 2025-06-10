@@ -272,7 +272,8 @@ public class AIManager {
                                     .replace(":", "\\:")
                                     .replace("{", "\\{")
                                     .replace("}", "\\}")
-                                    .replace("@", "\\@");
+                                    .replace("@", "\\@")
+                                    .replace("'", "\\'");
 
                                 // Reconstruct
                                 String replacedJson = matcher.replaceFirst("\"commands\": [" + escaped + "]");
