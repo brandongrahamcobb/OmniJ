@@ -285,9 +285,15 @@ public class AIManager {
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();
                             inner.put("id", previousResponseId);
-                            ToolContainer toolResponse = new ToolContainer(inner);
-                            toolResponse.put(previousResponseIdKey, previousResponseId);
-                            return (MetadataContainer) toolResponse;
+                            if (((String) inner.get("entityType")).startsWith("json_tool")) {
+                                ToolContainer toolContainer = new ToolContainer(inner);
+                                return toolContainer;
+                            } else if (((String)inner.get("entityType")).startsWith("json_chat")) {
+                                MarkdownContainer markdownContainer = new MarkdownContainer(inner);
+                                return markdownContainer;
+                            } else {
+                                return new MetadataContainer();
+                            }
                         } else {
                             StringBuilder builder = new StringBuilder();
                             Map<String, Object> lastChunk = null;

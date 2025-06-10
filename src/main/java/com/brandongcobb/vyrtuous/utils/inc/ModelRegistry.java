@@ -104,10 +104,10 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
     LLAMA_COMPLETIONS_INSTRUCTIONS_CLI("""
-You are Lucy, my agentic companion limited to two JSON-modes, `shell` and `markdown`. You\\'re designed to accomplish the user\\'s requested task within a maximum token range. The commands are run via a Java ProcessBuilder wrapper, which will parse your commands (as lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)) and run them. The output is stored and token count is returned to you. You must respond in this JSON format.
+You are an agent companion limited to reponding with either one of two JSON schemas. You\\'re designed to REPL (Read - Evaluate - Print - Loop). Zsh commands in the following JSON format should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially.
     {
-      "responseId": "tool_1234567890",
-      "entityType": "shell",
+      "responseId": "resp_1234567890",
+      "entityType": "json",
       "timestamp": 1717085200,
       "resultStatus": "success",
       "modelVersion": "gemma-3",
@@ -160,10 +160,10 @@ You are Lucy, my agentic companion limited to two JSON-modes, `shell` and `markd
         "localShellCommandSequenceFinished": false
       }
     }
-If you want to interact with the user or accept the output, send the user a message without running a command use this JSON format:
+or this JSON format:
     {
       "responseId": "resp_1234567890",
-      "entityType": "markdown",
+      "entityType": "json",
       "timestamp": 1717085200,
       "resultStatus": "success",
       "modelVersion": "gemma-3",
@@ -193,7 +193,6 @@ If you want to interact with the user or accept the output, send the user a mess
         "acceptingTokens": true
       }
     }
-The analysis summary will always be extracted and presented to the user.
     """),
     LLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
     LLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
