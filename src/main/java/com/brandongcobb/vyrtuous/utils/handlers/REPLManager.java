@@ -87,7 +87,7 @@ public class REPLManager {
                         boolean finished = resp.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
                         return finished
                             ? CompletableFuture.completedFuture(null)
-                            : completeLStep(scanner, true);
+                            : completeLStep(scanner);
                     });
             })
             .exceptionally(ex -> {
@@ -219,7 +219,7 @@ public class REPLManager {
                     String newInput = scanner.nextLine();
                     return startREPL(scanner, newInput);
                 } else {
-                    return completeLStep(scanner, firstRun);
+                    return completeLStep(scanner);
                 }
             });
          } else if (response instanceof MarkdownContainer) {
@@ -250,7 +250,6 @@ public class REPLManager {
         }
         List<String> parts = pendingShellCommands.remove(0);
         String cmd = String.join(" ", parts);
-        LOGGER.fine("Running shell command: " + cmd);
         if (Helpers.requiresApproval(cmd, approvalMode)) {
             System.out.println("Approve command? " + cmd + " (yes/no)");
             System.out.print("> ");
@@ -261,25 +260,18 @@ public class REPLManager {
             }
         }
         return completeESubSubStep(Collections.singletonList(parts), firstRun).thenCompose(out -> {
-            return completeESubStep(scanner, firstRun);
+            contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
+            return completeLStep(scanner);
         });
-    }
-
-
-    public void setOldCommands(List<List<String>> commands) {
-        this.oldCommands = commands;
     }
 
     private CompletableFuture<String> completeESubSubStep(List<List<String>> commands, boolean firstRun) {
         final int maxRetry = 2;
         final long timeoutMs = 600_000;
-
         Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(commands);
         CompletableFuture<String> promise = new CompletableFuture<>();
-
         Runnable attempt = new Runnable() {
             int tries = 0;
-
             @Override
             public void run() {
                 tries++;
@@ -291,26 +283,20 @@ public class REPLManager {
                         } else if (err != null) {
                             promise.complete("❌ Failed: " + err);
                         } else if (out != null) {
-
                             if (acceptingTokens) {
                                 promise.complete(out);
                             } else {
                                 long tokenCount = contextManager.getTokenCount(out);
                                 StringBuilder response = new StringBuilder();
                                 response.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
-    
-                                // Append oldCommands for visibility
                                 response.append("📋 Do you want to accept the console output?\n");
                                 oldCommands = commands;
-                                
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
                                 promise.complete(response.toString());
                             }
                         }
                     });
             }
         };
-
         replExecutor.submit(attempt);
         return promise;
     }
@@ -323,11 +309,11 @@ public class REPLManager {
     }
 
 
-    private CompletableFuture<Void> completeLStep(Scanner scanner, boolean firstRun) {
+    private CompletableFuture<Void> completeLStep(Scanner scanner) {
         LOGGER.fine("Loop to R-step");
         return completeRStepWithTimeout(scanner, false)
             .thenCompose(resp -> completePStep(resp, scanner)
-            .thenCompose(ignored -> completeEStep(resp, scanner, firstRun)));
+            .thenCompose(ignored -> completeEStep(resp, scanner, false)));
     }
 
     public void startResponseInputThread() {
