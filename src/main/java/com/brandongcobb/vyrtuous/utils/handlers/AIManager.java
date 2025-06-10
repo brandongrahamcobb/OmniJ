@@ -280,7 +280,6 @@ public class AIManager {
                             } else {
                                 value = jsonContent;
                             }
-                            
                             Map<String, Object> inner = mapper.readValue(value, new TypeReference<>() {});
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();
