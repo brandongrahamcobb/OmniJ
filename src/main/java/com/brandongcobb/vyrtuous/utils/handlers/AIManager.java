@@ -209,6 +209,15 @@ public class AIManager {
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
 
+    public static String removeThinkBlocks(String text) {
+        // Use a regular expression to find and replace the <think>...</think> pattern
+        // (?s) enables the DOTALL mode, so dot (.) matches newline characters as well.
+        // <think> matches the starting tag.
+        // .*? matches any characters (non-greedily) between the tags.
+        // </think> matches the closing tag.
+        String regex = "(?s)<think>.*?</think>";
+        return text.replaceAll(regex, "");
+    }
     
     private CompletableFuture<MetadataContainer> completeLlamaProcessRequest(
         Map<String, Object> requestBody,
@@ -229,17 +238,22 @@ public class AIManager {
                     String respBody = null;
                     if (code <= 200 || code > 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                        System.out.println(Vyrtuous.TEAL + respBody + Vyrtuous.RESET);
                         if (onContentChunk == null) {
                             Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
                             LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
                             String content = llamaOuterUtils.completeGetContent().join();
                             // Remove ```json markers if present
-                            String jsonContent = content
-                                .replaceFirst("^```json\\s*", "")
-                                .replaceFirst("\\s*```$", "")
-                                .trim();
-
+                            String jsonContent = "";
+                            if (content.startsWith("<think>")) {
+                                jsonContent = removeThinkBlocks(content);
+                            } else {
+                                jsonContent = content
+                                    .replaceFirst("^```json\\s*", "")
+                                    .replaceFirst("\\s*```$", "")
+                                    .trim();
+                            }
                             // Match the "commands": [ ... ] section
                             Pattern pattern = Pattern.compile("\"commands\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
                             Matcher matcher = pattern.matcher(jsonContent);
@@ -257,13 +271,13 @@ public class AIManager {
                                     .replace(")", "\\)")
                                     .replace(":", "\\:")
                                     .replace("{", "\\{")
-                                    .replace("}", "\\}");
+                                    .replace("}", "\\}")
+                                    .replace("@", "\\@");
 
                                 // Reconstruct
                                 String replacedJson = matcher.replaceFirst("\"commands\": [" + escaped + "]");
                                 value = replacedJson;
                             } else {
-                                // No commands section found
                                 value = jsonContent;
                             }
                             

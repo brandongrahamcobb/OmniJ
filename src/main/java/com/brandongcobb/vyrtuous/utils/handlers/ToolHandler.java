@@ -175,7 +175,8 @@ public class ToolHandler {
             .replace(")", "\\)")
             .replace(":", "\\:")
             .replace("{", "\\{")
-            .replace("}", "\\}");       // avoid subshells
+            .replace("}", "\\}")
+            .replace("@", "\\@");       // avoid subshells
 
         return quoted;
     }

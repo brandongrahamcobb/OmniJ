@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LLAMA_MODEL("gemma-3-4b-it-Q4_K_M.gguf"),
+    LLAMA_MODEL("Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf"),
     LOCAL_RESPONSE_PROVIDER("llama"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
@@ -158,7 +158,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
         "shellCommandUsage": "Use `commands` as a list. Each entry is either a full command string or a parameterized list of parts.",
         "local_shell_command_sequence_finished": false,
         "needsClarification": false,
-        "acceptingTokens": true,
+        "acceptingTokens": true
       }
     }
     """),
