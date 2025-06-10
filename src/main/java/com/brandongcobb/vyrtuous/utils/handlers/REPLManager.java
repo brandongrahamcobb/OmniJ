@@ -314,8 +314,8 @@ public class REPLManager {
                         } else if (err != null) {
                             promise.complete("❌ Failed: " + err);
                         } else {
-                            ToolUtils toolUtils = new ToolUtils(lastAIResponseContainer);
-                            boolean acceptingTokens = toolUtils.completeGetAcceptingTokens().join();
+                            MarkdownUtils markdownUtils = new MarkdownUtils(lastAIResponseContainer);
+                            boolean acceptingTokens = markdownUtils.completeGetAcceptingTokens().join();
 
                             if (out != null && acceptingTokens) {
 //                                if (firstRun) {
