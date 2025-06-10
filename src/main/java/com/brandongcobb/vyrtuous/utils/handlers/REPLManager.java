@@ -55,9 +55,9 @@ public class REPLManager {
 
     
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -159,6 +159,7 @@ public class REPLManager {
             CompletableFuture<MetadataContainer> call;
             try {
                 if (firstRun) {
+                    contextManager.printEntries(true, true, true, true, true, true, true);
                     call = aim.completeRequest(prompt, null, model, endpoint, false, null);
                 } else {
                     contextManager.printNewEntries(true, true, true, true, true, true, true);
