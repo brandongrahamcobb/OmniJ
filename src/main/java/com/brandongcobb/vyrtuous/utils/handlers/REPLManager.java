@@ -263,7 +263,6 @@ public class REPLManager {
             }
         }
         return completeESubSubStep(Collections.singletonList(parts), firstRun).thenCompose(out -> {
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
             return completeESubStep(scanner, firstRun);
         });
     }
@@ -310,6 +309,8 @@ public class REPLManager {
                                 // Append oldCommands for visibility
                                 response.append("📋 Do you want to accept the console output?\n");
                                 oldCommands = commands;
+                                
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
                                 promise.complete(response.toString());
                             }
                         }
