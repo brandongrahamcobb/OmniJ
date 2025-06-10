@@ -131,6 +131,7 @@ public class REPLManager {
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
+        
         String prompt = firstRun
             ? originalDirective
             : contextManager.buildPromptContext();
@@ -160,6 +161,7 @@ public class REPLManager {
                 if (firstRun) {
                     call = aim.completeRequest(prompt, null, model, endpoint, false, null);
                 } else {
+                    contextManager.printNewEntries(true, true, true, true, true, true, true);
                     String prevId = new ToolUtils(lastAIResponseContainer).completeGetResponseId().join(); // may throw
                     call = aim.completeRequest(prompt, prevId, model, endpoint, false, null);
                 }
@@ -325,7 +327,6 @@ public class REPLManager {
     private CompletableFuture<Void> completePStep(MetadataContainer resp, Scanner scanner) {
         LOGGER.fine("Print-step");
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
-        contextManager.printNewEntries(true, true, true, true, true, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
