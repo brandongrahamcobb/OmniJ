@@ -46,8 +46,11 @@ public class REPLManager {
     private final String responseSource = System.getenv("REPL_RESPONSE_SOURCE");
     private final Set<String> seenCommandStrings = new HashSet<>();
     private String lastCommandOutput = "";
+    private boolean acceptingTokens = true;
+    private boolean needsClarification = false;
     
     private List<List<String>> oldCommands;
+    
     
     public void setApprovalMode(ApprovalMode mode) {
         LOGGER.fine("Setting approval mode: " + mode);
@@ -56,9 +59,9 @@ public class REPLManager {
 
     
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
     }
@@ -76,7 +79,6 @@ public class REPLManager {
         pendingShellCommands.clear();
         seenCommandStrings.clear();
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        contextManager.printEntries(true, true, true, true, true, true, true);
         originalDirective = userInput;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp -> {
@@ -162,7 +164,8 @@ public class REPLManager {
                 if (firstRun) {
                     call = aim.completeRequest(prompt, null, model, endpoint, false, null);
                 } else {
-                    String prevId = new ToolUtils(lastAIResponseContainer).completeGetResponseId().join(); // may throw
+                    MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
+                    String prevId = (String) lastAIResponseContainer.get(previousResponseIdKey); // may throw
                     call = aim.completeRequest(prompt, prevId, model, endpoint, false, null);
                 }
             } catch (Exception e) {
@@ -179,12 +182,6 @@ public class REPLManager {
                     throw new CompletionException(new IllegalStateException("AI returned null"));
                 }
                 lastAIResponseContainer = resp;
-                if (lastAIResponseContainer instanceof ToolContainer) {
-                    
-                } else if (lastAIResponseContainer instanceof MarkdownContainer) {
-                    lastAIResponseText = new MarkdownUtils(resp).completeGetCustomReasoning().join();
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                }
                 return resp;
             });
         });
@@ -192,30 +189,11 @@ public class REPLManager {
     }
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
-        pendingShellCommands.clear();
-        seenCommandStrings.clear();
         LOGGER.fine("Starting E-step");
-        boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
         if (response instanceof ToolContainer) {
             ToolUtils tu = new ToolUtils(response);
-            boolean needsClar = false;
-            try { needsClar = tu.completeGetClarification().join(); }
-            catch (Exception e) { LOGGER.warning("Cannot read clarification flag."); }
-            if (needsClar) {
-                String ask = "";
-                try { ask = tu.completeGetCustomReasoning().join(); }
-                catch (Exception e) { LOGGER.warning("Cannot read clarification prompt."); }
-                System.out.println("🤔 I need more details: " + ask);
-                System.out.print("> ");
-                String reply = scanner.nextLine();
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.SYSTEM_NOTE, ask));
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
-                pendingShellCommands.clear();
-                seenCommandStrings.clear();
-                return completeRStepWithTimeout(scanner, firstRun)
-                    .thenCompose(resp2 -> completeEStep(resp2, scanner, firstRun));
-            }
-            @SuppressWarnings("unchecked")
+            lastAIResponseText = tu.completeGetCustomReasoning().join();
+            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
             List<List<String>> newCmds = (List<List<String>>) ((ToolContainer) response).getResponseMap()
                 .get(th.LOCALSHELLTOOL_COMMANDS_LIST);
             LOGGER.fine("AI returned commands: " + newCmds);
@@ -228,11 +206,11 @@ public class REPLManager {
                     }
                 }
             }
-        } else if (response instanceof MarkdownContainer) {
-            lastAIResponseText = new MarkdownUtils(response).completeGetCustomReasoning().join();
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+            boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
             return completeESubStep(scanner, firstRun).thenCompose(done -> {
                 if (finished) {
+                    String finalReason = tu.completeGetCustomReasoning().join();
+                    System.out.println(finalReason);
                     System.out.println("✅ Task complete.");
                     pendingShellCommands.clear();
                     seenCommandStrings.clear();
@@ -244,28 +222,26 @@ public class REPLManager {
                     return completeLStep(scanner, firstRun);
                 }
             });
-        }
-        return completeESubStep(scanner, firstRun).thenCompose(done -> {
-            if (finished) {
-                System.out.println("✅ Task complete.");
-                pendingShellCommands.clear();
-                seenCommandStrings.clear();
-                contextManager.clear();
-                System.out.print("> ");
-                String newInput = scanner.nextLine();
-                return startREPL(scanner, newInput);
-            } else {
-                return completeLStep(scanner, firstRun);
+         } else if (response instanceof MarkdownContainer) {
+             MarkdownUtils markdownUtils = new MarkdownUtils(response);
+             needsClarification = markdownUtils.completeGetClarification().join();
+             acceptingTokens = markdownUtils.completeGetAcceptingTokens().join();
+             if (needsClarification) {
+                 String ask = markdownUtils.completeGetCustomReasoning().join();
+                 System.out.println("🤔 I need more details: " + ask);
+                 System.out.print("> ");
+                 String reply = scanner.nextLine();
+                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.SYSTEM_NOTE, ask));
+                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
+                 pendingShellCommands.clear();
+                 seenCommandStrings.clear();
+                 return completeRStepWithTimeout(scanner, firstRun)
+                     .thenCompose(resp2 -> completeEStep(resp2, scanner, firstRun));
             }
-        });
-//        if (pendingShellCommands.isEmpty() && !finished) {
-//            System.out.println(lastAIResponseText + ". Any input?");
-//            System.out.print("> ");
-//            String u = scanner.nextLine();
-//            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, u));
-//            return CompletableFuture.completedFuture(null);
-//        }
-
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.completedFuture(null);
     }
     
     private CompletableFuture<Void> completeESubStep(Scanner scanner, boolean firstRun) {
@@ -314,16 +290,10 @@ public class REPLManager {
                             replExecutor.submit(this);
                         } else if (err != null) {
                             promise.complete("❌ Failed: " + err);
-                        } else {
-                            if (lastAIResponseContainer instanceof MarkdownContainer) {
-                                MarkdownUtils markdownUtils = new MarkdownUtils(lastAIResponseContainer);
-                                boolean acceptingTokens = markdownUtils.completeGetAcceptingTokens().join();
-                                if (out != null && acceptingTokens) {
-//                                if (firstRun) {
-//                                    promise.complete(out);
-//                                }
-                                    promise.complete(out);
-                                }
+                        } else if (out != null) {
+
+                            if (acceptingTokens) {
+                                promise.complete(out);
                             } else {
                                 long tokenCount = contextManager.getTokenCount(out);
                                 StringBuilder response = new StringBuilder();
@@ -376,4 +346,5 @@ public class REPLManager {
             }
         });
     }
+    
 }
