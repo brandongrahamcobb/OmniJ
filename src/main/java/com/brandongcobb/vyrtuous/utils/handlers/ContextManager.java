@@ -39,7 +39,7 @@ public class ContextManager {
     private final List<ContextEntry> entries = new ArrayList<>();
     private final int maxEntries;
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry(); // Commented out as token counting is disabled
-    private int lastSeenIndex = 0;
+    private int lastBuildIndex = 0;
 
     public ContextManager(int maxEntries) {
         this.maxEntries = maxEntries;
@@ -89,11 +89,11 @@ public class ContextManager {
     }
 
     public synchronized List<ContextEntry> getNewEntriesSinceLastCall() {
-        if (lastSeenIndex >= entries.size()) {
+        if (lastBuildIndex >= entries.size()) {
             return new ArrayList<>();
         }
-        List<ContextEntry> newEntries = new ArrayList<>(entries.subList(lastSeenIndex, entries.size()));
-        lastSeenIndex = entries.size();
+        List<ContextEntry> newEntries = new ArrayList<>(entries.subList(lastBuildIndex, entries.size()));
+        lastBuildIndex = entries.size();
         return newEntries;
     }
 
@@ -129,8 +129,10 @@ public class ContextManager {
         for (ContextEntry entry : entries) {
             sb.append(entry.formatForPrompt()).append("\n\n");
         }
+        lastBuildIndex = entries.size();  // <--- Mark the point at which context was built
         return sb.toString();
     }
+
 
     /**
      * Clears all context entries.
