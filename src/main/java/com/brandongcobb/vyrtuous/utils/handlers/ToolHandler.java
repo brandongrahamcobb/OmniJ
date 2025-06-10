@@ -213,7 +213,7 @@ public class ToolHandler {
             List<String> segment = segments.get(i);
             String command = String.join(" ", segment);
 
-            List<String> commandList = List.of("gtimeout", "20", "sh", "-c", command);
+            List<String> commandList = List.of("gtimeout", "20", "bash", "-c", command);
             ProcessBuilder pb = new ProcessBuilder(commandList);
             pb.redirectErrorStream(true);
 
