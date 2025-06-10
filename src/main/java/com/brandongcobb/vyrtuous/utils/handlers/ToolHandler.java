@@ -113,15 +113,16 @@ public class ToolHandler {
 
     private List<String> escapeCommandParts(List<String> commandParts) {
         return commandParts.stream()
-            .map(s -> s.replace("*", "'*'")
-                       .replace(";", "\\;")
-                       .replace("&&", "\\&\\&")
-                       .replace("(", "\\(")
-                       .replace(")", "\\)")
-                       .replace("{", "\\{")
-                       .replace("}", "\\}")
-                       .replace("|", "\\|"))
+            .map(s -> s.replace(";", "\\;")
+                 .replace("&&", "\\&\\&")
+                 .replace("(", "\\(")
+                 .replace(")", "\\)")
+                 .replace("{", "\\{")
+                 .replace("}", "\\}")
+                 .replace("|", "\\|"))
             .toList();
+        //s.replace("*", "'*'")
+                 
     }
 
     private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");

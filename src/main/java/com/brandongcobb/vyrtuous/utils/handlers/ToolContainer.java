@@ -208,6 +208,11 @@ public class ToolContainer extends MainContainer {
         if (needsClarification != null) {
             put(clarificationMetadataKey, needsClarification);
         }
+        MetadataKey<Boolean> acceptingTokensMetadataKey = new MetadataKey<>("acceptingTokens", Metadata.BOOLEAN);
+        Boolean acceptingTokens = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("acceptingTokens") : null;
+        if (acceptingTokens != null) {
+            put(acceptingTokensMetadataKey, acceptingTokens);
+        }
 
         MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("results", Metadata.STRING);
         Object outputObj = responseMap != null ? responseMap.get("results") : null;

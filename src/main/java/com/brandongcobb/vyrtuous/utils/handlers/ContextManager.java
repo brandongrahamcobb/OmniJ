@@ -106,7 +106,7 @@ public class ContextManager {
      * @param prompt The prompt string to count tokens for.
      * @return 0L, as token counting is disabled.
      */
-    private long getTokenCount(String prompt) {
+    public long getTokenCount(String prompt) {
         try {
             Encoding encoding = registry.getEncoding("cl100k_base")
                 .orElseThrow(() -> new IllegalStateException("Encoding cl100k_base not available"));
@@ -120,6 +120,7 @@ public class ContextManager {
                              boolean includeAIResponses,
                              boolean includeCommands,
                              boolean includeCommandOutputs,
+                             boolean includeTokens,
                              boolean includeSystemNotes,
                              boolean includeShellOutput) {
 
@@ -131,6 +132,7 @@ public class ContextManager {
                 (type == ContextEntry.Type.AI_RESPONSE      && includeAIResponses)    ||
                 (type == ContextEntry.Type.COMMAND          && includeCommands)       ||
                 (type == ContextEntry.Type.COMMAND_OUTPUT   && includeCommandOutputs) ||
+                (type == ContextEntry.Type.TOKENS           && includeTokens)         ||
                 (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
                 (type == ContextEntry.Type.SHELL_OUTPUT     && includeShellOutput);
 
@@ -141,6 +143,7 @@ public class ContextManager {
                     case AI_RESPONSE:    color = TEAL;        break;
                     case COMMAND:        color = CYAN;        break;
                     case COMMAND_OUTPUT: color = SKY_BLUE;    break;
+                    case TOKENS:         color = BRIGHT_CYAN; break;
                     case SYSTEM_NOTE:    color = NAVY;        break;
                     case SHELL_OUTPUT:   color = DODGER_BLUE; break;
                     default:             color = RESET;       break;
@@ -172,7 +175,7 @@ public class ContextManager {
      * Summarizes and removes old entries when the context exceeds maxEntries.
      * The core logic is commented out as context management is disabled.
      */
-    private synchronized void summarizeOldEntries() {
+    public synchronized void summarizeOldEntries() {
         int removeCount = entries.size() / 2;
         List<ContextEntry> toSummarize = new ArrayList<>(entries.subList(0, removeCount));
         String summary = summarizeEntries(toSummarize);

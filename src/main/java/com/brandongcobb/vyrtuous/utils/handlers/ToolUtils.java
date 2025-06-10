@@ -70,5 +70,18 @@ public class ToolUtils {
         });
     }
     
+    public CompletableFuture<Boolean> completeGetAcceptingTokens() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<Boolean> acceptingTokensMetadataKey = new MetadataKey<>("acceptingTokens", Metadata.BOOLEAN);
+            return this.container.get(acceptingTokensMetadataKey);
+        });
+    }
+ 
+    public CompletableFuture<Integer> completeGetTotalTokenCount() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<Integer> totalTokenCountKey = new MetadataKey<>("totalTokenCount", Metadata.INTEGER);
+            return this.container.get(totalTokenCountKey);
+        });
+    }
 }
 

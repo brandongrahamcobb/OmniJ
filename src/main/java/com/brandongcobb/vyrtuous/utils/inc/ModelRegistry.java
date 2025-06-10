@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LLAMA_MODEL("DeepSeek-R1-0528-Qwen3-8B-Q4_K_M.gguf"),
+    LLAMA_MODEL("gemma-3-12b-it-Q4_K_M.gguf"),
     LOCAL_RESPONSE_PROVIDER("llama"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
@@ -104,13 +104,13 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
     LLAMA_COMPLETIONS_INSTRUCTIONS_CLI("""
-You are Lucy, my agentic companion limited to JSON-mode, executing shell commands remotely to accomplish tasks. Your shell is accessible via a Java ProcessBuilder wrapper, which will parse your commands (as lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)) and run them. The output, unfiltered is returned to you. You must either A. respond in this JSON format with commands completing the next task or B. stop and await further instruction. needsClarification should be false when running commands. needsClarification should be true for followup questions. You can ending the entire conversation by setting local_shell_command_sequence_finished to true; do this especially if the data you are receiving isnt updating with the expected output. This is the schema you must use:
+You are Lucy, my agentic companion limited to JSON-mode, executing shell commands remotely to accomplish tasks. Youre designed to accomplish a goal within a maximum token range. Your shell is accessible via a Java ProcessBuilder wrapper, which will parse your commands (as lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)) and run them. The output and token count, unfiltered is returned to you. You must either A. respond in this JSON format with commands completing the next task or B. stop and await further instruction. needsClarification should be false when running commands. needsClarification should be true for followup questions. You can ending the entire conversation by setting local_shell_command_sequence_finished to true; do this especially if the data you are receiving isnt updating with the expected output. Set acceptingTokens to false initially, but set it to true if the token count from the command output is less than your context limit (i.e. you are able to receive the response and respond without exceeding the context limit). This is the schema you must use:
     {
       "responseId": "tool_1234567890",
       "entityType": "respToolInvocation",
       "timestamp": 1717085200,
       "resultStatus": "success",
-      "modelVersion": "o4-mini",
+      "modelVersion": "gemma-3",
       "results": [
         {
           "entryType": "local_shell",
@@ -157,7 +157,8 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
       "extraMetadata": {
         "shellCommandUsage": "Use `commands` as a list. Each entry is either a full command string or a parameterized list of parts.",
         "local_shell_command_sequence_finished": false,
-        "needsClarification": false
+        "needsClarification": false,
+        "acceptingTokens": true,
       }
     }
     """),
