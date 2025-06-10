@@ -196,19 +196,20 @@ public class ToolContainer extends MainContainer {
 
         MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("extraMetadata", Metadata.MAP);
         Map<String, Object> responsesMetadata = responseMap != null ? (Map<String, Object>) responseMap.get("extraMetadata") : null;
-        Boolean localShellFinished = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("local_shell_command_sequence_finished") : null;
+        Boolean localShellFinished = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("localShellCommandSequenceFinished") : null;
         
-        MetadataKey<Boolean> clarificationMetadataKey = new MetadataKey<>("needsClarification", Metadata.BOOLEAN);
-        Boolean needsClarification = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("needsClarification") : null;
         if (responsesMetadata != null) {
             put(responsesMetadataKey, responsesMetadata);
         }
         if (localShellFinished != null) {
             put(th.LOCALSHELLTOOL_FINISHED, localShellFinished);
         }
+        MetadataKey<Boolean> clarificationMetadataKey = new MetadataKey<>("needsClarification", Metadata.BOOLEAN);
+        Boolean needsClarification = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("needsClarification") : null;
         if (needsClarification != null) {
             put(clarificationMetadataKey, needsClarification);
         }
+        
         MetadataKey<Boolean> acceptingTokensMetadataKey = new MetadataKey<>("acceptingTokens", Metadata.BOOLEAN);
         Boolean acceptingTokens = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("acceptingTokens") : null;
         if (acceptingTokens != null) {

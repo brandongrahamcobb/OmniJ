@@ -238,7 +238,6 @@ public class AIManager {
                     String respBody = null;
                     if (code <= 200 || code > 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        System.out.println(Vyrtuous.TEAL + respBody + Vyrtuous.RESET);
                         if (onContentChunk == null) {
                             Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
