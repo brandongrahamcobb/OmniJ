@@ -56,9 +56,9 @@ public class REPLManager {
 
     
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -76,6 +76,7 @@ public class REPLManager {
         pendingShellCommands.clear();
         seenCommandStrings.clear();
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
+        contextManager.printEntries(true, true, true, true, true, true, true);
         originalDirective = userInput;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp -> {
@@ -314,14 +315,15 @@ public class REPLManager {
                         } else if (err != null) {
                             promise.complete("❌ Failed: " + err);
                         } else {
-                            MarkdownUtils markdownUtils = new MarkdownUtils(lastAIResponseContainer);
-                            boolean acceptingTokens = markdownUtils.completeGetAcceptingTokens().join();
-
-                            if (out != null && acceptingTokens) {
+                            if (lastAIResponseContainer instanceof MarkdownContainer) {
+                                MarkdownUtils markdownUtils = new MarkdownUtils(lastAIResponseContainer);
+                                boolean acceptingTokens = markdownUtils.completeGetAcceptingTokens().join();
+                                if (out != null && acceptingTokens) {
 //                                if (firstRun) {
 //                                    promise.complete(out);
 //                                }
-                                promise.complete(out);
+                                    promise.complete(out);
+                                }
                             } else {
                                 long tokenCount = contextManager.getTokenCount(out);
                                 StringBuilder response = new StringBuilder();

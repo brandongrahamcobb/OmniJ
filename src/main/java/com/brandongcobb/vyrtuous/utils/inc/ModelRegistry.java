@@ -163,7 +163,7 @@ You are an agent companion limited to reponding with either one of two JSON sche
 or this JSON format:
     {
       "responseId": "resp_1234567890",
-      "entityType": "json_chat",
+      "entityType": "json_chat Read all .java files recursively from the current working directory. Do not clone the repo — use only local files. The entrypoint is /Users/spawd/git/jVyrtuous/src/main/java/com/brandongcobb/vyrtuous/Vyrtuous.java. Extend the current README by overwriting the instructions for users when cloning the rep and a thorough description of project’s purpose, structure, main components (bots, cogs, handlers, etc.), entry flow, dependencies, and any inferred dev notes. Be highly granular to showcase code understanding. You may reference the GitHub repo: https://github.com/brandongrahamcobb/jVyrtuous.git The entire codebase is aroud 140k tokens and your context limit is 32k tokens so be tactical in running commands which produce big output",
       "timestamp": 1717085200,
       "resultStatus": "success",
       "modelVersion": "gemma-3",
