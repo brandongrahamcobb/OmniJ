@@ -111,6 +111,16 @@ public class ToolHandler {
         return builder.toString().trim();
     }
 
+    private void drainStream(InputStream inputStream) {
+        new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+                while (reader.readLine() != null) { /* discard or collect output */ }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
     private List<String> escapeCommandParts(List<String> commandParts) {
         return commandParts.stream()
             .map(s -> s.replace(";", "\\;")
@@ -228,6 +238,9 @@ public class ToolHandler {
                         ProcessBuilder.Redirect.appendTo(outFile));
                     i += 2;
                     Process proc = pb.start();
+                    
+                    drainStream(proc.getInputStream());
+                    drainStream(proc.getErrorStream());
                     processes.add(proc);
                     lastProcess = proc;
                     continue;
@@ -237,6 +250,9 @@ public class ToolHandler {
                     pb.redirectInput(ProcessBuilder.Redirect.from(inFile));
                     i += 2;
                     Process proc = pb.start();
+                    
+                    drainStream(proc.getInputStream());
+                    drainStream(proc.getErrorStream());
                     processes.add(proc);
                     lastProcess = proc;
                     continue;
@@ -248,6 +264,8 @@ public class ToolHandler {
                 Process prevProc = processes.get(processes.size() - 1);
                 pb.redirectInput(ProcessBuilder.Redirect.PIPE);
                 Process currProc = pb.start();
+                drainStream(currProc.getInputStream());
+                drainStream(currProc.getErrorStream());
 
                 InputStream prevOut = prevProc.getInputStream();
                 OutputStream currIn = currProc.getOutputStream();
@@ -273,12 +291,18 @@ public class ToolHandler {
                     break;
                 }
                 Process proc = pb.start();
+                
+                drainStream(proc.getInputStream());
+                drainStream(proc.getErrorStream());
                 processes.add(proc);
                 lastProcess = proc;
             }
             // Sequential (e.g. `;`) or first process
             else {
                 Process proc = pb.start();
+                
+                drainStream(proc.getInputStream());
+                drainStream(proc.getErrorStream());
                 processes.add(proc);
                 lastProcess = proc;
             }
@@ -291,6 +315,7 @@ public class ToolHandler {
         // Read last process output
         String output;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(lastProcess.getInputStream()))) {
+            
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
