@@ -59,9 +59,9 @@ public class REPLManager {
 
     
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -142,7 +142,6 @@ public class REPLManager {
         String prompt = firstRun
             ? originalDirective
             : contextManager.buildPromptContext();
-        LOGGER.fine("Prompt to AI: " + prompt);
         CompletableFuture<String> endpointFuture;
         String model;
         try {
@@ -200,7 +199,6 @@ public class REPLManager {
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
             List<List<String>> newCmds = (List<List<String>>) ((ToolContainer) response).getResponseMap()
             .get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-            LOGGER.fine("AI returned commands: " + newCmds);
             if (newCmds != null) {
                 for (List<String> parts : newCmds) {
                     String cmd = String.join(" ", parts);
@@ -254,9 +252,9 @@ public class REPLManager {
                 return completeESubStep(scanner, firstRun);
             }
         } else {
-            return completeESubStep(scanner, firstRun);
+            return null;
         }
-        return completeESubStep(scanner, firstRun);
+        return null;
     }
     
     private CompletableFuture<Void> completeESubStep(Scanner scanner, boolean firstRun) {
@@ -274,26 +272,28 @@ public class REPLManager {
                 return completeESubStep(scanner, firstRun);
             }
         }
-        return completeESubSubStep(Collections.singletonList(parts), firstRun).thenCompose(out -> {
-            return completePStep(scanner).thenCompose(ignored -> {
+        return completeESubSubStep(Collections.singletonList(parts), firstRun).thenCompose(ignored -> {
+            return completePStep(scanner).thenCompose(ignoredTwo -> {
                 return completeLStep(scanner);
             });
         });
     }
 
-    private CompletableFuture<String> completeESubSubStep(List<List<String>> commands, boolean firstRun) {
+    private CompletableFuture<Void> completeESubSubStep(List<List<String>> commands, boolean firstRun) {
+        oldCommands = commands;
         Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(commands);
-        return runner.get().thenApply(out -> {
+        return runner.get().thenCompose(out -> {
+            lastCommandOutput = out;
             if (acceptingTokens) {
-                lastCommandOutput = out;
-                return out;
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
+                return CompletableFuture.completedFuture(null);
             } else {
                 long tokenCount = contextManager.getTokenCount(out);
                 StringBuilder response = new StringBuilder();
                 response.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
                 response.append("📋 Do you want to accept the console output?\n");
-                oldCommands = commands;
-                return response.toString();
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, response.toString()));
+                return CompletableFuture.completedFuture(null);
             }
         });
     }
@@ -310,9 +310,7 @@ public class REPLManager {
     private CompletableFuture<Void> completeLStep(Scanner scanner) {
         LOGGER.fine("Loop to R-step");
         return completeRStep(scanner, false)
-            .thenCompose(resp -> completeEStep(resp, scanner, false)
-            .thenCompose(ignored -> completePStep(scanner)
-            .thenCompose(ignored2 -> completeLStep(scanner))));
+            .thenCompose(resp -> completeEStep(resp, scanner, false));
     }
 
     public void startResponseInputThread() {
