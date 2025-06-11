@@ -59,23 +59,35 @@ public class ToolContainer extends MainContainer {
     
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
 
-    private boolean isQuoted(String s) {
+    private static boolean isQuoted(String s) {
         return (s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"));
     }
-    
+
+    private static String escapeQuoted(String s) {
+        if (s.startsWith("\"") && s.endsWith("\"")) {
+            String inner = s.substring(1, s.length() - 1);
+            return "\"" + inner.replace("\"", "\\\"") + "\"";
+        } else if (s.startsWith("'") && s.endsWith("'")) {
+            String inner = s.substring(1, s.length() - 1);
+            return "'" + inner.replace("'", "'\\''") + "'";
+        }
+        return s;
+    }
+
     private static List<String> smartSplit(String command) {
         List<String> tokens = new ArrayList<>();
         Matcher m = Pattern.compile("\"([^\"]*)\"|'([^']*)'|\\S+").matcher(command);
         while (m.find()) {
             if (m.group(1) != null)
-                tokens.add("\"" + m.group(1) + "\""); // keep double quotes
+                tokens.add(escapeQuoted("\"" + m.group(1) + "\"")); // double-quoted
             else if (m.group(2) != null)
-                tokens.add("'" + m.group(2) + "'");   // keep single quotes
+                tokens.add(escapeQuoted("'" + m.group(2) + "'"));   // single-quoted
             else
                 tokens.add(m.group());  // unquoted token
         }
         return tokens;
     }
+
 
 
     public ToolContainer(Map<String, Object> responseMap) {
