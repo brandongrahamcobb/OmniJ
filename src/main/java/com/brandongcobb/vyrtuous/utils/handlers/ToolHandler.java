@@ -239,8 +239,14 @@ public class ToolHandler {
                     i += 2;
                     Process proc = pb.start();
                     
-                    drainStream(proc.getInputStream());
-                    drainStream(proc.getErrorStream());
+                    if (i == segments.size() - 1) {
+                        // Last process, read output later synchronously, just drain error
+                        drainStream(proc.getErrorStream());
+                    } else {
+                        // Intermediate process, drain both to avoid blocking
+                        drainStream(proc.getInputStream());
+                        drainStream(proc.getErrorStream());
+                    }
                     processes.add(proc);
                     lastProcess = proc;
                     continue;
@@ -251,8 +257,14 @@ public class ToolHandler {
                     i += 2;
                     Process proc = pb.start();
                     
-                    drainStream(proc.getInputStream());
-                    drainStream(proc.getErrorStream());
+                    if (i == segments.size() - 1) {
+                        // Last process, read output later synchronously, just drain error
+                        drainStream(proc.getErrorStream());
+                    } else {
+                        // Intermediate process, drain both to avoid blocking
+                        drainStream(proc.getInputStream());
+                        drainStream(proc.getErrorStream());
+                    }
                     processes.add(proc);
                     lastProcess = proc;
                     continue;
@@ -264,8 +276,14 @@ public class ToolHandler {
                 Process prevProc = processes.get(processes.size() - 1);
                 pb.redirectInput(ProcessBuilder.Redirect.PIPE);
                 Process currProc = pb.start();
-                drainStream(currProc.getInputStream());
-                drainStream(currProc.getErrorStream());
+                if (i == segments.size() - 1) {
+                    // Last process, read output later synchronously, just drain error
+                    drainStream(currProc.getErrorStream());
+                } else {
+                    // Intermediate process, drain both to avoid blocking
+                    drainStream(currProc.getInputStream());
+                    drainStream(currProc.getErrorStream());
+                }
 
                 InputStream prevOut = prevProc.getInputStream();
                 OutputStream currIn = currProc.getOutputStream();
@@ -292,8 +310,14 @@ public class ToolHandler {
                 }
                 Process proc = pb.start();
                 
-                drainStream(proc.getInputStream());
-                drainStream(proc.getErrorStream());
+                if (i == segments.size() - 1) {
+                    // Last process, read output later synchronously, just drain error
+                    drainStream(proc.getErrorStream());
+                } else {
+                    // Intermediate process, drain both to avoid blocking
+                    drainStream(proc.getInputStream());
+                    drainStream(proc.getErrorStream());
+                }
                 processes.add(proc);
                 lastProcess = proc;
             }
@@ -301,8 +325,14 @@ public class ToolHandler {
             else {
                 Process proc = pb.start();
                 
-                drainStream(proc.getInputStream());
-                drainStream(proc.getErrorStream());
+                if (i == segments.size() - 1) {
+                    // Last process, read output later synchronously, just drain error
+                    drainStream(proc.getErrorStream());
+                } else {
+                    // Intermediate process, drain both to avoid blocking
+                    drainStream(proc.getInputStream());
+                    drainStream(proc.getErrorStream());
+                }
                 processes.add(proc);
                 lastProcess = proc;
             }
