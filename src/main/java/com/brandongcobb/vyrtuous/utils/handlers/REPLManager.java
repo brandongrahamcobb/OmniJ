@@ -87,7 +87,7 @@ public class REPLManager {
                         boolean finished = resp.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
                         return finished
                             ? CompletableFuture.completedFuture(null)
-                            : completeLStep(scanner);
+                            : completePStep(scanner);
                     });
             })
             .exceptionally(ex -> {
@@ -260,7 +260,9 @@ public class REPLManager {
         }
         return completeESubSubStep(Collections.singletonList(parts), firstRun).thenCompose(out -> {
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
-            return completeLStep(scanner);
+            return completePStep(scanner).thenCompose(ignored -> {
+                return completeLStep(scanner);
+            });
         });
     }
 
@@ -300,7 +302,7 @@ public class REPLManager {
         return promise;
     }
 
-    private CompletableFuture<Void> completePStep(MetadataContainer resp, Scanner scanner) {
+    private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
         contextManager.printNewEntries(true, true, true, true, true, true, true);
@@ -312,7 +314,7 @@ public class REPLManager {
         LOGGER.fine("Loop to R-step");
         return completeRStepWithTimeout(scanner, false)
             .thenCompose(resp -> completeEStep(resp, scanner, false)
-            .thenCompose(ignored -> completePStep(resp, scanner)));
+            .thenCompose(ignored -> completePStep(scanner)));
     }
 
     public void startResponseInputThread() {
