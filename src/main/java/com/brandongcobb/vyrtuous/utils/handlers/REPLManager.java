@@ -85,9 +85,9 @@ public class REPLManager {
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userInput = null;
 
-        return completeRStep(scanner, false)
+        return completeRStep(scanner, true)
             .thenCompose(resp ->
-                completeEStep(resp, scanner, false)
+                completeEStep(resp, scanner, true)
                     .thenCompose(eDone ->
                         completePStep(scanner)
                             .thenCompose(pDone ->
