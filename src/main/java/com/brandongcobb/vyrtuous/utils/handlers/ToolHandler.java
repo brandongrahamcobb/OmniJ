@@ -174,21 +174,27 @@ public class ToolHandler {
         return path;
     }
     
+    /**
+     * Quotes a shell argument safely.
+     * If already quoted, escapes only characters that would break the quote.
+     * If not quoted, adds quotes only if necessary (e.g., whitespace or special characters present).
+     */
     private String shellQuote(String segment) {
-        // Order matters: escape backslash first
-        String quoted = segment
-            .replace("\\", "\\\\\\\\")  // quadruple backslashes: Java \\ -> JSON \\\\
-            .replace("\"", "\\\"")      // escape double quotes
-            .replace("$", "\\$")        // avoid unintended var expansion
-            .replace("`", "\\`")
-            .replace("(", "\\(")
-            .replace(")", "\\)")
-            .replace(":", "\\:")
-            .replace("{", "\\{")
-            .replace("}", "\\}")
-            .replace("@", "\\@");       // avoid subshells
+        if (segment.isEmpty()) return "''";
 
-        return quoted;
+        // Safe unquoted characters (letters, digits, underscore, dash, etc.)
+        if (segment.matches("[a-zA-Z0-9._/=-]+")) {
+            return segment;
+        }
+
+        // If contains single quote, we need to wrap carefully
+        if (segment.contains("'")) {
+            // Close, escape single quote, reopen
+            return "'" + segment.replace("'", "'\"'\"'") + "'";
+        }
+
+        // Otherwise, wrap in single quotes
+        return "'" + segment + "'";
     }
     
     public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
@@ -208,7 +214,8 @@ public class ToolHandler {
                 // Construct segments as List<List<String>> for executePipeline
                 List<List<String>> segmentTokens = allCommands.stream()
                     .map(segment -> segment.stream()
-                        .map(this::expandHome)   // if you want to expand ~ in each token
+                        .map(this::expandHome)
+                        .map(this::shellQuote)// if you want to expand ~ in each token
                         .collect(Collectors.toList()))
                     .collect(Collectors.toList());
                 AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);

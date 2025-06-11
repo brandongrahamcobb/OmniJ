@@ -258,34 +258,7 @@ public class AIManager {
                                     .replaceFirst("\\s*```$", "")
                                     .trim();
                             }
-                            // Match the "commands": [ ... ] section
-                            Pattern pattern = Pattern.compile("\"commands\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
-                            Matcher matcher = pattern.matcher(jsonContent);
-                            String value = null;
-                            if (matcher.find()) {
-                                String originalCommands = matcher.group(1); // everything inside the brackets
-
-                                // Apply escapes
-                                String escaped = originalCommands
-                                    .replace("\\", "\\\\\\\\")  // quadruple backslashes
-                                    .replace("\"", "\\\"")      // escape double quotes
-                                    .replace("$", "\\$")        // escape $
-                                    .replace("`", "\\`")
-                                    .replace("(", "\\(")
-                                    .replace(")", "\\)")
-                                    .replace(":", "\\:")
-                                    .replace("{", "\\{")
-                                    .replace("}", "\\}")
-                                    .replace("@", "\\@")
-                                    .replace("'", "\\'");
-
-                                // Reconstruct
-                                String replacedJson = matcher.replaceFirst("\"commands\": [" + escaped + "]");
-                                value = replacedJson;
-                            } else {
-                                value = jsonContent;
-                            }
-                            Map<String, Object> inner = mapper.readValue(value, new TypeReference<>() {});
+                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();
                             inner.put("id", previousResponseId);
