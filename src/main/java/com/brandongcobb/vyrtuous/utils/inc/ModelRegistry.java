@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LLAMA_MODEL("gemma-3-12b-it-Q4_K_M.gguf"),
+    LLAMA_MODEL("gemma-3-4b-it-Q4_K_M.gguf"),
     LOCAL_RESPONSE_PROVIDER("llama"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
@@ -165,7 +165,16 @@ or this JSON format. acceptingTokens should be true most times because you are n
       "timestamp": 1717085200,
       "resultStatus": "success",
       "modelVersion": "gemma-3",
-      "results": [],
+      "results": [
+        {
+          "messages": [
+            {
+              "messageType": "text",
+              "messageText": "Explaining the further actions.",
+              "messageAnnotations": []
+            }
+          ]
+        },
       "persistResult": false,
       "samplingTemperature": 0.7,
       "probabilityCutoff": 0.9,

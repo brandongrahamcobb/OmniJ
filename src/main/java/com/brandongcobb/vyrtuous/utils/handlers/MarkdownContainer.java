@@ -195,7 +195,27 @@ public class MarkdownContainer extends MainContainer {
             put(acceptingTokensMetadataKey, acceptingTokens);
         }
 
-        
+        MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("results", Metadata.STRING);
+        Object outputObj = responseMap != null ? responseMap.get("results") : null;
+
+
+        if (outputObj instanceof List<?> outputList && outputList != null) {
+            for (Object outputItemObj : outputList) {
+                if (!(outputItemObj instanceof Map<?, ?> outputItem) || outputItem == null) continue;
+                Object contentObj = outputItem.get("messages");
+                if (contentObj instanceof List<?> contentList) {
+                    for (Object contentItemObj : contentList) {
+                        if (!(contentItemObj instanceof Map<?, ?> contentItem)) continue;
+                        Object textObj = contentItem.get("messageText");
+                        if (textObj instanceof String textStr && !textStr.isBlank()) {
+                            put(responsesOutputContentKey, textStr);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+        }
         Map<String, Object> myMap = new HashMap<>();
 
     }

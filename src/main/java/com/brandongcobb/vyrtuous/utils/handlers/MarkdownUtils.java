@@ -79,5 +79,10 @@ public class MarkdownUtils {
             return this.container.get(totalTokenCountKey);
         });
     }
+    
+    public CompletableFuture<String> completeGetText() {
+        MetadataKey<String> textKey = new MetadataKey<>("results", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(textKey));
+    }
 }
 

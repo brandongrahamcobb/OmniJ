@@ -104,7 +104,9 @@ public class AIManager {
                     userMsg.put("role", "user");
                     userMsg.put("content", content);
                     body.put("stream", stream);
-                    body.put("max_tokens", 32768);
+                    body.put("n_predict", -1);
+                    body.put("max_tokens", -1);
+                    body.put("max_completion_tokens", -1);
                     messages.add(systemMsg);
                     messages.add(userMsg);
                     body.put("messages", messages);
@@ -291,6 +293,7 @@ public class AIManager {
                                 return toolContainer;
                             } else if (((String)inner.get("entityType")).startsWith("json_chat")) {
                                 MarkdownContainer markdownContainer = new MarkdownContainer(inner);
+                           //     System.out.println("test");
                                 return markdownContainer;
                             } else {
                                 return new MetadataContainer();

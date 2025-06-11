@@ -343,23 +343,33 @@ public class ToolHandler {
         if (lastProcess == null) throw new IllegalStateException("No process executed");
 
         // Read last process output
-        String output;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(lastProcess.getInputStream()))) {
-            
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
+        StringBuilder fullOutput = new StringBuilder();
+
+        for (int j = 0; j < processes.size(); j++) {
+            Process proc = processes.get(j);
+            boolean isRedirected = false;
+
+            // Handle redirected output (e.g., > or >>)
+            if (j < operators.size()) {
+                String op = operators.get(j);
+                if (op.equals(">") || op.equals(">>")) {
+                    isRedirected = true;
+                }
             }
-            output = sb.toString();
+
+            if (!isRedirected) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        fullOutput.append(line).append("\n");
+                    }
+                }
+            }
+
+            proc.waitFor(); // ensure process completes
         }
 
-        // Wait for all processes
-        for (Process proc : processes) {
-            proc.waitFor();
-        }
-
-        return output.trim();
+        return fullOutput.toString().trim();
     }
 
 
