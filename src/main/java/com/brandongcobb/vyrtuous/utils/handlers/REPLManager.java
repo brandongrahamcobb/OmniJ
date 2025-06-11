@@ -190,36 +190,43 @@ public class REPLManager {
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
-        if (response instanceof ToolContainer) {
+
+        if (response instanceof ToolContainer tool) {
             ToolUtils tu = new ToolUtils(response);
             lastAIResponseText = tu.completeGetText().join();
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
             lastAIResponseText = null;
-            List<List<String>> newCmds = (List<List<String>>) ((ToolContainer) response).getResponseMap()
-            .get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-            if (newCmds != null) {
-                for (List<String> parts : newCmds) {
-                    String cmd = String.join(" ", parts);
-                    if (seenCommandStrings.add(cmd)) {
-                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, cmd));
-                        cmd = null;
-                        pendingShellCommands.add(parts);
-                    }
-                }
+
+            List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
+
+            if (newCmds == null || newCmds.isEmpty()) {
+                LOGGER.warning("No shell commands returned from tool");
+                return CompletableFuture.completedFuture(null); // Skip this step
             }
-            List<String> parts = pendingShellCommands.remove(0);
-            String cmd = String.join(" ", parts);
-            oldCommands = Collections.singletonList(parts);
-            Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(oldCommands);
+
+            // Optional: log commands
+            for (List<String> cmdParts : newCmds) {
+                String flat = String.join(" ", cmdParts);
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
+            }
+
+            // Store in oldCommands for later reuse if needed
+            oldCommands = newCmds;
+
+            // Run all at once
+            Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(newCmds);
             return runner.get().thenCompose(out -> {
                 long tokenCount = contextManager.getTokenCount(out);
                 StringBuilder newInputBuilder = new StringBuilder();
                 newInputBuilder.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
                 newInputBuilder.append("📋 Do you want to accept the console output?\n");
+
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInputBuilder.toString()));
                 lastCommandOutput = out;
+
                 return CompletableFuture.completedFuture(null);
             });
+            //List<String> parts = pendingShellCommands.remove(0);
         } else if (response instanceof MarkdownContainer) {
             MarkdownUtils markdownUtils = new MarkdownUtils(response);
             needsClarification = markdownUtils.completeGetClarification().join();

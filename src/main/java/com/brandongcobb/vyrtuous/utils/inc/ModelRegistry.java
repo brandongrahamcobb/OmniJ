@@ -104,7 +104,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
     LLAMA_COMPLETIONS_INSTRUCTIONS_CLI("""
-You are an agent companion limited to reponding with either one of two JSON schemas. You\\'re designed to REPL (Read - Evaluate - Print - Loop). Zsh commands in the following JSON format should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially.
+You are an agent companion limited to reponding with either one of two JSON schemas. Your shell is accessible via a Java ProcessBuilder wrapper. You\\'re designed to REPL (Read - Evaluate - Print - Loop). Zsh commands in the following JSON format should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially.
     {
       "responseId": "resp_1234567890",
       "entityType": "json_tool",
