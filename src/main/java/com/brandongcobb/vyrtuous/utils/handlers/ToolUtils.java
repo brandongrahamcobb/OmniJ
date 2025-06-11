@@ -54,19 +54,14 @@ public class ToolUtils {
     
     
     public CompletableFuture<String> completeGetText() {
-        MetadataKey<String> textKey = new MetadataKey<>("results", Metadata.STRING);
-        return CompletableFuture.completedFuture(this.container.get(textKey));
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<String> textKey = new MetadataKey<>("results", Metadata.STRING);
+            return this.container.get(textKey);
+        });
     }
     
     public CompletableFuture<List<String>> completeGetShellToolCommand() {
         return CompletableFuture.completedFuture(this.container.get(th.LOCALSHELLTOOL_COMMANDS));
-    }
-    
-    public CompletableFuture<Boolean> completeGetClarification() {
-        return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<Boolean> clarificationMetadataKey = new MetadataKey<>("needsClarification", Metadata.BOOLEAN);
-            return this.container.get(clarificationMetadataKey);
-        });
     }
     
     public CompletableFuture<String> completeGetResponseId() {

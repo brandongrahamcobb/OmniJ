@@ -303,7 +303,7 @@ public class ToolContainer extends MainContainer {
             }
         }
         Map<String, Object> myMap = new HashMap<>();
-        LOGGER.info(allCallIds.toString() + allCommands.toString());
+        LOGGER.fine(allCallIds.toString() + allCommands.toString());
         myMap.put(th.LOCALSHELLTOOL_CALL_IDS, allCallIds);
         myMap.put(th.LOCALSHELLTOOL_COMMANDS_LIST, allCommands);
         mapMap = myMap;

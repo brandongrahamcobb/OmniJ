@@ -81,8 +81,17 @@ public class MarkdownUtils {
     }
     
     public CompletableFuture<String> completeGetText() {
-        MetadataKey<String> textKey = new MetadataKey<>("results", Metadata.STRING);
-        return CompletableFuture.completedFuture(this.container.get(textKey));
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<String> textKey = new MetadataKey<>("results", Metadata.STRING);
+            return this.container.get(textKey);
+        });
+    }
+    
+    public CompletableFuture<Boolean> completeGetLocalShellFinished() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<Boolean> localShellFinishedMetadataKey = new MetadataKey<>("localShellCommandSequenceFinished", Metadata.BOOLEAN);
+            return this.container.get(localShellFinishedMetadataKey);
+        });
     }
 }
 

@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.logging.*;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Helpers {
     
@@ -116,6 +117,12 @@ public class Helpers {
             }
         }
         return false;
+    }
+
+    public static <K, V> String mapToString(Map<K, V> map) {
+        return map.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.joining(", ", "{", "}"));
     }
 
     public static <T> T convertValue(Object value, Class<T> type) {

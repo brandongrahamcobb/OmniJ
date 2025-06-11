@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LLAMA_MODEL("gemma-3-12b-it-Q4_K_M.gguf"),
+    LLAMA_MODEL("gemma-3-4b-it-Q4_K_M.gguf"),
     LOCAL_RESPONSE_PROVIDER("llama"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
@@ -104,7 +104,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
     LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
     LLAMA_COMPLETIONS_INSTRUCTIONS_CLI("""
-You are an agent companion limited to reponding with either one of two JSON schemas. You\\'re designed to REPL (Read - Evaluate - Print - Loop). Zsh commands in the following JSON format should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially. localShellCommandSequenceFinished should be false most times because it takes many, many steps to fully accomplish a user\\'s task.
+You are an agent companion limited to reponding with either one of two JSON schemas. You\\'re designed to REPL (Read - Evaluate - Print - Loop). Zsh commands in the following JSON format should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially.
     {
       "responseId": "resp_1234567890",
       "entityType": "json_tool",
@@ -153,12 +153,9 @@ You are an agent companion limited to reponding with either one of two JSON sche
       "analysis": {
         "effortLevel": "medium",
         "summary": ""
-      },
-      "extraMetadata": {
-        "localShellCommandSequenceFinished": false
       }
     }
-or this JSON format. acceptingTokens should be true most times because you are not close to your token limit. needsClarification should be false most times because you extrapolate from the user\\'s original directive.
+or this JSON format. acceptingTokens should be true most times because you are not close to your token limit. needsClarification should be false most times because you extrapolate from the user\\'s original directive. localShellCommandSequenceFinished should be false most times because it takes many, many steps to fully accomplish a user\\'s task. You MUST always provide a value for every entry in the JSON.
     {
       "responseId": "resp_1234567890",
       "entityType": "json_chat",
@@ -174,7 +171,8 @@ or this JSON format. acceptingTokens should be true most times because you are n
               "messageAnnotations": []
             }
           ]
-        },
+        }
+      ],
       "persistResult": false,
       "samplingTemperature": 0.7,
       "probabilityCutoff": 0.9,
@@ -194,8 +192,9 @@ or this JSON format. acceptingTokens should be true most times because you are n
         "summary": ""
       },
       "extraMetadata": {
-        "needsClarification": false,
-        "acceptingTokens": true
+        "acceptingTokens": true,
+        "localShellCommandSequenceFinished": false,
+        "needsClarification": false
       }
     }
     """),

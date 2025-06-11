@@ -196,6 +196,15 @@ public class ToolHandler {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
+                if (allCommands.isEmpty()) {
+                    throw new IllegalArgumentException("No commands provided");
+                }
+                if (SHELL_OPERATORS.contains(allCommands.get(0).get(0))) {
+                    throw new IllegalArgumentException("Command cannot start with operator");
+                }
+                if (SHELL_OPERATORS.contains(allCommands.get(allCommands.size()-1).get(0))) {
+                    throw new IllegalArgumentException("Command cannot end with operator");
+                }
                 // Construct segments as List<List<String>> for executePipeline
                 List<List<String>> segmentTokens = allCommands.stream()
                     .map(segment -> segment.stream()
@@ -220,6 +229,7 @@ public class ToolHandler {
 
         int i = 0;
         while (i < segments.size()) {
+            
             List<String> segment = segments.get(i);
             String command = String.join(" ", segment);
 
@@ -237,18 +247,13 @@ public class ToolHandler {
                         ProcessBuilder.Redirect.to(outFile) :
                         ProcessBuilder.Redirect.appendTo(outFile));
                     i += 2;
+
                     Process proc = pb.start();
-                    
-                    if (i == segments.size() - 1) {
-                        // Last process, read output later synchronously, just drain error
-                        drainStream(proc.getErrorStream());
-                    } else {
-                        // Intermediate process, drain both to avoid blocking
-                        drainStream(proc.getInputStream());
-                        drainStream(proc.getErrorStream());
-                    }
                     processes.add(proc);
                     lastProcess = proc;
+
+                    drainStream(proc.getInputStream());
+                    drainStream(proc.getErrorStream());
                     continue;
                 } else if (op.equals("<")) {
                     if (i + 1 >= segments.size()) throw new IllegalArgumentException("Expected filename after <");

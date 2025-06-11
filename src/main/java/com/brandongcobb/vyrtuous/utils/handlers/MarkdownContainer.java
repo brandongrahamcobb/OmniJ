@@ -28,6 +28,7 @@ package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.metadata.*;
+import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -178,11 +179,16 @@ public class MarkdownContainer extends MainContainer {
 
         MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("extraMetadata", Metadata.MAP);
         Map<String, Object> responsesMetadata = responseMap != null ? (Map<String, Object>) responseMap.get("extraMetadata") : null;
-        Boolean localShellFinished = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("localShellCommandSequenceFinished") : null;
-        
         if (responsesMetadata != null) {
             put(responsesMetadataKey, responsesMetadata);
         }
+        
+        MetadataKey<Boolean> localShellFinishedMetadataKey = new MetadataKey<>("localShellCommandSequenceFinished", Metadata.BOOLEAN);
+        Boolean localShellFinished = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("localShellCommandSequenceFinished") : null;
+        if (localShellFinished != null) {
+            put(localShellFinishedMetadataKey, localShellFinished);
+        }
+        
         MetadataKey<Boolean> clarificationMetadataKey = new MetadataKey<>("needsClarification", Metadata.BOOLEAN);
         Boolean needsClarification = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("needsClarification") : null;
         if (needsClarification != null) {
@@ -194,6 +200,8 @@ public class MarkdownContainer extends MainContainer {
         if (acceptingTokens != null) {
             put(acceptingTokensMetadataKey, acceptingTokens);
         }
+        
+        
 
         MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("results", Metadata.STRING);
         Object outputObj = responseMap != null ? responseMap.get("results") : null;
@@ -217,7 +225,8 @@ public class MarkdownContainer extends MainContainer {
             
         }
         Map<String, Object> myMap = new HashMap<>();
-
+        mapMap = myMap;
+        LOGGER.fine(Helpers.mapToString(myMap));
     }
     
     public Map<String, Object> getResponseMap() {

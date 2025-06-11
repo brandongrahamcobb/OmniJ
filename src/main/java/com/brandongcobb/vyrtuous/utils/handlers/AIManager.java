@@ -77,6 +77,7 @@ public class AIManager {
             .setSocketTimeout(600_000)
             .build();
     private StringBuilder builder = new StringBuilder();
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
 
     private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
         String content,
@@ -241,7 +242,7 @@ public class AIManager {
                     String respBody = null;
                     if (code <= 200 || code > 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        //System.out.println(respBody);
+                        LOGGER.fine(respBody);
                         if (onContentChunk == null) {
                             Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
