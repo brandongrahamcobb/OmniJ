@@ -128,8 +128,7 @@ public class ContextManager {
         sb.append("The user originally asked:\n").append(extractOriginalGoal()).append("\n\n");
         for (ContextEntry entry : entries) {
             sb.append(entry.formatForPrompt()).append("\n\n");
-        }
-        lastBuildIndex = entries.size();  // <--- Mark the point at which context was built
+        } // <--- Mark the point at which context was built
         return sb.toString();
     }
 
