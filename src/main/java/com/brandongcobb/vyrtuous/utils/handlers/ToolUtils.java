@@ -52,6 +52,12 @@ public class ToolUtils {
         return CompletableFuture.completedFuture(this.container.get(summaryKey));
     }
     
+    
+    public CompletableFuture<String> completeGetText() {
+        MetadataKey<String> textKey = new MetadataKey<>("results", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(textKey));
+    }
+    
     public CompletableFuture<List<String>> completeGetShellToolCommand() {
         return CompletableFuture.completedFuture(this.container.get(th.LOCALSHELLTOOL_COMMANDS));
     }

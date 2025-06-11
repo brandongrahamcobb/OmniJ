@@ -59,9 +59,9 @@ public class REPLManager {
 
     
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -192,7 +192,7 @@ public class REPLManager {
         LOGGER.fine("Starting E-step");
         if (response instanceof ToolContainer) {
             ToolUtils tu = new ToolUtils(response);
-            lastAIResponseText = tu.completeGetCustomReasoning().join();
+            lastAIResponseText = tu.completeGetText().join();
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
             List<List<String>> newCmds = (List<List<String>>) ((ToolContainer) response).getResponseMap()
                 .get(th.LOCALSHELLTOOL_COMMANDS_LIST);
@@ -209,7 +209,7 @@ public class REPLManager {
             boolean finished = response.getOrDefault(th.LOCALSHELLTOOL_FINISHED, false);
             return completeESubStep(scanner, firstRun).thenCompose(done -> {
                 if (finished) {
-                    String finalReason = tu.completeGetCustomReasoning().join();
+                    String finalReason = tu.completeGetText().join();
                     System.out.println(finalReason);
                     System.out.println("✅ Task complete.");
                     pendingShellCommands.clear();
@@ -235,8 +235,7 @@ public class REPLManager {
                  contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
                  pendingShellCommands.clear();
                  seenCommandStrings.clear();
-                 return completeRStepWithTimeout(scanner, firstRun)
-                     .thenCompose(resp2 -> completeEStep(resp2, scanner, firstRun));
+                 return completeLStep(scanner);
             }
         } else {
             return CompletableFuture.completedFuture(null);
@@ -312,8 +311,8 @@ public class REPLManager {
     private CompletableFuture<Void> completeLStep(Scanner scanner) {
         LOGGER.fine("Loop to R-step");
         return completeRStepWithTimeout(scanner, false)
-            .thenCompose(resp -> completePStep(resp, scanner)
-            .thenCompose(ignored -> completeEStep(resp, scanner, false)));
+            .thenCompose(resp -> completeEStep(resp, scanner, false)
+            .thenCompose(ignored -> completePStep(resp, scanner)));
     }
 
     public void startResponseInputThread() {

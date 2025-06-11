@@ -104,6 +104,7 @@ public class AIManager {
                     userMsg.put("role", "user");
                     userMsg.put("content", content);
                     body.put("stream", stream);
+                    body.put("max_tokens", 32768);
                     messages.add(systemMsg);
                     messages.add(userMsg);
                     body.put("messages", messages);
@@ -238,6 +239,7 @@ public class AIManager {
                     String respBody = null;
                     if (code <= 200 || code > 300) {
                         respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                        System.out.println(respBody);
                         if (onContentChunk == null) {
                             Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
