@@ -85,19 +85,16 @@ public class REPLManager {
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userInput = null;
 
-        return completeRStep(scanner, true)
+        return completeRStep(scanner, false)
             .thenCompose(resp ->
-                completeEStep(resp, scanner, true)
-                    .thenCompose(done ->
+                completeEStep(resp, scanner, false)
+                    .thenCompose(eDone ->
                         completePStep(scanner)
-                            .thenCompose(ignored -> completeLStep(scanner))
+                            .thenCompose(pDone ->
+                                completeLStep(scanner)
+                            )
                     )
-            )
-            .exceptionally(ex -> {
-                LOGGER.log(Level.SEVERE, "REPL failed: ", ex);
-                System.err.println("An error occurred. Please try again.");
-                return null;
-            });
+            );
     }
 
 
@@ -210,11 +207,22 @@ public class REPLManager {
                     }
                 }
             }
-            return completeESubStep(scanner, firstRun);
+            List<String> parts = pendingShellCommands.remove(0);
+            String cmd = String.join(" ", parts);
+            oldCommands = Collections.singletonList(parts);
+            Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(oldCommands);
+            return runner.get().thenCompose(out -> {
+                long tokenCount = contextManager.getTokenCount(out);
+                StringBuilder newInputBuilder = new StringBuilder();
+                newInputBuilder.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
+                newInputBuilder.append("📋 Do you want to accept the console output?\n");
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInputBuilder.toString()));
+                lastCommandOutput = out;
+                return CompletableFuture.completedFuture(null);
+            });
         } else if (response instanceof MarkdownContainer) {
             MarkdownUtils markdownUtils = new MarkdownUtils(response);
             needsClarification = markdownUtils.completeGetClarification().join();
-            System.out.println(needsClarification);
             acceptingTokens = markdownUtils.completeGetAcceptingTokens().join();
             String output = markdownUtils.completeGetText().join();
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, output));
@@ -228,7 +236,6 @@ public class REPLManager {
             else if (acceptingTokens) {
                 if (lastCommandOutput != null && !lastCommandOutput.isBlank()) {
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, lastCommandOutput));
-                    lastCommandOutput = null;
                 }
             }
             boolean finished = markdownUtils.completeGetLocalShellFinished().join();
@@ -248,25 +255,6 @@ public class REPLManager {
             return CompletableFuture.completedFuture(null);
         }
     }
-    
-    private CompletableFuture<Void> completeESubStep(Scanner scanner, boolean firstRun) {
-        if (pendingShellCommands.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        List<String> parts = pendingShellCommands.remove(0);
-        String cmd = String.join(" ", parts);
-        oldCommands = Collections.singletonList(parts);
-        Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(oldCommands);
-        return runner.get().thenCompose(out -> {
-            long tokenCount = contextManager.getTokenCount(out);
-            StringBuilder response = new StringBuilder();
-            response.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
-            response.append("📋 Do you want to accept the console output?\n");
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, response.toString()));
-            lastCommandOutput = out;
-            return CompletableFuture.completedFuture(null);
-        });
-    }
 
 
     private CompletableFuture<Void> completePStep(Scanner scanner) {
@@ -280,7 +268,15 @@ public class REPLManager {
     private CompletableFuture<Void> completeLStep(Scanner scanner) {
         LOGGER.fine("Loop to R-step");
         return completeRStep(scanner, false)
-            .thenCompose(resp -> completeEStep(resp, scanner, false));
+            .thenCompose(resp ->
+                completeEStep(resp, scanner, false)
+                    .thenCompose(eDone ->
+                        completePStep(scanner)
+                            .thenCompose(pDone ->
+                                completeLStep(scanner)
+                            )
+                    )
+            );
     }
 
     public void startResponseInputThread() {
