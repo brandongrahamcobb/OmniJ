@@ -173,7 +173,7 @@ or this JSON format. acceptingTokens should be true most times because you are n
             }
           ]
         }
-      ]
+      ],
       "persistResult": false,
       "samplingTemperature": 0.7,
       "probabilityCutoff": 0.9,
