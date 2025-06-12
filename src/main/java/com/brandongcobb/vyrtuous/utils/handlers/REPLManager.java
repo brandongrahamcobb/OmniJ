@@ -49,6 +49,7 @@ public class REPLManager {
     private boolean acceptingTokens = true;
     private boolean needsClarification = false;
     private String newInput;
+    private boolean printed;
     
     private List<List<String>> oldCommands;
     
@@ -190,7 +191,8 @@ public class REPLManager {
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
-
+        
+        printed = false;
         if (response instanceof ToolContainer tool) {
             ToolUtils tu = new ToolUtils(response);
             lastAIResponseText = tu.completeGetText().join();
@@ -227,6 +229,9 @@ public class REPLManager {
                 return CompletableFuture.completedFuture(null);
             });
             //List<String> parts = pendingShellCommands.remove(0);
+            // Class-level field
+
+            // Inside your MarkdownContainer block:
         } else if (response instanceof MarkdownContainer) {
             MarkdownUtils markdownUtils = new MarkdownUtils(response);
             needsClarification = markdownUtils.completeGetClarification().join();
@@ -239,10 +244,10 @@ public class REPLManager {
                 String reply = scanner.nextLine();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
                 reply = null;
-            }
-            else if (acceptingTokens) {
+            } else if (acceptingTokens && !printed) {
                 if (lastCommandOutput != null && !lastCommandOutput.isBlank()) {
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, lastCommandOutput));
+                    printed = true; // Mark as used
                 }
             }
             boolean finished = markdownUtils.completeGetLocalShellFinished().join();
@@ -268,6 +273,7 @@ public class REPLManager {
         LOGGER.fine("Print-step");
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
         contextManager.printNewEntries(true, true, true, true, true, true, true);
+        printed = true;
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
