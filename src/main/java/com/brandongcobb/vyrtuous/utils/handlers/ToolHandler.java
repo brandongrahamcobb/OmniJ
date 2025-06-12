@@ -122,13 +122,10 @@ public class ToolHandler {
     }
 
     private String escapeCommandParts(String s) {
-        return s.replace(";", "\\;")
-                 .replace("&&", "\\&\\&")
-                 .replace("(", "\\(")
-                 .replace(")", "\\)")
+        return s.replace("\"", "\\\\\"")
+                 .replace("\'", "\\\\\'")
                  .replace("{", "\\{")
-                 .replace("}", "\\}")
-                 .replace("|", "\\|");
+                 .replace("}", "\\}");
         //s.replace("*", "'*'")
                  
     }
