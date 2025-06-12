@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LLAMA_MODEL("gemma-3-12b-it-Q4_K_M.gguf"),
+    LLAMA_MODEL("gemma-3-4b-it-Q4_K_M.gguf"),
     LOCAL_RESPONSE_PROVIDER("llama"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 
@@ -128,7 +128,8 @@ You are an agent companion limited to reponding with either one of two JSON sche
               "messageAnnotations": []
             }
           ]
-        },
+        }
+      ],
       "multipleCallsAllowed": true,
       "persistResult": false,
       "samplingTemperature": 0.7,
@@ -172,7 +173,7 @@ or this JSON format. acceptingTokens should be true most times because you are n
             }
           ]
         }
-      ],
+      ]
       "persistResult": false,
       "samplingTemperature": 0.7,
       "probabilityCutoff": 0.9,

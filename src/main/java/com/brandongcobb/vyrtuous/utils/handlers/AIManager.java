@@ -258,6 +258,7 @@ public class AIManager {
                                     .replaceFirst("\\s*```$", "")
                                     .trim();
                             }
+
                             Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
                             MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
                             String previousResponseId = UUID.randomUUID().toString();

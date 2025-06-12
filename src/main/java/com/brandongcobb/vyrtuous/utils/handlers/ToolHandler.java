@@ -121,16 +121,14 @@ public class ToolHandler {
         }).start();
     }
 
-    private List<String> escapeCommandParts(List<String> commandParts) {
-        return commandParts.stream()
-            .map(s -> s.replace(";", "\\;")
+    private String escapeCommandParts(String s) {
+        return s.replace(";", "\\;")
                  .replace("&&", "\\&\\&")
                  .replace("(", "\\(")
                  .replace(")", "\\)")
                  .replace("{", "\\{")
                  .replace("}", "\\}")
-                 .replace("|", "\\|"))
-            .toList();
+                 .replace("|", "\\|");
         //s.replace("*", "'*'")
                  
     }
@@ -192,7 +190,8 @@ public class ToolHandler {
                 // Construct segments as List<List<String>> for executePipeline
                 List<List<String>> segmentTokens = allCommands.stream()
                     .map(segment -> segment.stream()
-                        .map(this::expandHome)// if you want to expand ~ in each token
+                        .map(this::expandHome)
+                        .map(this::escapeCommandParts)// if you want to expand ~ in each token
                         .collect(Collectors.toList()))
                     .collect(Collectors.toList());
                 AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);
