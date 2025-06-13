@@ -122,13 +122,23 @@ public class ToolHandler {
     }
 
     private String escapeCommandParts(String s) {
-        return s.replace("\"", "\\\\\"")
-                 .replace("\'", "\\\\\'")
-                 .replace("{", "\\{")
-                 .replace("}", "\\}");
-        //s.replace("*", "'*'")
-                 
+        if (s.startsWith("//'") && s.endsWith("//'")) {
+            // Extract inner content
+            String inner = s.substring(3, s.length() - 3);
+            
+            // Apply replacements
+            inner = inner.replace("\"", "\\\\\"")
+                         .replace("\'", "\\\\\'")
+                         .replace("{", "\\{")
+                         .replace("}", "\\}");
+            
+            // Wrap with single quotes and return
+            return "'" + inner + "'";
+        } else {
+            return s;
+        }
     }
+
 
     private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");
     private static final Pattern SHELL_SPECIALS = Pattern.compile("(?<!\\\\)([;{}()|])");
@@ -187,12 +197,18 @@ public class ToolHandler {
                 // Construct segments as List<List<String>> for executePipeline
                 List<List<String>> segmentTokens = allCommands.stream()
                     .map(segment -> segment.stream()
-                        .map(this::expandHome)
-                        .map(this::escapeCommandParts)// if you want to expand ~ in each token
+                        .map(this::expandHome)// if you want to expand ~ in each token
                         .collect(Collectors.toList()))
                     .collect(Collectors.toList());
                 AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);
-                List<List<String>> segments = split.getKey();         // Correct type: List<List<String>>
+                List<List<String>> segments = split.getKey();
+                segments = segments.stream()
+                    .map(segment -> segment.stream()
+                        .map(token -> {
+                                return escapeCommandParts(token); // leave quoted segments untouched
+                        })
+                        .collect(Collectors.toList()))
+                    .collect(Collectors.toList());// Correct type: List<List<String>>
                 List<String> operators = split.getValue();
                 return executePipeline(segments, operators);
             } catch (Exception e) {

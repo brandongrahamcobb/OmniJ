@@ -49,7 +49,7 @@ public class REPLManager {
     private boolean acceptingTokens = true;
     private boolean needsClarification = false;
     private String newInput;
-    private boolean printed;
+    private boolean printed = false;
     
     private List<List<String>> oldCommands;
     
@@ -191,8 +191,6 @@ public class REPLManager {
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
-        
-        printed = false;
         if (response instanceof ToolContainer tool) {
             ToolUtils tu = new ToolUtils(response);
             lastAIResponseText = tu.completeGetText().join();
@@ -218,13 +216,15 @@ public class REPLManager {
             // Run all at once
             Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(newCmds);
             return runner.get().thenCompose(out -> {
-                long tokenCount = contextManager.getTokenCount(out);
-                StringBuilder newInputBuilder = new StringBuilder();
-                newInputBuilder.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
-                newInputBuilder.append("📋 Do you want to accept the console output?\n");
-
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInputBuilder.toString()));
+//                long tokenCount = contextManager.getTokenCount(out);
+//                StringBuilder newInputBuilder = new StringBuilder();
+//                newInputBuilder.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
+//                newInputBuilder.append("📋 Do you want to accept the console output?\n");
+//
+//                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInputBuilder.toString()));
                 lastCommandOutput = out;
+                
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, lastCommandOutput));
 
                 return CompletableFuture.completedFuture(null);
             });
@@ -244,11 +244,6 @@ public class REPLManager {
                 String reply = scanner.nextLine();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
                 reply = null;
-            } else if (acceptingTokens && !printed) {
-                if (lastCommandOutput != null && !lastCommandOutput.isBlank()) {
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, lastCommandOutput));
-                    printed = true; // Mark as used
-                }
             }
             boolean finished = markdownUtils.completeGetLocalShellFinished().join();
             if (finished) {
