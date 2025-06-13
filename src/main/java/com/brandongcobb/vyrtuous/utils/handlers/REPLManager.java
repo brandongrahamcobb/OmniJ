@@ -234,7 +234,7 @@ public class REPLManager {
             // Inside your MarkdownContainer block:
         } else if (response instanceof MarkdownContainer) {
             MarkdownUtils markdownUtils = new MarkdownUtils(response);
-            needsClarification = markdownUtils.completeGetClarification().join();
+            needsClarification = true; //markdownUtils.completeGetClarification().join();
             acceptingTokens = markdownUtils.completeGetAcceptingTokens().join();
             String output = markdownUtils.completeGetText().join();
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, output));

@@ -125,19 +125,52 @@ public class ToolHandler {
         if (s.startsWith("//'") && s.endsWith("//'")) {
             // Extract inner content
             String inner = s.substring(3, s.length() - 3);
-            
-            // Apply replacements
-            inner = inner.replace("\"", "\\\\\"")
-                         .replace("\'", "\\\\\'")
-                         .replace("{", "\\{")
-                         .replace("}", "\\}");
-            
-            // Wrap with single quotes and return
-            return "'" + inner + "'";
+
+            // Escape for Java + shell
+            StringBuilder escaped = new StringBuilder();
+            for (char c : inner.toCharArray()) {
+                switch (c) {
+                    case '"':
+                        escaped.append("\\\"");
+                        break;
+                    case '\'':
+                        escaped.append("\\'");
+                        break;
+                    case '\\':
+                        escaped.append("\\\\");
+                        break;
+                    case '{':
+                        escaped.append("\\{");
+                        break;
+                    case '}':
+                        escaped.append("\\}");
+                        break;
+                    case '$':
+                        escaped.append("\\$");
+                        break;
+                    case '`':
+                        escaped.append("\\`");
+                        break;
+                    case '|':
+                        escaped.append("\\|");
+                        break;
+                    case '>':
+                    case '<':
+                    case '&':
+                    case ';':
+                        escaped.append("\\" + c);  // Shell metacharacters
+                        break;
+                    default:
+                        escaped.append(c);
+                }
+            }
+
+            return "'" + escaped.toString() + "'";
         } else {
             return s;
         }
     }
+
 
 
     private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");

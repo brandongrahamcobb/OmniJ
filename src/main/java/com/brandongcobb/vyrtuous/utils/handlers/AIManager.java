@@ -33,6 +33,8 @@ import java.nio.charset.StandardCharsets;
 // For Consumer
 import java.util.function.Consumer;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 // For Map
 import java.util.Map;
 
@@ -222,7 +224,23 @@ public class AIManager {
         String regex = "(?s)<think>.*?</think>";
         return text.replaceAll(regex, "");
     }
-    
+    private static final Pattern THINK_PATTERN = Pattern.compile("<think>(.*?)</think>", Pattern.DOTALL);
+    private static final Pattern JSON_CODE_BLOCK_PATTERN = Pattern.compile("```json\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
+
+    public static String extractJsonContent(String input) {
+        Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
+        if (matcher.find()) {
+            return matcher.group(1).trim(); // clean JSON only
+        } else {
+            // Optional: fallback to naive cleanup
+            return input.replaceFirst("^```json\\s*", "")
+                        .replaceFirst("\\s*```$", "")
+                        .trim();
+        }
+    }
+
+
+
     private CompletableFuture<MetadataContainer> completeLlamaProcessRequest(
         Map<String, Object> requestBody,
         String endpoint,
@@ -232,82 +250,107 @@ public class AIManager {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
+
                 HttpPost post = new HttpPost(endpoint);
                 post.setHeader("Content-Type", "application/json");
+
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
+
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
-                    String respBody = null;
-                    if (code <= 200 || code > 300) {
-                        respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+
+                    if (code < 200 || code >= 300) {
+                        String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                        throw new IOException("HTTP " + code + ": " + errorBody);
+                    }
+
+                    if (onContentChunk == null) {
+                        String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         LOGGER.fine(respBody);
-                        if (onContentChunk == null) {
-                            Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                            LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
-                            LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
-                            String content = llamaOuterUtils.completeGetContent().join();
-                            // Remove ```json markers if present
-                            String jsonContent = "";
-                            if (content.startsWith("<think>")) {
-                                jsonContent = removeThinkBlocks(content);
-                            } else {
-                                jsonContent = content
-                                    .replaceFirst("^```json\\s*", "")
-                                    .replaceFirst("\\s*```$", "")
-                                    .trim();
+
+                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
+                        LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
+
+                        String content = llamaOuterUtils.completeGetContent().join();
+                        String jsonContent = extractJsonContent(content);
+                        LOGGER.fine("Extracted JSON: " + jsonContent);
+
+                        JsonNode rootNode = mapper.readTree(jsonContent);
+                        JsonNode actualObject;
+
+                        if (rootNode.isObject()) {
+                            actualObject = rootNode;
+                        } else if (rootNode.isArray()) {
+                            if (rootNode.size() == 0) {
+                                throw new RuntimeException("JSON array is empty. Cannot extract metadata.");
                             }
-                            LOGGER.fine(jsonContent);
-                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
-                            String previousResponseId = UUID.randomUUID().toString();
-                            inner.put("id", previousResponseId);
-                            if (((String) inner.get("entityType")).startsWith("json_tool")) {
-                                ToolContainer toolContainer = new ToolContainer(inner);
-                                return toolContainer;
-                            } else if (((String)inner.get("entityType")).startsWith("json_chat")) {
-                                MarkdownContainer markdownContainer = new MarkdownContainer(inner);
-                           //     System.out.println("test");
-                                return markdownContainer;
-                            } else {
-                                return new MetadataContainer();
+                            actualObject = rootNode.get(0);
+                            if (!actualObject.isObject()) {
+                                throw new RuntimeException("First element of array is not a JSON object.");
                             }
                         } else {
-                            StringBuilder builder = new StringBuilder();
-                            Map<String, Object> lastChunk = null;
-                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
-                                String line;
-                                while ((line = reader.readLine()) != null) {
-                                    if (!line.startsWith("data:")) continue;
-                                    String data = line.substring(5).trim();
-                                    if (data.equals("[DONE]")) break;
-                                    Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
-                                    lastChunk = chunk;
-                                    Map<String, Object> delta = (Map<String, Object>) ((Map<String, Object>) ((List<?>) chunk.get("choices")).get(0)).get("delta");
-                                    String content = (String) delta.get("content");
-                                    if (content != null) {
-                                        onContentChunk.accept(content);
-                                        builder.append(content);
-                                    }
+                            throw new RuntimeException("Unexpected JSON structure: not object or array.");
+                        }
+
+                        Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
+                        String entityType = (String) resultMap.get("entityType");
+
+                        if (entityType != null) {
+                            if (entityType.startsWith("json_tool")) {
+                                return new ToolContainer(resultMap);
+                            } else if (entityType.startsWith("json_chat")) {
+                                return new MarkdownContainer(resultMap);
+                            }
+                        }
+
+                        return new MetadataContainer();
+
+                    } else {
+                        // Streaming mode
+                        StringBuilder builder = new StringBuilder();
+                        Map<String, Object> lastChunk = null;
+
+                        try (BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (!line.startsWith("data:")) continue;
+                                String data = line.substring(5).trim();
+                                if (data.equals("[DONE]")) break;
+
+                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+                                lastChunk = chunk;
+
+                                Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+                                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+                                String content = (String) delta.get("content");
+
+                                if (content != null) {
+                                    onContentChunk.accept(content);
+                                    builder.append(content);
                                 }
                             }
-                            if (lastChunk == null) {
-                                throw new IllegalStateException("No valid chunk received.");
-                            }
-                            LlamaContainer container = new LlamaContainer(lastChunk);
-                            container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
-                            return container;
                         }
-                    } else {
-                        throw new IOException("HTTP " + code + ": " + respBody);
+
+                        if (lastChunk == null) {
+                            throw new IllegalStateException("No valid chunk received.");
+                        }
+
+                        LlamaContainer container = new LlamaContainer(lastChunk);
+                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+                        return container;
                     }
                 }
+
             } catch (Exception e) {
                 throw new RuntimeException("Local stream request failed: " + e.getMessage(), e);
             }
         });
     }
+
     
     /*
      *  lmstudio
