@@ -239,6 +239,46 @@ public class AIManager {
         }
     }
 
+    private String escapeControlCharacters(String input) {
+        // Replace newline and other control characters with their escaped equivalents
+        return input.replaceAll("[\\x00-\\x1F\\x7F]", "\\\\u00$0");
+    }
+
+    private static String sanitizeJsonContent(String input) {
+        // If it's already valid JSON, do nothing.
+        try {
+            new ObjectMapper().readTree(input);
+            return input;
+        } catch (IOException e) {
+            // Continue to attempt fix
+        }
+
+        // Attempt to re-escape quotes inside strings (e.g. in echo commands)
+        StringBuilder result = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            if (c == '"') {
+                result.append(c);
+                inQuotes = !inQuotes;
+            } else if (c == '\\') {
+                result.append("\\\\"); // Escape the backslash
+            } else if (c == '\n') {
+                result.append("\\n");
+            } else if (c == '\r') {
+                result.append("\\r");
+            } else if (c == '\t') {
+                result.append("\\t");
+            } else {
+                result.append(c);
+            }
+        }
+
+        return result.toString();
+    }
+
 
 
     private CompletableFuture<MetadataContainer> completeLlamaProcessRequest(
@@ -277,6 +317,7 @@ public class AIManager {
                         String content = llamaOuterUtils.completeGetContent().join();
                         String jsonContent = extractJsonContent(content);
                         LOGGER.fine("Extracted JSON: " + jsonContent);
+                        jsonContent = sanitizeJsonContent(jsonContent);
 
                         JsonNode rootNode = mapper.readTree(jsonContent);
                         JsonNode actualObject;

@@ -281,8 +281,8 @@ public class ToolHandler {
                     processes.add(proc);
                     lastProcess = proc;
 
-                    drainStream(proc.getInputStream());
-                    drainStream(proc.getErrorStream());
+                    proc.getInputStream();
+                    proc.getErrorStream();
                     continue;
                 } else if (op.equals("<")) {
                     if (i + 1 >= segments.size()) throw new IllegalArgumentException("Expected filename after <");
@@ -293,11 +293,11 @@ public class ToolHandler {
                     
                     if (i == segments.size() - 1) {
                         // Last process, read output later synchronously, just drain error
-                        drainStream(proc.getErrorStream());
+                        proc.getErrorStream();
                     } else {
                         // Intermediate process, drain both to avoid blocking
-                        drainStream(proc.getInputStream());
-                        drainStream(proc.getErrorStream());
+                        proc.getInputStream();
+                        proc.getErrorStream();
                     }
                     processes.add(proc);
                     lastProcess = proc;
@@ -312,11 +312,11 @@ public class ToolHandler {
                 Process currProc = pb.start();
                 if (i == segments.size() - 1) {
                     // Last process, read output later synchronously, just drain error
-                    drainStream(currProc.getErrorStream());
+                    currProc.getErrorStream();
                 } else {
                     // Intermediate process, drain both to avoid blocking
-                    drainStream(currProc.getInputStream());
-                    drainStream(currProc.getErrorStream());
+                    currProc.getInputStream();
+                    currProc.getErrorStream();
                 }
 
                 InputStream prevOut = prevProc.getInputStream();
@@ -346,11 +346,11 @@ public class ToolHandler {
                 
                 if (i == segments.size() - 1) {
                     // Last process, read output later synchronously, just drain error
-                    drainStream(proc.getErrorStream());
+                    proc.getErrorStream();
                 } else {
                     // Intermediate process, drain both to avoid blocking
-                    drainStream(proc.getInputStream());
-                    drainStream(proc.getErrorStream());
+                    proc.getInputStream();
+                    proc.getErrorStream();
                 }
                 processes.add(proc);
                 lastProcess = proc;
@@ -361,11 +361,11 @@ public class ToolHandler {
                 
                 if (i == segments.size() - 1) {
                     // Last process, read output later synchronously, just drain error
-                    drainStream(proc.getErrorStream());
+                    proc.getErrorStream();
                 } else {
                     // Intermediate process, drain both to avoid blocking
-                    drainStream(proc.getInputStream());
-                    drainStream(proc.getErrorStream());
+                    proc.getInputStream();
+                    proc.getErrorStream();
                 }
                 processes.add(proc);
                 lastProcess = proc;
