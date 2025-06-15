@@ -31,6 +31,7 @@ import java.util.Optional;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
@@ -139,9 +140,9 @@ public class EventListeners extends ListenerAdapter implements Cog {
     public void shutdown() {
         scheduler.shutdownNow();
     }
-    
+
     public void startChemistryRoutine() {
-        var channel = api.getTextChannelById(targetChannelId);
+        var channel = api.getTextChannelById(1383632703475421237L);
         if (channel == null) {
             System.err.println("Chemistry channel not found");
             return;
@@ -171,52 +172,31 @@ public class EventListeners extends ListenerAdapter implements Cog {
         MessageManager mem = new MessageManager(api);
         MetadataContainer previousResponse = userResponseMap.get(0L);
 
-        channel.sendMessage("").queue(message -> {
-            scheduledMessage = message;
-
-            handleNormalFlow(aim, mem, 0L, previousResponse, scheduledMessage, initialContent, false)
-                .thenRun(this::startChemistryTask)
-                .exceptionally(ex -> {
-                    ex.printStackTrace();
-                    return null;
-                });
-        });
+        handleNormalFlow(aim, mem, 0L, previousResponse, initialContent, false, 1383632703475421237L)
+            .thenRun(this::startChemistryTask)
+            .exceptionally(ex -> {
+                ex.printStackTrace();
+                return null;
+            });
     }
 
     private void startChemistryTask() {
         scheduler.scheduleAtFixedRate(() -> {
-            if (scheduledMessage == null) return;
-
             AIManager aim = new AIManager();
             MessageManager mem = new MessageManager(api);
             MetadataContainer previousResponse = userResponseMap.get(0L);
 
             String updateContent = """
                 You are a routine Discord agent who can send commands to draw molecular images every minute.
-                The format is simple:
-                The first parameter is (without the quotes) "!d".
-                Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
-                Delimited by another space, follows 3 ways of representing molecules:
-                    A. common molecule names (if multi words then they are in quotes).
-                    B. peptide sequences (AKTP...).
-                    C. SMILES.
-                Delimited by a period, multiple molecules can be drawn in a single image "!d glow ketamine.aspirin.PKQ".
-                These are followed by a space and a title in quotes, becoming: "!d glow ketamine.aspirin.PKQ "Figure 1. Title here""
-                The unique case is with option "2" where only two molecules (ketamine.aspirin) can be provided at a given time because
-                it compares them on a single image.
-                You must only respond with a random molecule or multiple molecules for every request including the full command syntax ("!d <option> <molecule1>.<molecule2> "Title").
-                Title is a string encapsulated by quotes with a space between it and the molecule(s).
-                Molecules with spaces in them must be encapsulated in quotes. Each molecule should be separated by a period.
-                Be creative. Do not pick molecules included in your context history. Only pick chemicals on PubChem. Only use gsrs with 1 molecule. Gsrs doesn't take a title argument. Single-word molecules must not be encapsulated in quotes.
-                You MUST use this syntax.
+                ...
             """;
 
-            handleNormalFlow(aim, mem, 0L, previousResponse, scheduledMessage, updateContent, false)
+            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632703475421237L)
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     return null;
                 });
-        }, 5, 5, TimeUnit.MINUTES);
+        }, 0, 1, TimeUnit.MINUTES); // or 1, 1, TimeUnit.MINUTES
     }
 
     public void startBiologyRoutine() {
@@ -226,7 +206,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
             return;
         }
 
-        String biologyContent = """
+        String initialContent = """
             You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
         """;
 
@@ -234,115 +214,111 @@ public class EventListeners extends ListenerAdapter implements Cog {
         MessageManager mem = new MessageManager(api);
         MetadataContainer previousResponse = userResponseMap.get(0L);
 
-        channel.sendMessage("").queue(message -> {
-            biologyScheduledMessage = message;
-
-            handleNormalFlow(aim, mem, 0L, previousResponse, biologyScheduledMessage, biologyContent, false)
-                .thenRun(this::startBiologyTask)
-                .exceptionally(ex -> {
-                    ex.printStackTrace();
-                    return null;
-                });
-        });
+        handleNormalFlow(aim, mem, 0L, previousResponse, initialContent, false, 1383632681467904124L)
+            .thenRun(this::startBiologyTask)
+            .exceptionally(ex -> {
+                ex.printStackTrace();
+                return null;
+            });
     }
 
     private void startBiologyTask() {
         scheduler.scheduleAtFixedRate(() -> {
-            if (biologyScheduledMessage == null) return;
-
             AIManager aim = new AIManager();
             MessageManager mem = new MessageManager(api);
             MetadataContainer previousResponse = userResponseMap.get(0L);
 
-            String biologyContentUpdate = """
+            String updateContent = """
                 You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
             """;
 
-            handleNormalFlow(aim, mem, 0L, previousResponse, biologyScheduledMessage, biologyContentUpdate, false)
+            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632681467904124L)
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     return null;
                 });
-        }, 5, 5, TimeUnit.MINUTES);
+        }, 0, 5, TimeUnit.MINUTES);
+    }
+
+    public CompletableFuture<Void> completeSendResponse(TextChannel channel, String content) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        channel.sendMessage(content).queue(
+            message -> future.complete(null),
+            error -> future.completeExceptionally(error)
+        );
+        return future;
     }
     
     private CompletableFuture<Void> handleNormalFlow(
-                AIManager aim,
-                MessageManager mem,
-                long senderId,
-                MetadataContainer previousResponse,
-                Message messageToUpdate,
-                String fullContent,
-                boolean multimodal
-        ) {
-            return SettingsManager.completeGetSettingsInstance()
-                .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
-                    .thenCompose(userSettings -> {
-                        String userModel = userSettings[0];
-                        String source = userSettings[1];
+            AIManager aim,
+            MessageManager mem,
+            long senderId,
+            MetadataContainer previousResponse,
+            String fullContent,
+            boolean multimodal,
+            long channelId
+    ) {
+        TextChannel channel = api.getTextChannelById(channelId);
 
-                        return aim.getAIEndpointWithState(multimodal, source, "discord", "completions")
-                            .thenCompose(endpoint -> {
-                                CompletableFuture<String> prevIdFut;
+        return SettingsManager.completeGetSettingsInstance()
+            .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
+                .thenCompose(userSettings -> {
+                    String userModel = userSettings[0];
+                    String source = userSettings[1];
 
-                                switch (source) {
-                                    case "openai":
-                                        prevIdFut = previousResponse != null
-                                            ? new OpenAIUtils(previousResponse).completeGetResponseId()
-                                            : CompletableFuture.completedFuture(null);
-                                        break;
-                                    default:
-                                        prevIdFut = CompletableFuture.completedFuture(null);
-                                        break;
-                                }
+                    return aim.getAIEndpointWithState(multimodal, source, "discord", "completions")
+                        .thenCompose(endpoint -> {
+                            CompletableFuture<String> prevIdFut = switch (source) {
+                                case "openai" -> previousResponse != null
+                                    ? new OpenAIUtils(previousResponse).completeGetResponseId()
+                                    : CompletableFuture.completedFuture(null);
+                                default -> CompletableFuture.completedFuture(null);
+                            };
 
-                                return prevIdFut.thenCompose(previousResponseId -> {
-                                    try {
-                                        List<String> history = userMessageHistory.getOrDefault(senderId, new ArrayList<>());
-                                        String historyContext = String.join("\n", history);
-                                        String fullPrompt = historyContext.isBlank() ? fullContent : historyContext + "\n\n" + fullContent;
+                            return prevIdFut.thenCompose(previousResponseId -> {
+                                try {
+                                    List<String> history = userMessageHistory.getOrDefault(senderId, new ArrayList<>());
+                                    String historyContext = String.join("\n", history);
+                                    String fullPrompt = historyContext.isBlank() ? fullContent : historyContext + "\n\n" + fullContent;
 
-                                        return aim.completeRequest(
-                                                fullPrompt,
-                                                previousResponseId,
-                                                userModel,
-                                                endpoint,
-                                                false,
-                                                null
-                                            ).thenCompose(responseObject -> {
-                                                try {
-                                                    LlamaUtils lu = new LlamaUtils(responseObject);
-                                                    String content = lu.completeGetContent().join();
-
-                                                    String cleanContent = content.strip();
-                                                    if (cleanContent.toLowerCase().startsWith("bot:")) {
-                                                        cleanContent = cleanContent.substring(4).strip();
-                                                    }
-
-                                                    List<String> historyList = userMessageHistory.computeIfAbsent(senderId, k -> new ArrayList<>());
-                                                    historyList.add("User: " + fullContent.strip());
-                                                    historyList.add("Bot: " + cleanContent);
-
-                                                    if (historyList.size() > 50) {
-                                                        historyList.subList(0, historyList.size() - 40).clear(); // keep last 10 exchanges
-                                                    }
-
-                                                    userResponseMap.put(senderId, responseObject);
-                                                    return mem.completeSendResponse(messageToUpdate, cleanContent);
-                                                } catch (Exception e) {
-                                                    CompletableFuture<Void> failed = new CompletableFuture<>();
-                                                    failed.completeExceptionally(e);
-                                                    return failed;
+                                    return aim.completeRequest(
+                                            fullPrompt,
+                                            previousResponseId,
+                                            userModel,
+                                            endpoint,
+                                            false,
+                                            null
+                                        ).thenCompose(responseObject -> {
+                                            try {
+                                                LlamaUtils lu = new LlamaUtils(responseObject);
+                                                String content = lu.completeGetContent().join().strip();
+                                                if (content.toLowerCase().startsWith("bot:")) {
+                                                    content = content.substring(4).strip();
                                                 }
-                                            });
-                                    } catch (Exception e) {
-                                        CompletableFuture<Void> failed = new CompletableFuture<>();
-                                        failed.completeExceptionally(e);
-                                        return failed;
-                                    }
-                                });
-                            });
-                    }));
-        }
 
+                                                List<String> historyList = userMessageHistory.computeIfAbsent(senderId, k -> new ArrayList<>());
+                                                historyList.add("User: " + fullContent.strip());
+                                                historyList.add("Bot: " + content);
+
+                                                if (historyList.size() > 50) {
+                                                    historyList.subList(0, historyList.size() - 40).clear(); // keep last 10 exchanges
+                                                }
+
+                                                userResponseMap.put(senderId, responseObject);
+                                                return completeSendResponse(channel, content);
+                                            } catch (Exception e) {
+                                                CompletableFuture<Void> failed = new CompletableFuture<>();
+                                                failed.completeExceptionally(e);
+                                                return failed;
+                                            }
+                                        });
+                                } catch (Exception e) {
+                                    CompletableFuture<Void> failed = new CompletableFuture<>();
+                                    failed.completeExceptionally(e);
+                                    return failed;
+                                }
+                            });
+                        });
+                }));
+    }
 }
