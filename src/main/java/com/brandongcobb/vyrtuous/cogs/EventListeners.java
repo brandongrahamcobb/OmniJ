@@ -45,7 +45,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.HashMap;
 import java.util.function.Supplier;
-
+import java.util.ArrayList;
 import java.util.function.Consumer;
 
 public class EventListeners extends ListenerAdapter implements Cog {
@@ -55,7 +55,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
     private DiscordBot bot;
     final StringBuilder messageBuilder = new StringBuilder();
     private final String discordResponseSource = System.getenv("DISCORD_RESPONSE_SOURCE");
-
+    private final Map<Long, List<String>> userMessageHistory = new ConcurrentHashMap<>();
+    
     @Override
     public void register(JDA api, DiscordBot bot) {
         this.bot = bot.completeGetBot();
@@ -184,28 +185,44 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
                             return prevIdFut.thenCompose(previousResponseId -> {
                                 try {
+                                    List<String> history = userMessageHistory.getOrDefault(senderId, new ArrayList<>());
+                                    String historyContext = String.join("\n", history);
+                                    String fullPrompt = historyContext.isBlank() ? fullContent : historyContext + "\n\n" + fullContent;
+                                    
                                     return aim.completeRequest(
-                                            fullContent,
+                                            fullPrompt,
                                             previousResponseId,
                                             userModel,
                                             endpoint,
                                             false,
-                                            null // no streaming consumer
-                                        )
-                                        .thenCompose(responseObject -> {
+                                            null
+                                        ).thenCompose(responseObject -> {
                                             try {
                                                 LlamaUtils lu = new LlamaUtils(responseObject);
                                                 String content = lu.completeGetContent().join();
-                                                return mem.completeSendResponse(messageToUpdate, content);
+
+                                                // Clean the bot's content (remove accidental Bot: prefix if present)
+                                                String cleanContent = content.strip();
+                                                if (cleanContent.toLowerCase().startsWith("bot:")) {
+                                                    cleanContent = cleanContent.substring(4).strip();
+                                                }
+
+                                                // Add both to history AFTER response
+                                                List<String> historyList = userMessageHistory.computeIfAbsent(senderId, k -> new ArrayList<>());
+                                                historyList.add("User: " + fullContent.strip());
+                                                historyList.add("Bot: " + cleanContent);
+
+                                                // Truncate if too long
+                                                if (historyList.size() > 50) {
+                                                    historyList.subList(0, historyList.size() - 40).clear(); // keep last 10 exchanges
+                                                }
+
+                                                return mem.completeSendResponse(messageToUpdate, cleanContent);
                                             } catch (Exception e) {
                                                 CompletableFuture<Void> failed = new CompletableFuture<>();
                                                 failed.completeExceptionally(e);
                                                 return failed;
                                             }
-                                        })
-                                        .exceptionally(ex -> {
-                                            ex.printStackTrace();
-                                            return null;
                                         });
                                 } catch (Exception e) {
                                     CompletableFuture<Void> failed = new CompletableFuture<>();
@@ -246,7 +263,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 // Edit the existing message
                 runHandleNormalFlowUpdate(scheduledMessage);
             }
-        }, 0, 3, TimeUnit.MINUTES);
+        }, 0, 1, TimeUnit.MINUTES);
     }
 
     private void runHandleNormalFlowUpdate(Message messageToUpdate) {
@@ -254,19 +271,21 @@ public class EventListeners extends ListenerAdapter implements Cog {
         MessageManager mem = new MessageManager(api);
         MetadataContainer previousResponse = userResponseMap.get(0L); // Or wherever you store this state
         String content = """
-            You are a routine Discord agent who can send commands to draw molecular images every 5 minutes.
+            You are a routine Discord agent who can send commands to draw molecular images every minute.
             The format is simple:
             The first parameter is (without the quotes) "!d".
-            Delimited by a space, follows 3 options, "2", "glow", "gsrs". These would then be "!d 2", "!d glow", and "!d gsrs".
-            Delimited by another space, follows 3 ways of representing molecules.
-            A. common molecules names (if multi words then they are in quotes).
-            B. peptide sequences (AKTP...).
+            Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
+            Delimited by another space, follows 3 ways of representing molecules:
+                A. common molecules names (if multi words then they are in quotes).
+                B. peptide sequences (AKTP...).
+                C. SMILES.
             Delimited by a period, multiple molecules can be drawn in a single image "!d glow ketamine.aspirin.PKQ".
             These are followed by a space and a title in quotes, becoming: "!d glow ketamine.aspirin.PKQ "Figure 1. Title here""
             The unique case is with option "2" where only two molecules (ketamine.aspirin) can be provided at a given time because
             it compares them on a single image.
             You must only respond with a random molecule or multiple molecules for every request including the full command syntax ("!d <option> <molecule1>.<molecule2> "Title").
             Title is a string encapsulated by quotes with a space between it and the molecule(s).
+            Be creative. Do not pick molecules included in your context history.
             You MUST use this syntax.
         """;
         boolean multimodal = false;
