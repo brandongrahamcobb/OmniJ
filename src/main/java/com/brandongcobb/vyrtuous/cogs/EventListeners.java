@@ -240,9 +240,13 @@ public class EventListeners extends ListenerAdapter implements Cog {
                             return prevIdFut.thenCompose(previousResponseId -> {
                                 try {
                                     List<String> history = historyMap.getOrDefault(senderId, new ArrayList<>());
-                                    String historyContext = String.join("\n", history);
+                                    List<String> historyList = historyMap.computeIfAbsent(senderId, k -> new ArrayList<>());
+                                    String historyContext = String.join("\n", historyList);
                                     String fullPrompt = historyContext.isBlank() ? fullContent : historyContext + "\n\n" + fullContent;
 
+                                    if (historyList.size() > 50) {
+                                        historyList.subList(0, historyList.size() - 40).clear(); // keep last 10 exchanges
+                                    }
                                     return aim.completeRequest(
                                             fullPrompt,
                                             previousResponseId,
@@ -257,15 +261,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                 if (content.toLowerCase().startsWith("bot:")) {
                                                     content = content.substring(4).strip();
                                                 }
-                                                
-                                                List<String> historyList = historyMap.computeIfAbsent(senderId, k -> new ArrayList<>());
-                                                historyList.add("User: " + fullContent.strip());
-                                                historyList.add("Bot: " + content);
-
-                                                if (historyList.size() > 50) {
-                                                    historyList.subList(0, historyList.size() - 40).clear(); // keep last 10 exchanges
-                                                }
-
                                                 responseMap.put(senderId, responseObject);
                                                 return completeSendResponse(channel, content);
                                             } catch (Exception e) {
