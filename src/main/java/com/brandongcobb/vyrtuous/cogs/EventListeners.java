@@ -81,7 +81,11 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final long targetChannelId = 1383632703475421237L; // replace with your actual channel ID
+    private final Map<Long, MetadataContainer> biolUserResponseMap = new ConcurrentHashMap<>();
+    private final Map<Long, MetadataContainer> chemUserResponseMap = new ConcurrentHashMap<>();
 
+    private final Map<Long, List<String>> bioHistoryMap = new ConcurrentHashMap<>();
+    private final Map<Long, List<String>> chemHistoryMap = new ConcurrentHashMap<>();
 
 //    @Override
 //    public void onMessageReceived(MessageReceivedEvent event) {
@@ -141,57 +145,35 @@ public class EventListeners extends ListenerAdapter implements Cog {
         scheduler.shutdownNow();
     }
 
-    public void startChemistryRoutine() {
-        var channel = api.getTextChannelById(1383632703475421237L);
-        if (channel == null) {
-            System.err.println("Chemistry channel not found");
-            return;
-        }
-
-        String initialContent = """
-            You are a routine Discord agent who can send commands to draw molecular images every minute.
-            The format is simple:
-            The first parameter is (without the quotes) "!d".
-            Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
-            Delimited by another space, follows 3 ways of representing molecules:
-                A. common molecule names (if multi-word then they are in quotes).
-                B. peptide sequences (AKTP...).
-                C. SMILES.
-            Delimited by a period, multiple molecules can be drawn in a single image "!d glow ketamine.aspirin.PKQ".
-            These are followed by a space and a title in quotes, becoming: "!d glow ketamine.aspirin.PKQ "Figure 1. Title here""
-            The unique case is with option "2" where only two molecules (ketamine.aspirin) can be provided at a given time because
-            it compares them on a single image.
-            You must only respond with a random molecule or multiple molecules for every request including the full command syntax ("!d <option> <molecule1>.<molecule2> "Title").
-            Title is a string encapsulated by quotes with a space between it and the molecule(s).
-            Molecules with spaces in them must be encapsulated in quotes. Each molecule should be separated by a period.
-            Be creative. Do not pick molecules included in your context history. Only pick chemicals on PubChem. Only use gsrs with 1 molecule. Gsrs doesn't take a title argument. Single-word molecules must not be encapsulated in quotes.
-            You MUST use this syntax.
-        """;
-
-        AIManager aim = new AIManager();
-        MessageManager mem = new MessageManager(api);
-        MetadataContainer previousResponse = userResponseMap.get(0L);
-
-        handleNormalFlow(aim, mem, 0L, previousResponse, initialContent, false, 1383632703475421237L)
-            .thenRun(this::startChemistryTask)
-            .exceptionally(ex -> {
-                ex.printStackTrace();
-                return null;
-            });
-    }
 
     private void startChemistryTask() {
         scheduler.scheduleAtFixedRate(() -> {
             AIManager aim = new AIManager();
             MessageManager mem = new MessageManager(api);
-            MetadataContainer previousResponse = userResponseMap.get(0L);
+            MetadataContainer previousResponse = chemUserResponseMap.get(0L);
 
             String updateContent = """
                 You are a routine Discord agent who can send commands to draw molecular images every minute.
-                ...
+                The format is simple:
+                The first parameter is (without the quotes) "!d".
+                Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
+                Delimited by another space, follows 3 ways of representing molecules:
+                    A. common molecule names (if multi-word then they are in quotes).
+                    B. peptide sequences (AKTP...).
+                    C. SMILES.
+                Delimited by a period, multiple molecules can be drawn in a single image "!d glow ketamine.aspirin.PKQ".
+                These are followed by a space and a title in quotes, becoming: "!d glow ketamine.aspirin.PKQ "Figure 1. Title here""
+                The unique case is with option "2" where only two molecules (ketamine.aspirin) can be provided at a given time because
+                it compares them on a single image.
+                You must only respond with a random molecule or multiple molecules for every request including the full command syntax ("!d <option> <molecule1>.<molecule2> "Title").
+                Title is a string encapsulated by quotes with a space between it and the molecule(s).
+                Molecules with spaces in them must be encapsulated in quotes. Each molecule should be separated by a period.
+                Be creative. Do not pick molecules included in your context history. Only pick chemicals on PubChem. Only use gsrs with 1 molecule. Gsrs doesn't take a title argument. Single-word molecules must not be encapsulated in quotes.
+                You MUST use this syntax.
             """;
+                                                                                                                                    ;
 
-            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632703475421237L)
+            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632703475421237L, chemUserResponseMap, chemHistoryMap)
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     return null;
@@ -199,28 +181,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
         }, 0, 1, TimeUnit.MINUTES); // or 1, 1, TimeUnit.MINUTES
     }
 
-    public void startBiologyRoutine() {
-        var channel = api.getTextChannelById(1383632681467904124L);
-        if (channel == null) {
-            System.err.println("Biology channel not found");
-            return;
-        }
-
-        String initialContent = """
-            You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
-        """;
-
-        AIManager aim = new AIManager();
-        MessageManager mem = new MessageManager(api);
-        MetadataContainer previousResponse = userResponseMap.get(0L);
-
-        handleNormalFlow(aim, mem, 0L, previousResponse, initialContent, false, 1383632681467904124L)
-            .thenRun(this::startBiologyTask)
-            .exceptionally(ex -> {
-                ex.printStackTrace();
-                return null;
-            });
-    }
 
     private void startBiologyTask() {
         scheduler.scheduleAtFixedRate(() -> {
@@ -232,7 +192,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
             """;
 
-            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632681467904124L)
+            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632681467904124L, biolUserResponseMap, bioHistoryMap)
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     return null;
@@ -250,13 +210,15 @@ public class EventListeners extends ListenerAdapter implements Cog {
     }
     
     private CompletableFuture<Void> handleNormalFlow(
-            AIManager aim,
-            MessageManager mem,
-            long senderId,
-            MetadataContainer previousResponse,
-            String fullContent,
-            boolean multimodal,
-            long channelId
+        AIManager aim,
+        MessageManager mem,
+        long senderId,
+        MetadataContainer previousResponse,
+        String fullContent,
+        boolean multimodal,
+        long channelId,
+        Map<Long, MetadataContainer> responseMap,
+        Map<Long, List<String>> historyMap// ✅ add this
     ) {
         TextChannel channel = api.getTextChannelById(channelId);
 
@@ -277,7 +239,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
                             return prevIdFut.thenCompose(previousResponseId -> {
                                 try {
-                                    List<String> history = userMessageHistory.getOrDefault(senderId, new ArrayList<>());
+                                    List<String> history = historyMap.getOrDefault(senderId, new ArrayList<>());
                                     String historyContext = String.join("\n", history);
                                     String fullPrompt = historyContext.isBlank() ? fullContent : historyContext + "\n\n" + fullContent;
 
@@ -295,8 +257,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                 if (content.toLowerCase().startsWith("bot:")) {
                                                     content = content.substring(4).strip();
                                                 }
-
-                                                List<String> historyList = userMessageHistory.computeIfAbsent(senderId, k -> new ArrayList<>());
+                                                
+                                                List<String> historyList = historyMap.computeIfAbsent(senderId, k -> new ArrayList<>());
                                                 historyList.add("User: " + fullContent.strip());
                                                 historyList.add("Bot: " + content);
 
@@ -304,7 +266,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                     historyList.subList(0, historyList.size() - 40).clear(); // keep last 10 exchanges
                                                 }
 
-                                                userResponseMap.put(senderId, responseObject);
+                                                responseMap.put(senderId, responseObject);
                                                 return completeSendResponse(channel, content);
                                             } catch (Exception e) {
                                                 CompletableFuture<Void> failed = new CompletableFuture<>();
