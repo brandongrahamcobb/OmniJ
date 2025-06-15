@@ -1,5 +1,5 @@
-/*  Vyrtuous.java The primary purpose of this class is to integrate
- *  local and remote AI tools.
+/*  Vyrtuous.java The purpose of this class is to be a Zsh wrapper
+ *  integrating local and remote AI models.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

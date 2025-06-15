@@ -1,5 +1,5 @@
-/*  HybridCommands.java The purpose of this class is to be a cog
- *  with both slash and text commands on Discord
+/*  HybridCommands.java The purpose of this class is to be provide the
+ *  Discord bot both slash and text commands on Discord.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

@@ -56,12 +56,9 @@ public class ContextManager {
                                 boolean includeTokens,
                                 boolean includeSystemNotes,
                                 boolean includeShellOutput) {
-
         List<ContextEntry> newEntries = getNewEntriesSinceLastCall();
-
         for (ContextEntry entry : newEntries) {
             ContextEntry.Type type = entry.getType();
-
             boolean shouldPrint =
                 (type == ContextEntry.Type.USER_MESSAGE     && includeUserMessages)   ||
                 (type == ContextEntry.Type.AI_RESPONSE      && includeAIResponses)    ||
@@ -118,6 +115,7 @@ public class ContextManager {
             .findFirst()
             .orElse("No user message found.");
     }
+    
     /**
      * Builds the prompt context from accumulated entries.
      * Returns an empty string as context building is currently disabled.

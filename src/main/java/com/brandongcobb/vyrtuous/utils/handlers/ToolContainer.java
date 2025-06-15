@@ -267,18 +267,33 @@ public class ToolContainer extends MainContainer {
                                 // [["git clone https://...", "cd jVyrtuous"]]
                                 for (Object sub : outerList) {
                                     if (sub instanceof List<?> subList) {
+                                        List<String> combinedTokens = new ArrayList<>();
                                         for (Object cmdString : subList) {
                                             if (cmdString instanceof String rawStr) {
-                                                List<String> tokens = smartSplit(rawStr.trim()); // updated here too
-                                                allCommands.add(tokens);
+                                                combinedTokens.addAll(smartSplit(rawStr.trim()));
                                             } else {
                                                 System.err.println("⚠️ Skipping non-string command part: " + cmdString);
                                             }
                                         }
+                                        allCommands.add(combinedTokens);  // Add ONE command made of ALL tokens combined
                                     } else {
                                         System.err.println("⚠️ Skipping malformed sub-command (not a list): " + sub);
                                     }
                                 }
+//for (Object sub : outerList) {
+//                                    if (sub instanceof List<?> subList) {
+//                                        for (Object cmdString : subList) {
+//                                            if (cmdString instanceof String rawStr) {
+//                                                List<String> tokens = smartSplit(rawStr.trim()); // updated here too
+//                                                allCommands.add(tokens);
+//                                            } else {
+//                                                System.err.println("⚠️ Skipping non-string command part: " + cmdString);
+//                                            }
+//                                        }
+//                                    } else {
+//                                        System.err.println("⚠️ Skipping malformed sub-command (not a list): " + sub);
+//                                    }
+//                                }
 
                             } else {
                                 System.err.println("⚠️ Unknown command structure: " + outerList);

@@ -1,4 +1,5 @@
-/*  Cog.java The purpose of this program is register the files inside Cogs as extensions of the primary Discord bot.
+/*  Cog.java The purpose of this program is register the files inside the cogs
+ *  directory as extensions of the primary Discord bot.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

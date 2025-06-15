@@ -245,39 +245,47 @@ public class AIManager {
     }
 
     private static String sanitizeJsonContent(String input) {
-        // If it's already valid JSON, do nothing.
+        ObjectMapper mapper = new ObjectMapper();
+
+        // If it's already valid JSON, return as-is.
         try {
-            new ObjectMapper().readTree(input);
+            mapper.readTree(input);
             return input;
         } catch (IOException e) {
-            // Continue to attempt fix
+            // Try unescaping if it's a quoted JSON string
         }
 
-        // Attempt to re-escape quotes inside strings (e.g. in echo commands)
-        StringBuilder result = new StringBuilder();
-        boolean inQuotes = false;
-
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-
-            if (c == '"') {
-                result.append(c);
-                inQuotes = !inQuotes;
-            } else if (c == '\\') {
-                result.append("\\\\"); // Escape the backslash
-            } else if (c == '\n') {
-                result.append("\\n");
-            } else if (c == '\r') {
-                result.append("\\r");
-            } else if (c == '\t') {
-                result.append("\\t");
-            } else {
-                result.append(c);
+        // If input is a quoted JSON string, e.g. "\"{\\\"key\\\":\\\"val\\\"}\""
+        if ((input.startsWith("\"") && input.endsWith("\"")) ||
+            (input.startsWith("'") && input.endsWith("'"))) {
+            try {
+                // This will turn: "\"{\\\"key\\\":\\\"val\\\"}\"" → "{\"key\":\"val\"}"
+                String unescaped = mapper.readValue(input, String.class);
+                mapper.readTree(unescaped); // validate it
+                return unescaped;
+            } catch (IOException ignored) {
+                // Continue to fallback
             }
         }
 
-        return result.toString();
+        // Fallback: strip illegal leading/trailing characters and try again
+        String cleaned = input.trim();
+
+        // Optional: remove common shell/echo leading text
+        if (cleaned.startsWith("Output:")) {
+            cleaned = cleaned.substring("Output:".length()).trim();
+        }
+
+        // Try a last ditch effort
+        try {
+            mapper.readTree(cleaned);
+            return cleaned;
+        } catch (IOException ignored) {}
+
+        // If all fails, return original input
+        return input;
     }
+
 
 
 
@@ -306,7 +314,7 @@ public class AIManager {
                         throw new IOException("HTTP " + code + ": " + errorBody);
                     }
 
-                    if (onContentChunk == null) {
+                    if (onContentChunk == null && false) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         LOGGER.fine(respBody);
 
@@ -348,41 +356,50 @@ public class AIManager {
                         }
 
                         return new MetadataContainer();
-
                     } else {
-                        // Streaming mode
-                        StringBuilder builder = new StringBuilder();
-                        Map<String, Object> lastChunk = null;
+                        String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                        LOGGER.fine(respBody);
 
-                        try (BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                if (!line.startsWith("data:")) continue;
-                                String data = line.substring(5).trim();
-                                if (data.equals("[DONE]")) break;
+                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
+                        return llamaOuterResponse;
+                        //LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
 
-                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
-                                lastChunk = chunk;
-
-                                Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
-                                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
-                                String content = (String) delta.get("content");
-
-                                if (content != null) {
-                                    onContentChunk.accept(content);
-                                    builder.append(content);
-                                }
-                            }
-                        }
-
-                        if (lastChunk == null) {
-                            throw new IllegalStateException("No valid chunk received.");
-                        }
-
-                        LlamaContainer container = new LlamaContainer(lastChunk);
-                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
-                        return container;
+                        //String content = llamaOuterUtils.completeGetContent().join();
+//                    } else {
+//                        // Streaming mode
+//                        StringBuilder builder = new StringBuilder();
+//                        Map<String, Object> lastChunk = null;
+//
+//                        try (BufferedReader reader = new BufferedReader(
+//                                new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+//                            String line;
+//                            while ((line = reader.readLine()) != null) {
+//                                if (!line.startsWith("data:")) continue;
+//                                String data = line.substring(5).trim();
+//                                if (data.equals("[DONE]")) break;
+//
+//                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+//                                lastChunk = chunk;
+//
+//                                Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+//                                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+//                                String content = (String) delta.get("content");
+//
+//                                if (content != null) {
+//                                    onContentChunk.accept(content);
+//                                    builder.append(content);
+//                                }
+//                            }
+//                        }
+//
+//                        if (lastChunk == null) {
+//                            throw new IllegalStateException("No valid chunk received.");
+//                        }
+//
+//                        LlamaContainer container = new LlamaContainer(lastChunk);
+//                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+//                        return container;
                     }
                 }
 
