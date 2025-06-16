@@ -52,16 +52,12 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 public class EventListeners extends ListenerAdapter implements Cog {
 
     public static AIManager aim = new AIManager();
-    
-    private final Map<Long, MetadataContainer> userResponseMap = new ConcurrentHashMap<>();
     private JDA api;
     private DiscordBot bot;
-    final StringBuilder messageBuilder = new StringBuilder();
-    private final Map<Long, List<String>> userMessageHistory = new ConcurrentHashMap<>();
-    private volatile Message scheduledMessage = null;
+    private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
+    private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
     private MessageManager mem = new MessageManager(api);
-    // For chemistry updates
-    private Message biologyScheduledMessage;
+    
     @Override
     public void register(JDA api, DiscordBot bot) {
         this.bot = bot.completeGetBot();
@@ -70,33 +66,18 @@ public class EventListeners extends ListenerAdapter implements Cog {
         api.addEventListener(new ListenerAdapter() {
             @Override
             public void onReady(ReadyEvent event) {
-                System.out.println("Bot is ready!");
-
-                // Run your scheduled task here
-                //startChemistryTask();
-                //startBiologyTask();
+                System.out.println("I've always wanted to do this.");
             }
         });
     }
 
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private final long targetChannelId = 1383632703475421237L; // replace with your actual channel ID
-    private final Map<Long, MetadataContainer> biolUserResponseMap = new ConcurrentHashMap<>();
-    private final Map<Long, MetadataContainer> chemUserResponseMap = new ConcurrentHashMap<>();
-    private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
-
-    private final Map<Long, List<String>> bioHistoryMap = new ConcurrentHashMap<>();
-    private final Map<Long, List<String>> chemHistoryMap = new ConcurrentHashMap<>();
-    private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
-
-    
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
         if (message.getAuthor().isBot() || message.getContentRaw().startsWith(System.getenv("DISCORD_COMMAND_PREFIX"))) return;
         long senderId = event.getAuthor().getIdLong();
         List<Attachment> attachments = message.getAttachments();
-        MetadataContainer previousResponse = userResponseMap.get(senderId);
+        MetadataContainer previousResponse = genericUserResponseMap.get(senderId);
         final boolean[] multimodal = new boolean[] { false };
         CompletableFuture<String> contentFuture = (attachments != null && !attachments.isEmpty())
             ? mem.completeProcessAttachments(attachments).thenApply(list -> {
@@ -153,76 +134,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 return null;
             });
     }
-
-//    public void shutdown() {
-//        scheduler.shutdownNow();
-//    }
-//
-//
-//    private void startChemistryTask() {
-//        scheduler.scheduleAtFixedRate(() -> {
-//            AIManager aim = new AIManager();
-//            MessageManager mem = new MessageManager(api);
-//            MetadataContainer previousResponse = chemUserResponseMap.get(0L);
-//
-//            String updateContent = """
-//                You are a routine Discord agent who can send commands to draw organic molecular images every minute.
-//                The format is simple:
-//                The first parameter is (without the quotes) "!d".
-//                Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
-//                Delimited by another space, follows 3 ways of representing molecules:
-//                    A. common molecule names (if multi-word then they are in quotes).
-//                    B. peptide sequences (AKTP...).
-//                    C. SMILES.
-//                Delimited by a period, multiple molecules can be drawn in a single image "!d glow ketamine.aspirin.PKQ".
-//                These are followed by a space and a title in quotes, becoming: "!d glow ketamine.aspirin.PKQ "Figure 1. Title here""
-//                The unique case is with option "2" where only two molecules (ketamine.aspirin) can be provided at a given time because
-//                it compares them on a single image.
-//                You must only respond with a random molecule or multiple molecules for every request including the full command syntax ("!d <option> <molecule1>.<molecule2> "Title").
-//                Title is a string encapsulated by quotes with a space between it and the molecule(s).
-//                Molecules with spaces in them must be encapsulated in quotes. Each molecule should be separated by a period.
-//                Be creative. Do not pick molecules included in your context history. Only pick chemicals on PubChem. Only use gsrs with 1 molecule. Gsrs doesn't take a title argument. Single-word molecules must not be encapsulated in quotes.
-//                You MUST use this syntax.
-//            """;
-//                                                                                                                                    ;
-//
-//            handleNormalFlow(aim, mem, 0L, message, previousResponse, updateContent, false, 1383632703475421237L, chemUserResponseMap, chemHistoryMap, 50)
-//                .exceptionally(ex -> {
-//                    ex.printStackTrace();
-//                    return null;
-//                });
-//        }, 0, 1, TimeUnit.MINUTES); // or 1, 1, TimeUnit.MINUTES
-//    }
-
-
-//    private void startBiologyTask() {
-//        scheduler.scheduleAtFixedRate(() -> {
-//            AIManager aim = new AIManager();
-//            MessageManager mem = new MessageManager(api);
-//            MetadataContainer previousResponse = userResponseMap.get(0L);
-//
-//            String updateContent = """
-//                You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
-//            """;
-//
-//            handleNormalFlow(aim, mem, 0L, message, previousResponse, updateContent, false, 1383632681467904124L, biolUserResponseMap, bioHistoryMap, 10)
-//                .exceptionally(ex -> {
-//                    ex.printStackTrace();
-//                    return null;
-//                });
-//        }, 0, 5, TimeUnit.MINUTES);
-//    }
-//
-//    public CompletableFuture<Void> completeSendResponse(TextChannel channel, String content) {
-//        CompletableFuture<Void> future = new CompletableFuture<>();
-//        channel.sendMessage(content).queue(
-//            message -> future.complete(null),
-//            error -> future.completeExceptionally(error)
-//        );
-//        return future;
-//    }
-    
-
     
     private CompletableFuture<ServerRequest> completeCreateServerRequest(
             String prompt,
@@ -237,7 +148,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         String userModel = userSettings[0];
                         String source = userSettings[1];
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
-                        
                         return aim.completeGetAIEndpoint(multimodal, source, "discord", requestType)
                             .thenCombine(aim.completeGetInstructions(multimodal, "discord", source), (endpoint, instructions) -> {
                                 long previousId = 0L;
@@ -294,7 +204,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         return Optional.empty();
                     }
                 };
-
                 try {
                     CompletableFuture<MetadataContainer> responseFuture = aim.completeRequest(
                         serverRequest.instructions,
@@ -307,16 +216,12 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         queue::offer,
                         System.getenv("DISCORD_REQUEST_SOURCE")
                     );
-    
                     CompletableFuture<Void> streamFuture = mem.completeStreamResponse(sentMessage, nextChunkSupplier);
-    
                     return CompletableFuture.allOf(responseFuture, streamFuture)
                         .thenCompose(v -> responseFuture)
                         .thenCompose(responseObject -> {
-                            userResponseMap.put(senderId, responseObject);
-    
+                            genericUserResponseMap.put(senderId, responseObject);
                             long newResponseId = serverRequest.previousResponseId;
-    
                             if (responseObject instanceof OpenAIContainer openai) {
                                 return new OpenAIUtils(openai).completeSetPreviousResponseId(newResponseId);
                             } else if (responseObject instanceof LlamaContainer llama) {
@@ -328,7 +233,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
                             } else if (responseObject instanceof OpenRouterContainer router) {
                                 return new OpenRouterUtils(router).completeSetPreviousResponseId(newResponseId);
                             }
-    
                             return CompletableFuture.completedFuture(null); // fallback
                         });
                 } catch (Exception e) {
@@ -357,7 +261,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 null,
                 System.getenv("DISCORD_REQUEST_SOURCE")
             ).thenCompose(responseObject -> {
-                userResponseMap.put(senderId, responseObject);
+                genericUserResponseMap.put(senderId, responseObject);
                 CompletableFuture<String> contentFuture;
                 if (responseObject instanceof OpenAIContainer openai) {
                     contentFuture = new OpenAIUtils(openai).completeGetContent();
@@ -403,3 +307,81 @@ public class EventListeners extends ListenerAdapter implements Cog {
     }
 
 }
+
+//private Message biologyScheduledMessage;
+//startChemistryTask();
+//startBiologyTask();
+//private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+//    private final Map<Long, MetadataContainer> biolUserResponseMap = new ConcurrentHashMap<>();
+//    private final Map<Long, MetadataContainer> chemUserResponseMap = new ConcurrentHashMap<>();
+//    private final Map<Long, List<String>> bioHistoryMap = new ConcurrentHashMap<>();
+//    private final Map<Long, List<String>> chemHistoryMap = new ConcurrentHashMap<>();
+    
+    //    public void shutdown() {
+    //        scheduler.shutdownNow();
+    //    }
+    //
+    //
+    //    private void startChemistryTask() {
+    //        scheduler.scheduleAtFixedRate(() -> {
+    //            AIManager aim = new AIManager();
+    //            MessageManager mem = new MessageManager(api);
+    //            MetadataContainer previousResponse = chemUserResponseMap.get(0L);
+    //
+    //            String updateContent = """
+    //                You are a routine Discord agent who can send commands to draw organic molecular images every minute.
+    //                The format is simple:
+    //                The first parameter is (without the quotes) "!d".
+    //                Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
+    //                Delimited by another space, follows 3 ways of representing molecules:
+    //                    A. common molecule names (if multi-word then they are in quotes).
+    //                    B. peptide sequences (AKTP...).
+    //                    C. SMILES.
+    //                Delimited by a period, multiple molecules can be drawn in a single image "!d glow ketamine.aspirin.PKQ".
+    //                These are followed by a space and a title in quotes, becoming: "!d glow ketamine.aspirin.PKQ "Figure 1. Title here""
+    //                The unique case is with option "2" where only two molecules (ketamine.aspirin) can be provided at a given time because
+    //                it compares them on a single image.
+    //                You must only respond with a random molecule or multiple molecules for every request including the full command syntax ("!d <option> <molecule1>.<molecule2> "Title").
+    //                Title is a string encapsulated by quotes with a space between it and the molecule(s).
+    //                Molecules with spaces in them must be encapsulated in quotes. Each molecule should be separated by a period.
+    //                Be creative. Do not pick molecules included in your context history. Only pick chemicals on PubChem. Only use gsrs with 1 molecule. Gsrs doesn't take a title argument. Single-word molecules must not be encapsulated in quotes.
+    //                You MUST use this syntax.
+    //            """;
+    //                                                                                                                                    ;
+    //
+    //            handleNormalFlow(aim, mem, 0L, message, previousResponse, updateContent, false, 1383632703475421237L, chemUserResponseMap, chemHistoryMap, 50)
+    //                .exceptionally(ex -> {
+    //                    ex.printStackTrace();
+    //                    return null;
+    //                });
+    //        }, 0, 1, TimeUnit.MINUTES); // or 1, 1, TimeUnit.MINUTES
+    //    }
+
+
+    //    private void startBiologyTask() {
+    //        scheduler.scheduleAtFixedRate(() -> {
+    //            AIManager aim = new AIManager();
+    //            MessageManager mem = new MessageManager(api);
+    //            MetadataContainer previousResponse = userResponseMap.get(0L);
+    //
+    //            String updateContent = """
+    //                You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
+    //            """;
+    //
+    //            handleNormalFlow(aim, mem, 0L, message, previousResponse, updateContent, false, 1383632681467904124L, biolUserResponseMap, bioHistoryMap, 10)
+    //                .exceptionally(ex -> {
+    //                    ex.printStackTrace();
+    //                    return null;
+    //                });
+    //        }, 0, 5, TimeUnit.MINUTES);
+    //    }
+    //
+    //    public CompletableFuture<Void> completeSendResponse(TextChannel channel, String content) {
+    //        CompletableFuture<Void> future = new CompletableFuture<>();
+    //        channel.sendMessage(content).queue(
+    //            message -> future.complete(null),
+    //            error -> future.completeExceptionally(error)
+    //        );
+    //        return future;
+    //    }
+            
