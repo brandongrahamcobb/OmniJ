@@ -153,7 +153,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
             MetadataContainer previousResponse = chemUserResponseMap.get(0L);
 
             String updateContent = """
-                You are a routine Discord agent who can send commands to draw molecular images every minute.
+                You are a routine Discord agent who can send commands to draw organic molecular images every minute.
                 The format is simple:
                 The first parameter is (without the quotes) "!d".
                 Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
@@ -173,7 +173,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
             """;
                                                                                                                                     ;
 
-            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632703475421237L, chemUserResponseMap, chemHistoryMap)
+            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632703475421237L, chemUserResponseMap, chemHistoryMap, 50)
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     return null;
@@ -192,7 +192,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
             """;
 
-            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632681467904124L, biolUserResponseMap, bioHistoryMap)
+            handleNormalFlow(aim, mem, 0L, previousResponse, updateContent, false, 1383632681467904124L, biolUserResponseMap, bioHistoryMap, 10)
                 .exceptionally(ex -> {
                     ex.printStackTrace();
                     return null;
@@ -218,7 +218,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
         boolean multimodal,
         long channelId,
         Map<Long, MetadataContainer> responseMap,
-        Map<Long, List<String>> historyMap// ✅ add this
+        Map<Long, List<String>> historyMap,// ✅ add this
+        int historySize
     ) {
         TextChannel channel = api.getTextChannelById(channelId);
 
@@ -239,14 +240,15 @@ public class EventListeners extends ListenerAdapter implements Cog {
 
                             return prevIdFut.thenCompose(previousResponseId -> {
                                 try {
-                                    List<String> history = historyMap.getOrDefault(senderId, new ArrayList<>());
                                     List<String> historyList = historyMap.computeIfAbsent(senderId, k -> new ArrayList<>());
                                     String historyContext = String.join("\n", historyList);
                                     String fullPrompt = historyContext.isBlank() ? fullContent : historyContext + "\n\n" + fullContent;
 
-                                    if (historyList.size() > 50) {
-                                        historyList.subList(0, historyList.size() - 40).clear(); // keep last 10 exchanges
+                                    if (historyList.size() > historySize) {
+                                        int lastTen = historySize / 20;
+                                        historyList.subList(0, historyList.size() - lastTen).clear(); // keep last 10 exchanges
                                     }
+
                                     return aim.completeRequest(
                                             fullPrompt,
                                             previousResponseId,
@@ -261,6 +263,11 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                                 if (content.toLowerCase().startsWith("bot:")) {
                                                     content = content.substring(4).strip();
                                                 }
+                                                
+                                                // **Add both the user prompt and AI reply to history**
+                                                historyList.add("User: " + fullContent.strip());
+                                                historyList.add("Bot: " + content);
+
                                                 responseMap.put(senderId, responseObject);
                                                 return completeSendResponse(channel, content);
                                             } catch (Exception e) {
