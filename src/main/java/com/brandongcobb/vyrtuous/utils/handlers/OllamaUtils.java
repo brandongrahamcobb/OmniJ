@@ -1,5 +1,5 @@
-/*  ChatUtils.java The purpose of this class is to access the
-*   chat object.
+/*  ResponseUtils.java The purpose of this class is access the response
+ *  object metadata.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -19,29 +19,41 @@
 package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
-public class OpenRouterUtils {
+public class OllamaUtils {
     
     private MetadataContainer container;
-
-    public OpenRouterUtils(MetadataContainer container) {
+    
+    public OllamaUtils(MetadataContainer container) {
         this.container = container;
     }
     
+    /*
+     *    Getters
+     */
     public CompletableFuture<String> completeGetContent() {
-        MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
-        return CompletableFuture.completedFuture(this.container.get(contentKey));
+        MetadataKey<String> outputKey = new MetadataKey<>("content", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(outputKey));
+    }
+    
+
+    public CompletableFuture<MetadataContainer> completeGetContainer() {
+        MetadataKey<MetadataContainer> containerKey = new MetadataKey<>("container", Metadata.METADATA);
+        return CompletableFuture.completedFuture(container);
     }
     
     public CompletableFuture<Boolean> completeGetFlagged() {
@@ -69,5 +81,4 @@ public class OpenRouterUtils {
         });
     }
     
-
 }

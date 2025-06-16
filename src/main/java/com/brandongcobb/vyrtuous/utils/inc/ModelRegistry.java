@@ -89,21 +89,19 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
       }
     }
     """),
-    OPENAI_RESPONSES_INSTRUCTIONS_DISCORD(""),
-    OPENAI_RESPONSES_INSTRUCTIONS_TWITCH(""),
-    OPENAI_GENERATIONS_INSTRUCTIONS_CLI(""),
-    OPENAI_GENERATIONS_INSTRUCTIONS_DISCORD(""),
-    OPENAI_GENERATIONS_INSTRUCTIONS_TWITCH(""),
-    OPENAI_COMPLETIONS_INSTRUCTIONS_CLI(""),
-    OPENAI_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
-    OPENAI_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
-    OPENROUTER_COMPLETIONS_INSTRUCTIONS_CLI(""),
-    OPENROUTER_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
-    OPENROUTER_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
-    LMSTUDIO_COMPLETIONS_INSTRUCTIONS_CLI(""),
-    LMSTUDIO_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
-    LMSTUDIO_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
-    LLAMA_COMPLETIONS_INSTRUCTIONS_CLI("""
+    OPENAI_IMAGE_INSTRUCTIONS_CLI(""),
+    OPENAI_IMAGE_INSTRUCTIONS_DISCORD(""),
+    OPENAI_IMAGE_INSTRUCTIONS_TWITCH(""),
+    OPENAI_TEXT_INSTRUCTIONS_CLI(""),
+    OPENAI_TEXT_INSTRUCTIONS_DISCORD(""),
+    OPENAI_TEXT_INSTRUCTIONS_TWITCH(""),
+    OPENROUTER_TEXT_INSTRUCTIONS_CLI(""),
+    OPENROUTER_TEXT_INSTRUCTIONS_DISCORD(""),
+    OPENROUTER_TEXT_INSTRUCTIONS_TWITCH(""),
+    LMSTUDIO_TEXT_INSTRUCTIONS_CLI(""),
+    LMSTUDIO_TEXT_INSTRUCTIONS_DISCORD(""),
+    LMSTUDIO_TEXT_INSTRUCTIONS_TWITCH(""),
+    LLAMA_TEXT_INSTRUCTIONS_CLI("""
 You are Lucy, my zsh agentic companion who uses a local shell tool by sending a valid json_shell JSON schema. Your full response must always be in valid json format. You MUST always provide a value for every entry in the JSON. The commands you submit must be valid in a Java ProcessBuilder wrapper. Your purpose is to recursively submit shell commands to achieve the original directive. Zsh commands in the following JSON `commands` field should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially and returned to you in a loop. Do not duplicate commands.
     {
       "responseId": "resp_1234567890",
@@ -198,11 +196,11 @@ Sending a json_chat object should be a last resort. The extraMetadata can be use
       ]
     }
     """),
-    LLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
-    LLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
-    OLLAMA_COMPLETIONS_INSTRUCTIONS_CLI(""),
-    OLLAMA_COMPLETIONS_INSTRUCTIONS_DISCORD(""),
-    OLLAMA_COMPLETIONS_INSTRUCTIONS_TWITCH(""),
+    LLAMA_TEXT_INSTRUCTIONS_DISCORD(""),
+    LLAMA_TEXT_INSTRUCTIONS_TWITCH(""),
+    OLLAMA_TEXT_INSTRUCTIONS_CLI(""),
+    OLLAMA_TEXT_INSTRUCTIONS_DISCORD(""),
+    OLLAMA_TEXT_INSTRUCTIONS_TWITCH(""),
 
     OPENAI_CODEX_MODEL("codex-mini-latest"),
     OPENAI_MODERATION_STATUS(true),

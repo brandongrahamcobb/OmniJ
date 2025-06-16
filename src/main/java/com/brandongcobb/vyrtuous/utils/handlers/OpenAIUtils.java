@@ -127,6 +127,11 @@ public class OpenAIUtils {
         return CompletableFuture.completedFuture(this.container.get(summaryKey));
     }
     
+    public CompletableFuture<String> completeGetContent() {
+        MetadataKey<String> outputKey = new MetadataKey<>("content", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(outputKey));
+    }
+    
     public CompletableFuture<String> completeGetReasoning() {
         MetadataKey<String> summaryKey = new MetadataKey<>("summary", Metadata.STRING);
         return CompletableFuture.completedFuture(this.container.get(summaryKey));
@@ -176,19 +181,19 @@ public class OpenAIUtils {
         });
     }
     
-    public CompletableFuture<String> completeGetResponseId() {
+    public CompletableFuture<Long> completeGetResponseId() {
         return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<String> responseIdKey = new MetadataKey<>("id", Metadata.STRING);
-            return this.container.get(responseIdKey);
+            MetadataKey<Long> responseIdKey = new MetadataKey<>("id", Metadata.LONG);
+            return Long.valueOf(this.container.get(responseIdKey));
         });
     }
 
     /*
      *    Setters
      */
-    public CompletableFuture<Void> completeSetPreviousResponseId(String previousResponseId) {
+    public CompletableFuture<Void> completeSetPreviousResponseId(long previousResponseId) {
         return CompletableFuture.runAsync(() -> {
-            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
+            MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.LONG);
             this.container.put(previousResponseIdKey, previousResponseId);
         });
     }

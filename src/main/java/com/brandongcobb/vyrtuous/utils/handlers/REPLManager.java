@@ -137,57 +137,79 @@ public class REPLManager {
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
+
         String prompt = firstRun
             ? originalDirective
             : contextManager.buildPromptContext();
-        CompletableFuture<String> endpointFuture;
-        String model;
-        try {
-            if ("llama".equals(responseSource)) {
-                model = ModelRegistry.LLAMA_MODEL.asString();
-                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "completions");
-            } else if ("openai".equals(responseSource)) {
-                model = ModelRegistry.OPENAI_RESPONSE_MODEL.asString();
-                endpointFuture = aim.getAIEndpointWithState(false, responseSource, "cli", "responses");
-            } else {
-                CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
-                failed.completeExceptionally(new IllegalStateException("Unknown model for response source of type: " + responseSource));
-                return failed;
-            }
-        } catch (Exception e) {
-            CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
-            failed.completeExceptionally(e);
-            return failed;
-        }
-        return endpointFuture.thenCompose(endpoint -> {
-            CompletableFuture<MetadataContainer> call;
-            try {
-                if (firstRun) {
-                    call = aim.completeRequest(prompt, null, model, endpoint, false, null);
-                } else {
-                    MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
-                    String prevId = (String) lastAIResponseContainer.get(previousResponseIdKey); // may throw
-                    call = aim.completeRequest(prompt, prevId, model, endpoint, false, null);
-                }
-            } catch (Exception e) {
-                CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
-                failed.completeExceptionally(e);
-                return failed;
-            }
-            return call.handle((resp, ex) -> {
-                if (ex != null) {
-                    LOGGER.severe("completeRequest failed: " + ex.getMessage());
-                    throw new CompletionException(ex);
-                }
-                if (resp == null) {
-                    throw new CompletionException(new IllegalStateException("AI returned null"));
-                }
-                lastAIResponseContainer = resp;
-                return resp;
-            });
-        });
 
+        String model = System.getenv("CLI_MODEL");
+        String requestSource = System.getenv("CLI_PROVIDER");
+        String requestType = System.getenv("CLI_REQUEST_TYPE");// assuming this is already set elsewhere
+
+        CompletableFuture<String> endpointFuture =
+            aim.completeGetAIEndpoint(false, requestSource, "cli", "completions");
+
+        CompletableFuture<String> instructionsFuture =
+            aim.completeGetInstructions(false, "cli", requestSource);
+
+        return endpointFuture
+            .thenCombine(instructionsFuture, (endpoint, instructions) -> new AbstractMap.SimpleEntry<>(endpoint, instructions))
+            .thenCompose(pair -> {
+                String endpoint = pair.getKey();
+                String instructions = pair.getValue();
+
+                CompletableFuture<MetadataContainer> call;
+
+                try {
+                    if (firstRun) {
+                        call = aim.completeRequest(
+                            instructions,
+                            prompt,
+                            0L,
+                            model,
+                            requestType,
+                            endpoint,
+                            false,
+                            null,
+                            requestSource
+                        );
+                    } else {
+                        MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("id", Metadata.LONG);
+                        long prevId = (long) lastAIResponseContainer.get(previousResponseIdKey);
+
+                        call = aim.completeRequest(
+                            instructions,
+                            prompt,
+                            prevId,
+                            model,
+                            requestType,
+                            endpoint,
+                            false,
+                            null,
+                            requestSource
+                        );
+                    }
+
+                    return call.handle((resp, ex) -> {
+                        if (ex != null) {
+                            LOGGER.severe("completeRequest failed: " + ex.getMessage());
+                            throw new CompletionException(ex);
+                        }
+                        if (resp == null) {
+                            throw new CompletionException(new IllegalStateException("AI returned null"));
+                        }
+                        lastAIResponseContainer = resp;
+                        return resp;
+                    });
+
+                } catch (Exception e) {
+                    CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
+                    failed.completeExceptionally(e);
+                    return failed;
+                }
+            });
     }
+
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
@@ -267,7 +289,7 @@ public class REPLManager {
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
-        contextManager.printNewEntries(true, true, true, true, true, true, true);
+        contextManager.printNewEntries(true, true, true, true, false, true, true);
         printed = true;
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }

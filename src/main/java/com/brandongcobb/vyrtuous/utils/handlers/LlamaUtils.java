@@ -55,4 +55,29 @@ public class LlamaUtils {
         MetadataKey<MetadataContainer> containerKey = new MetadataKey<>("container", Metadata.METADATA);
         return CompletableFuture.completedFuture(container);
     }
+    
+    public CompletableFuture<Boolean> completeGetFlagged() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<Boolean> flaggedKey = new MetadataKey<>("flagged", Metadata.BOOLEAN);
+            Object flaggedObj = this.container.get(flaggedKey);
+            return flaggedObj != null && Boolean.parseBoolean(String.valueOf(flaggedObj));
+        });
+    }
+    
+    public CompletableFuture<String> completeGetPreviousResponseId() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
+            return this.container.get(previousResponseIdKey);
+        });
+    }
+    
+    /*
+     *    Setters
+     */
+    public CompletableFuture<Void> completeSetPreviousResponseId(long previousResponseId) {
+        return CompletableFuture.runAsync(() -> {
+            MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.LONG);
+            this.container.put(previousResponseIdKey, previousResponseId);
+        });
+    }
 }

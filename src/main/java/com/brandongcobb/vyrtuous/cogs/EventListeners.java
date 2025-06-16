@@ -1,6 +1,5 @@
-/*
- * EventListeners.java
- * The purpose of this program is to listen for any of the program's endpoints and handle them.
+/* EventListeners.java The purpose of this program is to listen for Discord
+ * events and handle them.
  *
  * Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -30,6 +29,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Optional;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
+
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.User;
@@ -43,162 +46,393 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.HashMap;
 import java.util.function.Supplier;
-
+import java.util.ArrayList;
 import java.util.function.Consumer;
 
 public class EventListeners extends ListenerAdapter implements Cog {
+
+    public static AIManager aim = new AIManager();
     
     private final Map<Long, MetadataContainer> userResponseMap = new ConcurrentHashMap<>();
     private JDA api;
     private DiscordBot bot;
     final StringBuilder messageBuilder = new StringBuilder();
     private final String discordResponseSource = System.getenv("DISCORD_RESPONSE_SOURCE");
-    
+    private final Map<Long, List<String>> userMessageHistory = new ConcurrentHashMap<>();
+    private volatile Message scheduledMessage = null;
+    private MessageManager mem = new MessageManager(api);
+    // For chemistry updates
+    private Message biologyScheduledMessage;
     @Override
     public void register(JDA api, DiscordBot bot) {
         this.bot = bot.completeGetBot();
         this.api = api;
         api.addEventListener(this);
+        api.addEventListener(new ListenerAdapter() {
+            @Override
+            public void onReady(ReadyEvent event) {
+                System.out.println("Bot is ready!");
+
+                // Run your scheduled task here
+                //startChemistryTask();
+                //startBiologyTask();
+            }
+        });
     }
-    
+
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final long targetChannelId = 1383632703475421237L; // replace with your actual channel ID
+    private final Map<Long, MetadataContainer> biolUserResponseMap = new ConcurrentHashMap<>();
+    private final Map<Long, MetadataContainer> chemUserResponseMap = new ConcurrentHashMap<>();
+    private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
+
+    private final Map<Long, List<String>> bioHistoryMap = new ConcurrentHashMap<>();
+    private final Map<Long, List<String>> chemHistoryMap = new ConcurrentHashMap<>();
+    private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
+
     
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
-        String messageContent = message.getContentDisplay();
-        if (message.getAuthor().isBot() || messageContent.startsWith(".")) return;
-        AIManager aim = new AIManager();
-        MessageManager mem = new MessageManager(api);
-        User sender = event.getAuthor();
-        long senderId = sender.getIdLong();
+        if (message.getAuthor().isBot() || message.getContentRaw().startsWith(System.getenv("DISCORD_COMMAND_PREFIX"))) return;
+
+        long senderId = event.getAuthor().getIdLong();
         List<Attachment> attachments = message.getAttachments();
         MetadataContainer previousResponse = userResponseMap.get(senderId);
-        final boolean[] multimodal = new boolean[]{false};
-        String content = messageContent.replace("@Vyrtuous", "");
-        CompletableFuture<String> fullContentFuture;
-        if (attachments != null && !attachments.isEmpty()) {
-            fullContentFuture = mem.completeProcessAttachments(attachments)
-                .thenApply(attachmentContentList -> {
-                    multimodal[0] = true;
-                    return String.join("\n", attachmentContentList) + "\n" + content;
-                });
-        } else {
-            fullContentFuture = CompletableFuture.completedFuture(content);
-        }
-        fullContentFuture
-            .thenCompose(fullContent -> {
-                if (true) { // TODO: moderation logic here later
-                    return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
-                }
-                try {
-                    return aim.completeRequest(fullContent, null, ModelRegistry.OPENAI_MODERATION_MODEL.asString(), "placeholder", false, null)
-                        .thenCompose(moderationOpenAIContainer -> {
-                            OpenAIUtils utils = new OpenAIUtils(moderationOpenAIContainer);
-                            return utils.completeGetFlagged()
-                                .thenCompose(flagged -> {
-                                    if (flagged) {
-                                        ModerationManager mom = new ModerationManager(api);
-                                        return utils.completeGetFormatFlaggedReasons()
-                                            .thenCompose(reason -> mom.completeHandleModeration(message, reason)
-                                                .thenApply(ignored -> null));
-                                    } else {
-                                        return handleNormalFlow(aim, mem, senderId, previousResponse, message, fullContent, multimodal[0]);
-                                    }
-                                });
-                        });
-                } catch (Exception e) {
-                    return CompletableFuture.failedFuture(e);
-                }
-        })
-        .exceptionally(ex -> {
-            ex.printStackTrace();
-            return null;
-        });
 
+        final boolean[] multimodal = new boolean[] { false };
+
+        CompletableFuture<String> contentFuture = (attachments != null && !attachments.isEmpty())
+            ? mem.completeProcessAttachments(attachments).thenApply(list -> {
+                multimodal[0] = true; // ✅ Set flag to true
+                return String.join("\n", list) + "\n" + message.getContentDisplay();
+            })
+            : CompletableFuture.completedFuture(message.getContentDisplay());
+
+        contentFuture
+            .thenCompose(prompt -> completeCreateServerRequest(prompt,  senderId, multimodal[0], Integer.valueOf(System.getenv("DISCORD_CONTEXT_LENGTH")), previousResponse))
+            .thenCompose(serverRequest -> {
+                // Moderation first using same data
+                try {
+                    return aim.completeRequest(
+                        serverRequest.instructions,
+                        serverRequest.prompt,
+                        serverRequest.previousResponseId,
+                        serverRequest.model,
+                        serverRequest.requestType,
+                        serverRequest.endpoint,
+                        serverRequest.stream,
+                        (Consumer<String>) null,
+                        serverRequest.source
+                    ).thenCompose(moderationContainer -> {
+                        CompletableFuture<Boolean> flaggedFuture = switch (moderationContainer) {
+                            case OpenAIContainer o -> new OpenAIUtils(o).completeGetFlagged();
+                            case LlamaContainer l -> new LlamaUtils(l).completeGetFlagged();
+                            case LMStudioContainer lm -> new LMStudioUtils(lm).completeGetFlagged();
+                            case OllamaContainer ol -> new OllamaUtils(ol).completeGetFlagged();
+                            case OpenRouterContainer or -> new OpenRouterUtils(or).completeGetFlagged();
+                            default -> CompletableFuture.completedFuture(false);
+                        };
+    
+                        return flaggedFuture.thenCompose(flagged -> {
+                            if (flagged) {
+                                ModerationManager mom = new ModerationManager(api);
+                                return mom.completeHandleModeration(message, "Flagged for moderation").thenApply(ignored -> null);
+                            }
+    
+                            // ✅ After moderation passes: response path split here
+                            if (serverRequest.stream) {
+                                return handleStreamedResponse(message, senderId, previousResponse, serverRequest);
+                            } else {
+                                return handleNonStreamedResponse(message, senderId, previousResponse, serverRequest);
+                            }
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        ex.printStackTrace();
+                        return null;
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            })
+            .exceptionally(ex -> {
+                ex.printStackTrace();
+                return null;
+            });
+    }
+
+//    public void shutdown() {
+//        scheduler.shutdownNow();
+//    }
+//
+//
+//    private void startChemistryTask() {
+//        scheduler.scheduleAtFixedRate(() -> {
+//            AIManager aim = new AIManager();
+//            MessageManager mem = new MessageManager(api);
+//            MetadataContainer previousResponse = chemUserResponseMap.get(0L);
+//
+//            String updateContent = """
+//                You are a routine Discord agent who can send commands to draw organic molecular images every minute.
+//                The format is simple:
+//                The first parameter is (without the quotes) "!d".
+//                Delimited by a space, follows 4 options, "2", "glow", "gsrs", "shadow". These would then be "!d 2", "!d glow", "!d gsrs" and "!d shadow".
+//                Delimited by another space, follows 3 ways of representing molecules:
+//                    A. common molecule names (if multi-word then they are in quotes).
+//                    B. peptide sequences (AKTP...).
+//                    C. SMILES.
+//                Delimited by a period, multiple molecules can be drawn in a single image "!d glow ketamine.aspirin.PKQ".
+//                These are followed by a space and a title in quotes, becoming: "!d glow ketamine.aspirin.PKQ "Figure 1. Title here""
+//                The unique case is with option "2" where only two molecules (ketamine.aspirin) can be provided at a given time because
+//                it compares them on a single image.
+//                You must only respond with a random molecule or multiple molecules for every request including the full command syntax ("!d <option> <molecule1>.<molecule2> "Title").
+//                Title is a string encapsulated by quotes with a space between it and the molecule(s).
+//                Molecules with spaces in them must be encapsulated in quotes. Each molecule should be separated by a period.
+//                Be creative. Do not pick molecules included in your context history. Only pick chemicals on PubChem. Only use gsrs with 1 molecule. Gsrs doesn't take a title argument. Single-word molecules must not be encapsulated in quotes.
+//                You MUST use this syntax.
+//            """;
+//                                                                                                                                    ;
+//
+//            handleNormalFlow(aim, mem, 0L, message, previousResponse, updateContent, false, 1383632703475421237L, chemUserResponseMap, chemHistoryMap, 50)
+//                .exceptionally(ex -> {
+//                    ex.printStackTrace();
+//                    return null;
+//                });
+//        }, 0, 1, TimeUnit.MINUTES); // or 1, 1, TimeUnit.MINUTES
+//    }
+
+
+//    private void startBiologyTask() {
+//        scheduler.scheduleAtFixedRate(() -> {
+//            AIManager aim = new AIManager();
+//            MessageManager mem = new MessageManager(api);
+//            MetadataContainer previousResponse = userResponseMap.get(0L);
+//
+//            String updateContent = """
+//                You are a routine Discord agent who shares a one to three sentence biology fact every minute. Do not repeat facts in your history. You can extrapolate on the previous facts.
+//            """;
+//
+//            handleNormalFlow(aim, mem, 0L, message, previousResponse, updateContent, false, 1383632681467904124L, biolUserResponseMap, bioHistoryMap, 10)
+//                .exceptionally(ex -> {
+//                    ex.printStackTrace();
+//                    return null;
+//                });
+//        }, 0, 5, TimeUnit.MINUTES);
+//    }
+//
+//    public CompletableFuture<Void> completeSendResponse(TextChannel channel, String content) {
+//        CompletableFuture<Void> future = new CompletableFuture<>();
+//        channel.sendMessage(content).queue(
+//            message -> future.complete(null),
+//            error -> future.completeExceptionally(error)
+//        );
+//        return future;
+//    }
+    
+    private class ServerRequest {
+        String instructions;
+        String prompt;
+        String model;
+        boolean store;
+        boolean stream;
+        List<String> conversationHistory;
+        long previousResponseId;
+        String source;
+        String requestType;
+        String endpoint;
+        
+        public ServerRequest (String instructions, String prompt, String model, boolean store, boolean stream, List<String> history, String endpoint, long previousResponseId, String source, String requestType) {
+            this.instructions = instructions;
+            this.prompt = prompt;
+            this.model = model;
+            this.stream = stream;
+            this.store = store;
+            this.conversationHistory = history;
+            this.previousResponseId = previousResponseId;
+            this.source = source;
+            this.requestType = requestType;
+            this.endpoint = endpoint;
+        }
     }
     
-    private CompletableFuture<Void> handleNormalFlow(
-        AIManager aim,
-        MessageManager mem,
-        long senderId,
-        MetadataContainer previousResponse,
-        Message message,
-        String fullContent,
-        boolean multimodal
+    private CompletableFuture<ServerRequest> completeCreateServerRequest(
+            String prompt,
+            long senderId,
+            boolean multimodal,
+            int historySize,
+            MetadataContainer previousResponse
     ) {
         return SettingsManager.completeGetSettingsInstance()
-            .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
-                .thenCompose(userSettings -> {
-                    String userModel = userSettings[0];
-                    String source = userSettings[1];
+                .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
+                    .thenCompose(userSettings -> {
+                        String userModel = userSettings[0];
+                        String source = userSettings[1];
+                        String requestType = System.getenv("DISCORD_REQUEST_TYPE");
+                        
+                        return aim.completeGetAIEndpoint(multimodal, source, "discord", requestType)
+                            .thenCombine(aim.completeGetInstructions(multimodal, "discord", source), (endpoint, instructions) -> {
+                                long previousId = 0L;
+                                if ("openai".equals(source) && previousResponse instanceof OpenAIContainer) {
+                                    previousId = Long.valueOf(new OpenAIUtils(previousResponse).completeGetResponseId().join());
+                                    return new ServerRequest(
+                                        instructions,
+                                        prompt,
+                                        userModel,
+                                        Boolean.parseBoolean(System.getenv("DISCORD_STREAM")),
+                                        Boolean.parseBoolean(System.getenv("DISCORD_STORE")),
+                                        null,
+                                        endpoint,
+                                        previousId,
+                                        source,
+                                        requestType
+                                    );
+                                } else {
+                                    List<String> history = genericHistoryMap.computeIfAbsent(senderId, k -> new ArrayList<>());
+                                    trimHistory(history, historySize);
+                                    String fullPrompt = buildFullPrompt(history, prompt);
+                                    return new ServerRequest(
+                                        instructions,
+                                        fullPrompt,
+                                        userModel,
+                                        Boolean.parseBoolean(System.getenv("DISCORD_STREAM")),
+                                        Boolean.parseBoolean(System.getenv("DISCORD_STORE")),
+                                        history,
+                                        endpoint,
+                                        0L,
+                                        source,
+                                        requestType
+                                    );
+                                }
+                            });
+                    }));
+        }
 
-                    return aim.getAIEndpointWithState(multimodal, source, "discord", "completion") // TODO: make the requestType a setting.
-                        .thenCompose(endpoint -> {
-                            CompletableFuture<String> prevIdFut;
+    private CompletableFuture<Void> handleStreamedResponse(
+        Message originalMessage,
+        long senderId,
+        MetadataContainer previousResponse,
+        ServerRequest serverRequest
+    ) {
+        return originalMessage.getChannel().sendMessage("Hi I'm Vyrtuous...").submit()
+            .thenCompose(sentMessage -> {
+                BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+                Supplier<Optional<String>> nextChunkSupplier = () -> {
+                    try {
+                        String chunk = queue.take();
+                        return "<<END>>".equals(chunk) ? Optional.empty() : Optional.of(chunk);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return Optional.empty();
+                    }
+                };
 
-                            switch (source) {
-                                case "openai":
-                                    prevIdFut = previousResponse != null
-                                        ? new OpenAIUtils(previousResponse).completeGetResponseId()
-                                        : CompletableFuture.completedFuture(null);
-                                    break;
-                                default:
-                                    prevIdFut = CompletableFuture.completedFuture(null);
-                                    break;
+                try {
+                    CompletableFuture<MetadataContainer> responseFuture = aim.completeRequest(
+                        serverRequest.instructions,
+                        serverRequest.prompt,
+                        serverRequest.previousResponseId,
+                        serverRequest.model,
+                        serverRequest.requestType,
+                        serverRequest.endpoint,
+                        serverRequest.stream,
+                        queue::offer,
+                        System.getenv("DISCORD_REQUEST_SOURCE")
+                    );
+    
+                    CompletableFuture<Void> streamFuture = mem.completeStreamResponse(sentMessage, nextChunkSupplier);
+    
+                    return CompletableFuture.allOf(responseFuture, streamFuture)
+                        .thenCompose(v -> responseFuture)
+                        .thenCompose(responseObject -> {
+                            userResponseMap.put(senderId, responseObject);
+    
+                            long newResponseId = serverRequest.previousResponseId;
+    
+                            if (responseObject instanceof OpenAIContainer openai) {
+                                return new OpenAIUtils(openai).completeSetPreviousResponseId(newResponseId);
+                            } else if (responseObject instanceof LlamaContainer llama) {
+                                return new LlamaUtils(llama).completeSetPreviousResponseId(newResponseId);
+                            } else if (responseObject instanceof LMStudioContainer lmstudio) {
+                                return new LMStudioUtils(lmstudio).completeSetPreviousResponseId(newResponseId);
+                            } else if (responseObject instanceof OllamaContainer ollama) {
+                                return new OllamaUtils(ollama).completeSetPreviousResponseId(newResponseId);
+                            } else if (responseObject instanceof OpenRouterContainer router) {
+                                return new OpenRouterUtils(router).completeSetPreviousResponseId(newResponseId);
                             }
-
-                            return prevIdFut.thenCompose(previousResponseId ->
-                                message.getChannel().sendMessage("Hi I'm Vyrtuous...").submit()
-                                    .thenCompose(sentMessage -> {
-                                        BlockingQueue<String> queue = new LinkedBlockingQueue<>();
-                                        Supplier<Optional<String>> nextChunkSupplier = () -> {
-                                            try {
-                                                String chunk = queue.take();
-                                                if ("<<END>>".equals(chunk)) return Optional.empty();
-                                                return Optional.of(chunk);
-                                            } catch (InterruptedException e) {
-                                                Thread.currentThread().interrupt();
-                                                return Optional.empty();
-                                            }
-                                        };
-
-                                        final CompletableFuture<MetadataContainer> responseFuture;
-                                        try {
-                                            responseFuture = aim.completeRequest(
-                                                fullContent,
-                                                previousResponseId,
-                                                userModel,
-                                                endpoint,
-                                                true,
-                                                queue::offer
-                                            );
-                                        } catch (Exception e) {
-                                            return CompletableFuture.failedFuture(e);
-                                        }
-
-                                        CompletableFuture<Void> streamFuture =
-                                            mem.completeStreamResponse(sentMessage, nextChunkSupplier);
-
-                                        return CompletableFuture.allOf(responseFuture, streamFuture)
-                                            .thenCompose(v -> responseFuture)
-                                            .thenCompose(responseObject -> {
-                                                userResponseMap.put(senderId, responseObject);
-
-                                                if (previousResponse == null) return CompletableFuture.completedFuture(null);
-
-                                                if (previousResponse instanceof OpenAIContainer) {
-                                                    return new OpenAIUtils(previousResponse).completeGetPreviousResponseId()
-                                                        .thenCompose(prevId ->
-                                                            new OpenAIUtils(responseObject).completeSetPreviousResponseId(prevId)
-                                                        );
-                                                } else {
-                                                    return CompletableFuture.completedFuture(null);
-                                                }
-                                            });
-                                    }));
+    
+                            return CompletableFuture.completedFuture(null); // fallback
                         });
-                }));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            });
     }
 
+    
+    private CompletableFuture<Void> handleNonStreamedResponse(
+        Message message,
+        long senderId,
+        MetadataContainer previousResponse,
+        ServerRequest serverRequest
+    ) {
+        try {
+            return aim.completeRequest(
+                serverRequest.instructions,
+                serverRequest.prompt,
+                serverRequest.previousResponseId,
+                serverRequest.model,
+                serverRequest.requestType,
+                serverRequest.endpoint,
+                serverRequest.stream,
+                null,
+                System.getenv("DISCORD_REQUEST_SOURCE")
+            ).thenCompose(responseObject -> {
+                userResponseMap.put(senderId, responseObject);
+                CompletableFuture<String> contentFuture;
+                if (responseObject instanceof OpenAIContainer openai) {
+                    contentFuture = new OpenAIUtils(openai).completeGetContent();
+                } else if (responseObject instanceof LlamaContainer llama) {
+                    contentFuture = new LlamaUtils(llama).completeGetContent();
+                } else if (responseObject instanceof LMStudioContainer lmstudio) {
+                    contentFuture = new LMStudioUtils(lmstudio).completeGetContent();
+                } else if (responseObject instanceof OllamaContainer ollama) {
+                    contentFuture = new OllamaUtils(ollama).completeGetContent();
+                } else if (responseObject instanceof OpenRouterContainer router) {
+                    contentFuture = new OpenRouterUtils(router).completeGetContent();
+                } else {
+                    contentFuture = CompletableFuture.completedFuture("Unknown response type.");
+                }
+                return contentFuture.thenCompose(content ->
+                    mem.completeSendResponse(message, content.strip())
+                );
+            })
+            .exceptionally(ex -> {
+                ex.printStackTrace();
+                return null;
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private String buildFullPrompt(List<String> history, String prompt) {
+        return history.isEmpty() ? prompt : String.join("\n", history) + "\n\n" + prompt;
+    }
+
+    private void trimHistory(List<String> history, int maxSize) {
+        if (history.size() > maxSize) {
+            int trimSize = Math.max(1, maxSize / 20); // always trim at least one
+            history.subList(0, history.size() - trimSize).clear();
+        }
+    }
+
+    private void updateHistory(List<String> history, String prompt, String response) {
+        history.add("User: " + prompt.strip());
+        history.add("Bot: " + response.strip());
+    }
 
 }

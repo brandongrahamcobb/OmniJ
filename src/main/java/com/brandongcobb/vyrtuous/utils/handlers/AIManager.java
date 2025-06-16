@@ -23,30 +23,17 @@ import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knuddels.jtokkit.Encodings;
 import com.knuddels.jtokkit.api.Encoding;
 import com.knuddels.jtokkit.api.EncodingRegistry;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-// For Consumer
-import java.util.function.Consumer;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
-// For Map
-import java.util.Map;
-
-// For BufferedReader and InputStreamReader
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-// For Charset
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -54,12 +41,16 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -83,23 +74,19 @@ public class AIManager {
 
     private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
         String content,
-        String previousResponseId,
+        long previousResponseId,
         String model,
-        String endpointWithState,
+        String requestType,
         String instructions,
         boolean stream
     ) {
         return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
             Map<String, Object> body = new HashMap<>();
-            final int stateIndex = endpointWithState.indexOf("?state");
-            final String endpoint = (stateIndex != -1)
-                ? endpointWithState.substring(0, stateIndex)
-                : endpointWithState;
             List<Map<String, Object>> messages = new ArrayList<>();
             Map<String, Object> msgMap = new HashMap<>();
             Map<String, Object> userMsg = new HashMap<>();
             Map<String, Object> systemMsg = new HashMap<>();
-            switch (Maps.BUILD_PROTOCOL.get(endpoint)) {
+            switch (requestType) {
                 case "deprecated":
                     body.put("model", model);
                     systemMsg.put("role", "system");
@@ -136,7 +123,7 @@ public class AIManager {
                     messages.add(userMsg);
                     body.put("input", messages);
                     body.put("stream", stream);
-                    if (previousResponseId != null && !previousResponseId.isEmpty()) {
+                    if (previousResponseId == 0L) {
                         body.put("previous_response_id", previousResponseId);
                     }
                     body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
@@ -200,21 +187,18 @@ public class AIManager {
      *  llama.cpp
      */
     private CompletableFuture<MetadataContainer> completeLlamaRequest(
+        String instructions,
         String content,
-        String previousResponseId,
         String model,
-        String endpointWithState,
+        String requestType,
+        String endpoint,
         boolean stream,
         Consumer<String> onContentChunk
     ) {
-        final int stateIndex = endpointWithState.indexOf("?state");
-        final String endpoint = (stateIndex != -1)
-            ? endpointWithState.substring(0, stateIndex)
-            : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
+        return completeBuildRequestBody(content, 1L, model, requestType, instructions, stream)
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
-
+    
     public static String removeThinkBlocks(String text) {
         // Use a regular expression to find and replace the <think>...</think> pattern
         // (?s) enables the DOTALL mode, so dot (.) matches newline characters as well.
@@ -245,39 +229,47 @@ public class AIManager {
     }
 
     private static String sanitizeJsonContent(String input) {
-        // If it's already valid JSON, do nothing.
+        ObjectMapper mapper = new ObjectMapper();
+
+        // If it's already valid JSON, return as-is.
         try {
-            new ObjectMapper().readTree(input);
+            mapper.readTree(input);
             return input;
         } catch (IOException e) {
-            // Continue to attempt fix
+            // Try unescaping if it's a quoted JSON string
         }
 
-        // Attempt to re-escape quotes inside strings (e.g. in echo commands)
-        StringBuilder result = new StringBuilder();
-        boolean inQuotes = false;
-
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-
-            if (c == '"') {
-                result.append(c);
-                inQuotes = !inQuotes;
-            } else if (c == '\\') {
-                result.append("\\\\"); // Escape the backslash
-            } else if (c == '\n') {
-                result.append("\\n");
-            } else if (c == '\r') {
-                result.append("\\r");
-            } else if (c == '\t') {
-                result.append("\\t");
-            } else {
-                result.append(c);
+        // If input is a quoted JSON string, e.g. "\"{\\\"key\\\":\\\"val\\\"}\""
+        if ((input.startsWith("\"") && input.endsWith("\"")) ||
+            (input.startsWith("'") && input.endsWith("'"))) {
+            try {
+                // This will turn: "\"{\\\"key\\\":\\\"val\\\"}\"" → "{\"key\":\"val\"}"
+                String unescaped = mapper.readValue(input, String.class);
+                mapper.readTree(unescaped); // validate it
+                return unescaped;
+            } catch (IOException ignored) {
+                // Continue to fallback
             }
         }
 
-        return result.toString();
+        // Fallback: strip illegal leading/trailing characters and try again
+        String cleaned = input.trim();
+
+        // Optional: remove common shell/echo leading text
+        if (cleaned.startsWith("Output:")) {
+            cleaned = cleaned.substring("Output:".length()).trim();
+        }
+
+        // Try a last ditch effort
+        try {
+            mapper.readTree(cleaned);
+            return cleaned;
+        } catch (IOException ignored) {}
+
+        // If all fails, return original input
+        return input;
     }
+
 
 
 
@@ -290,38 +282,29 @@ public class AIManager {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
-
                 HttpPost post = new HttpPost(endpoint);
                 post.setHeader("Content-Type", "application/json");
-
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
-
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
-
                     if (code < 200 || code >= 300) {
                         String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         throw new IOException("HTTP " + code + ": " + errorBody);
                     }
-
-                    if (onContentChunk == null) {
+                    if (onContentChunk == null && false) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         LOGGER.fine(respBody);
-
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
                         LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
-
                         String content = llamaOuterUtils.completeGetContent().join();
                         String jsonContent = extractJsonContent(content);
                         LOGGER.fine("Extracted JSON: " + jsonContent);
                         jsonContent = sanitizeJsonContent(jsonContent);
-
                         JsonNode rootNode = mapper.readTree(jsonContent);
                         JsonNode actualObject;
-
                         if (rootNode.isObject()) {
                             actualObject = rootNode;
                         } else if (rootNode.isArray()) {
@@ -335,10 +318,8 @@ public class AIManager {
                         } else {
                             throw new RuntimeException("Unexpected JSON structure: not object or array.");
                         }
-
                         Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
                         String entityType = (String) resultMap.get("entityType");
-
                         if (entityType != null) {
                             if (entityType.startsWith("json_tool")) {
                                 return new ToolContainer(resultMap);
@@ -346,43 +327,50 @@ public class AIManager {
                                 return new MarkdownContainer(resultMap);
                             }
                         }
-
                         return new MetadataContainer();
-
                     } else {
-                        // Streaming mode
-                        StringBuilder builder = new StringBuilder();
-                        Map<String, Object> lastChunk = null;
+                        String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                        LOGGER.fine(respBody);
+                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
+                        return llamaOuterResponse;
+                        //LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
 
-                        try (BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                if (!line.startsWith("data:")) continue;
-                                String data = line.substring(5).trim();
-                                if (data.equals("[DONE]")) break;
-
-                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
-                                lastChunk = chunk;
-
-                                Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
-                                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
-                                String content = (String) delta.get("content");
-
-                                if (content != null) {
-                                    onContentChunk.accept(content);
-                                    builder.append(content);
-                                }
-                            }
-                        }
-
-                        if (lastChunk == null) {
-                            throw new IllegalStateException("No valid chunk received.");
-                        }
-
-                        LlamaContainer container = new LlamaContainer(lastChunk);
-                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
-                        return container;
+                        //String content = llamaOuterUtils.completeGetContent().join();
+//                    } else {
+//                        // Streaming mode
+//                        StringBuilder builder = new StringBuilder();
+//                        Map<String, Object> lastChunk = null;
+//
+//                        try (BufferedReader reader = new BufferedReader(
+//                                new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+//                            String line;
+//                            while ((line = reader.readLine()) != null) {
+//                                if (!line.startsWith("data:")) continue;
+//                                String data = line.substring(5).trim();
+//                                if (data.equals("[DONE]")) break;
+//
+//                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+//                                lastChunk = chunk;
+//
+//                                Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+//                                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+//                                String content = (String) delta.get("content");
+//
+//                                if (content != null) {
+//                                    onContentChunk.accept(content);
+//                                    builder.append(content);
+//                                }
+//                            }
+//                        }
+//
+//                        if (lastChunk == null) {
+//                            throw new IllegalStateException("No valid chunk received.");
+//                        }
+//
+//                        LlamaContainer container = new LlamaContainer(lastChunk);
+//                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+//                        return container;
                     }
                 }
 
@@ -396,12 +384,8 @@ public class AIManager {
     /*
      *  lmstudio
      */
-    private CompletableFuture<MetadataContainer> completeLMStudioRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final int stateIndex = endpointWithState.indexOf("?state");
-        final String endpoint = (stateIndex != -1)
-            ? endpointWithState.substring(0, stateIndex)
-            : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
+    private CompletableFuture<MetadataContainer> completeLMStudioRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
+        return completeBuildRequestBody(content, 2L, model, requestType, instructions, stream)
                 .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -447,24 +431,16 @@ public class AIManager {
     /*
      *  Ollama
      */
-    private CompletableFuture<MetadataContainer> completeOllamaRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final int stateIndex = endpointWithState.indexOf("?state");
-        final String endpoint = (stateIndex != -1)
-            ? endpointWithState.substring(0, stateIndex)
-            : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
-                .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint, onContentChunk));
+    private CompletableFuture<MetadataContainer> completeOllamaRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
+        return completeBuildRequestBody(content, 3L, model, requestType, instructions, stream)
+            .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
     /*
      *  OpenAI
      */
-    private CompletableFuture<MetadataContainer> completeOpenAIRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final int stateIndex = endpointWithState.indexOf("?state");
-        final String endpoint = (stateIndex != -1)
-            ? endpointWithState.substring(0, stateIndex)
-            : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream) // TODO: remove the get shell tool schema from this definition and embed it into the instruction
+    private CompletableFuture<MetadataContainer> completeOpenAIRequest(String instructions, String content, long previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
+        return completeBuildRequestBody(content, previousResponseId, model, endpoint, instructions, stream) // TODO: remove the get shell tool schema from this definition and embed it into the instruction
                 .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -500,8 +476,8 @@ public class AIManager {
                         }
                         System.out.flush();
                         Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                        MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
-                        String previousResponseId = (String) openaiOuterUtils.completeGetResponseId().join();
+                        MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("id", Metadata.LONG);
+                        long previousResponseId = (long) openaiOuterUtils.completeGetResponseId().join();
                         String text = (String) openaiOuterUtils.completeGetText().join();
                         String reasoning = (String) openaiOuterUtils.completeGetText().join();
                         inner.put("id", previousResponseId);
@@ -523,12 +499,8 @@ public class AIManager {
     /*
      *  OpenRouter
      */
-    private CompletableFuture<MetadataContainer> completeOpenRouterRequest(String content, String previousResponseId, String model, String endpointWithState, boolean stream, Consumer<String> onContentChunk) {
-        final int stateIndex = endpointWithState.indexOf("?state");
-        final String endpoint = (stateIndex != -1)
-            ? endpointWithState.substring(0, stateIndex)
-            : endpointWithState;
-        return completeBuildRequestBody(content, previousResponseId, model, endpointWithState, Maps.INSTRUCTIONS.get(endpointWithState), stream)
+    private CompletableFuture<MetadataContainer> completeOpenRouterRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
+        return completeBuildRequestBody(content, 4L, model, requestType, instructions, stream)
                 .thenCompose(reqBody -> completeOpenRouterProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -597,32 +569,31 @@ public class AIManager {
      *  Main method
      */
     public CompletableFuture<MetadataContainer> completeRequest(
+            String instructions,
             String content,
-            String previousResponseId,
+            long previousResponseId,
             String model,
-            String endpointWithState,
+            String requestType,
+            String endpoint,
             boolean stream,
-            Consumer<String> onContentChunk
-    ) throws Exception {  // <-- declare exception here
-        final int stateIndex = endpointWithState.indexOf("?state");
-        final String endpoint = (stateIndex != -1)
-            ? endpointWithState.substring(0, stateIndex)
-            : endpointWithState;
+            Consumer<String> onContentChunk,
+            String source
+    ) throws Exception {
         if (Maps.LLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
-            return completeLlamaRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
+            return completeLlamaRequest(instructions, content, model, requestType, endpoint, stream, onContentChunk);
         } else if (Maps.OLLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
-            return completeOllamaRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
+            return completeOllamaRequest(instructions, content, model, requestType, endpoint, stream, onContentChunk);
         } else if (Maps.OPENAI_ENDPOINT_URLS.containsValue(endpoint)) {
-            return completeOpenAIRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
-        } else if (Maps.OLLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
-            return completeOpenRouterRequest(content, previousResponseId, model, endpointWithState, stream, onContentChunk);
+            return completeOpenAIRequest(instructions, content, previousResponseId, model, requestType, endpoint, stream, onContentChunk);
+        } else if (Maps.OPENROUTER_ENDPOINT_URLS.containsValue(endpoint)) {
+            return completeOpenRouterRequest(instructions, content, model, requestType, endpoint, stream, onContentChunk);
         } else {
-            return CompletableFuture.failedFuture(new IllegalStateException("Invalid endpoint.")); // Prefer throwing unchecked exceptions here
+            return CompletableFuture.failedFuture(new IllegalStateException("Invalid endpoint."));
         }
     }
 
     
-    public CompletableFuture<String> getAIEndpointWithState(boolean multimodal, String requestedSource, String sourceOfRequest, String requestType) {
+    public CompletableFuture<String> completeGetAIEndpoint(boolean multimodal, String requestedSource, String sourceOfRequest, String requestType) {
         String endpoint = null;
         if ("cli".equals(sourceOfRequest)) {
             if ("latest".equals(requestedSource)) {
@@ -654,5 +625,25 @@ public class AIManager {
                 "Invalid combination of requestedSource: " + requestedSource + " and sourceOfRequest: " + sourceOfRequest));
         }
         return CompletableFuture.completedFuture(endpoint);
+    }
+    
+    public CompletableFuture<String> completeGetInstructions(boolean multimodal, String requestedSource, String sourceOfRequest) {
+        String instructions = null;
+        if ("cli".equals(sourceOfRequest)) {
+            instructions = Maps.CLI_INSTRUCTIONS.get(requestedSource);
+        } else if ("discord".equals(sourceOfRequest)) {
+            if (multimodal) {
+                instructions = Maps.DISCORD_IMAGE_INSTRUCTIONS.get(requestedSource);
+            } else {
+                instructions = Maps.DISCORD_TEXT_INSTRUCTIONS.get(requestedSource);
+            }
+        } else if ("twitch".equals(sourceOfRequest)) {
+            instructions = Maps.TWITCH_INSTRUCTIONS.get(requestedSource);
+        }
+        if (instructions == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                "Invalid combination of requestedSource: " + requestedSource + " and sourceOfRequest: " + sourceOfRequest));
+        }
+        return CompletableFuture.completedFuture(instructions);
     }
 }
