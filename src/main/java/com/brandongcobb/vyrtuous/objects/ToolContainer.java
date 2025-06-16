@@ -24,8 +24,9 @@
  *  You should have received a copy of the GNU General Public License
  *  aInteger with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.objects;
 
+import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.metadata.*;
 import com.fasterxml.jackson.core.JsonProcessingException;

@@ -27,7 +27,7 @@ import java.util.HashMap;
 
 public enum ModelRegistry {
 
-    LLAMA_MODEL(System.getenv("LLAMA_MODEL")),
+    LLAMA_MODEL(System.getenv("CLI_MODEL")),
     LOCAL_RESPONSE_PROVIDER("llama"),
     OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
 

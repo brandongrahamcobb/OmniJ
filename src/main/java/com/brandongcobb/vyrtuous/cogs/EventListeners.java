@@ -18,36 +18,36 @@
  */
 package com.brandongcobb.vyrtuous.cogs;
 
+import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.bots.DiscordBot;
+import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
-import com.brandongcobb.metadata.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.function.Consumer;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.events.session.ReadyEvent;
-
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.HashMap;
-import java.util.function.Supplier;
-import java.util.ArrayList;
-import java.util.function.Consumer;
 
 public class EventListeners extends ListenerAdapter implements Cog {
 
@@ -57,7 +57,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
     private JDA api;
     private DiscordBot bot;
     final StringBuilder messageBuilder = new StringBuilder();
-    private final String discordResponseSource = System.getenv("DISCORD_RESPONSE_SOURCE");
     private final Map<Long, List<String>> userMessageHistory = new ConcurrentHashMap<>();
     private volatile Message scheduledMessage = null;
     private MessageManager mem = new MessageManager(api);
@@ -95,24 +94,19 @@ public class EventListeners extends ListenerAdapter implements Cog {
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
         if (message.getAuthor().isBot() || message.getContentRaw().startsWith(System.getenv("DISCORD_COMMAND_PREFIX"))) return;
-
         long senderId = event.getAuthor().getIdLong();
         List<Attachment> attachments = message.getAttachments();
         MetadataContainer previousResponse = userResponseMap.get(senderId);
-
         final boolean[] multimodal = new boolean[] { false };
-
         CompletableFuture<String> contentFuture = (attachments != null && !attachments.isEmpty())
             ? mem.completeProcessAttachments(attachments).thenApply(list -> {
-                multimodal[0] = true; // ✅ Set flag to true
+                multimodal[0] = true;
                 return String.join("\n", list) + "\n" + message.getContentDisplay();
             })
             : CompletableFuture.completedFuture(message.getContentDisplay());
-
         contentFuture
             .thenCompose(prompt -> completeCreateServerRequest(prompt,  senderId, multimodal[0], Integer.valueOf(System.getenv("DISCORD_CONTEXT_LENGTH")), previousResponse))
             .thenCompose(serverRequest -> {
-                // Moderation first using same data
                 try {
                     return aim.completeRequest(
                         serverRequest.instructions,
@@ -133,14 +127,11 @@ public class EventListeners extends ListenerAdapter implements Cog {
                             case OpenRouterContainer or -> new OpenRouterUtils(or).completeGetFlagged();
                             default -> CompletableFuture.completedFuture(false);
                         };
-    
                         return flaggedFuture.thenCompose(flagged -> {
                             if (flagged) {
                                 ModerationManager mom = new ModerationManager(api);
                                 return mom.completeHandleModeration(message, "Flagged for moderation").thenApply(ignored -> null);
                             }
-    
-                            // ✅ After moderation passes: response path split here
                             if (serverRequest.stream) {
                                 return handleStreamedResponse(message, senderId, previousResponse, serverRequest);
                             } else {
@@ -231,31 +222,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
 //        return future;
 //    }
     
-    private class ServerRequest {
-        String instructions;
-        String prompt;
-        String model;
-        boolean store;
-        boolean stream;
-        List<String> conversationHistory;
-        long previousResponseId;
-        String source;
-        String requestType;
-        String endpoint;
-        
-        public ServerRequest (String instructions, String prompt, String model, boolean store, boolean stream, List<String> history, String endpoint, long previousResponseId, String source, String requestType) {
-            this.instructions = instructions;
-            this.prompt = prompt;
-            this.model = model;
-            this.stream = stream;
-            this.store = store;
-            this.conversationHistory = history;
-            this.previousResponseId = previousResponseId;
-            this.source = source;
-            this.requestType = requestType;
-            this.endpoint = endpoint;
-        }
-    }
+
     
     private CompletableFuture<ServerRequest> completeCreateServerRequest(
             String prompt,

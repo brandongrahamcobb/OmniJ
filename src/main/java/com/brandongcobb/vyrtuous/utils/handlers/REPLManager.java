@@ -22,6 +22,8 @@ package com.brandongcobb.vyrtuous.utils.handlers;
 
 
 import com.brandongcobb.metadata.*;
+
+import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import java.util.*;
