@@ -1,5 +1,6 @@
-/*  AIManager.java The primary purpose of this class is to manage the=
- *  core AI functions of Vyrtuous.
+/*  AIManager.java The primary purpose of this class is to resolve
+ *  AI model instructions, endpoints, request sources, request bodies and
+ *  more.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -18,20 +19,18 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
-import com.brandongcobb.vyrtuous.Vyrtuous;
-
-import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.metadata.*;
+import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.knuddels.jtokkit.Encodings;
 import com.knuddels.jtokkit.api.Encoding;
 import com.knuddels.jtokkit.api.EncodingRegistry;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
@@ -152,38 +151,6 @@ public class AIManager {
             }
         });
     }
-    
-    public CompletableFuture<Map<String, Object>> completeCreateVectorStore(List<String> fileIds) {
-        String apiKey = System.getenv("OPENAI_API_KEY");
-        if (apiKey == null || apiKey.isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Missing OPENAI_API_KEY"));
-        }
-        return CompletableFuture.supplyAsync(() -> {
-            try (CloseableHttpClient client = HttpClients.custom()
-                    .setDefaultRequestConfig(REQUEST_CONFIG)
-                    .build()) {
-                HttpPost post = new HttpPost("https://api.openai.com/v1/vector_stores");
-                post.setHeader("Authorization", "Bearer " + apiKey);
-                post.setHeader("Content-Type", "application/json");
-                ObjectMapper mapper = new ObjectMapper();
-                Map<String, Object> body = Map.of("file_ids", fileIds);
-                String json = mapper.writeValueAsString(body);
-                post.setEntity(new StringEntity(json));
-                try (CloseableHttpResponse resp = client.execute(post)) {
-                    int code = resp.getStatusLine().getStatusCode();
-                    String respBody = EntityUtils.toString(resp.getEntity(), "UTF-8");
-                    System.out.println("📦 Vector Store Response:\n" + respBody);
-                    if (code >= 200 && code < 300) {
-                        return mapper.readValue(respBody, new TypeReference<Map<String, Object>>() {});
-                    } else {
-                        throw new IOException("HTTP " + code + ": " + respBody);
-                    }
-                }
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to create vector store", e);
-            }
-        });
-    }
 
     /*
      *  llama.cpp
@@ -201,90 +168,21 @@ public class AIManager {
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
-    public static String removeThinkBlocks(String text) {
-        // Use a regular expression to find and replace the <think>...</think> pattern
-        // (?s) enables the DOTALL mode, so dot (.) matches newline characters as well.
-        // <think> matches the starting tag.
-        // .*? matches any characters (non-greedily) between the tags.
-        // </think> matches the closing tag.
-        String regex = "(?s)<think>.*?</think>";
-        return text.replaceAll(regex, "");
-    }
-    private static final Pattern THINK_PATTERN = Pattern.compile("<think>(.*?)</think>", Pattern.DOTALL);
-    private static final Pattern JSON_CODE_BLOCK_PATTERN = Pattern.compile("```json\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
-
-    public static String extractJsonContent(String input) {
-        Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
-        if (matcher.find()) {
-            return matcher.group(1).trim(); // clean JSON only
-        } else {
-            // Optional: fallback to naive cleanup
-            return input.replaceFirst("^```json\\s*", "")
-                        .replaceFirst("\\s*```$", "")
-                        .trim();
-        }
-    }
-
-    private String escapeControlCharacters(String input) {
-        // Replace newline and other control characters with their escaped equivalents
-        return input.replaceAll("[\\x00-\\x1F\\x7F]", "\\\\u00$0");
-    }
-
-    private static String sanitizeJsonContent(String input) {
-        ObjectMapper mapper = new ObjectMapper();
-
-        // If it's already valid JSON, return as-is.
-        try {
-            mapper.readTree(input);
-            return input;
-        } catch (IOException e) {
-            // Try unescaping if it's a quoted JSON string
-        }
-
-        // If input is a quoted JSON string, e.g. "\"{\\\"key\\\":\\\"val\\\"}\""
-        if ((input.startsWith("\"") && input.endsWith("\"")) ||
-            (input.startsWith("'") && input.endsWith("'"))) {
-            try {
-                // This will turn: "\"{\\\"key\\\":\\\"val\\\"}\"" → "{\"key\":\"val\"}"
-                String unescaped = mapper.readValue(input, String.class);
-                mapper.readTree(unescaped); // validate it
-                return unescaped;
-            } catch (IOException ignored) {
-                // Continue to fallback
-            }
-        }
-
-        // Fallback: strip illegal leading/trailing characters and try again
-        String cleaned = input.trim();
-
-        // Optional: remove common shell/echo leading text
-        if (cleaned.startsWith("Output:")) {
-            cleaned = cleaned.substring("Output:".length()).trim();
-        }
-
-        // Try a last ditch effort
-        try {
-            mapper.readTree(cleaned);
-            return cleaned;
-        } catch (IOException ignored) {}
-
-        // If all fails, return original input
-        return input;
-    }
-
-
-
-
     private CompletableFuture<MetadataContainer> completeLlamaProcessRequest(
         Map<String, Object> requestBody,
         String endpoint,
         Consumer<String> onContentChunk
     ) {
         return CompletableFuture.supplyAsync(() -> {
+            String apiKey = System.getenv("LLAMA_API_KEY");
+    //        if (apiKey == null || apiKey.isEmpty()) {
+    //            return CompletableFuture.failedFuture(new IllegalStateException("Missing LMSTUDIO_API_KEY"));
+    //        }
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
                 HttpPost post = new HttpPost(endpoint);
+                post.setHeader("Authorization", "Bearer " + apiKey);
                 post.setHeader("Content-Type", "application/json");
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
@@ -295,87 +193,40 @@ public class AIManager {
                         String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         throw new IOException("HTTP " + code + ": " + errorBody);
                     }
-                    if (onContentChunk == null && false) {
+                    if (onContentChunk == null) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         LOGGER.fine(respBody);
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
-                        LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
-                        String content = llamaOuterUtils.completeGetContent().join();
-                        String jsonContent = extractJsonContent(content);
-                        LOGGER.fine("Extracted JSON: " + jsonContent);
-                        jsonContent = sanitizeJsonContent(jsonContent);
-                        JsonNode rootNode = mapper.readTree(jsonContent);
-                        JsonNode actualObject;
-                        if (rootNode.isObject()) {
-                            actualObject = rootNode;
-                        } else if (rootNode.isArray()) {
-                            if (rootNode.size() == 0) {
-                                throw new RuntimeException("JSON array is empty. Cannot extract metadata.");
-                            }
-                            actualObject = rootNode.get(0);
-                            if (!actualObject.isObject()) {
-                                throw new RuntimeException("First element of array is not a JSON object.");
-                            }
-                        } else {
-                            throw new RuntimeException("Unexpected JSON structure: not object or array.");
-                        }
-                        Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
-                        String entityType = (String) resultMap.get("entityType");
-                        if (entityType != null) {
-                            if (entityType.startsWith("json_tool")) {
-                                return new ToolContainer(resultMap);
-                            } else if (entityType.startsWith("json_chat")) {
-                                return new MarkdownContainer(resultMap);
-                            }
-                        }
-                        return new MetadataContainer();
+                        LlamaContainer llamaContainer = new LlamaContainer(outer);
+                        return llamaContainer;
                     } else {
-                        String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        LOGGER.fine(respBody);
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        LlamaContainer llamaOuterResponse = new LlamaContainer(outer);
-                        return llamaOuterResponse;
-                        //LlamaUtils llamaOuterUtils = new LlamaUtils(llamaOuterResponse);
-
-                        //String content = llamaOuterUtils.completeGetContent().join();
-//                    } else {
-//                        // Streaming mode
-//                        StringBuilder builder = new StringBuilder();
-//                        Map<String, Object> lastChunk = null;
-//
-//                        try (BufferedReader reader = new BufferedReader(
-//                                new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
-//                            String line;
-//                            while ((line = reader.readLine()) != null) {
-//                                if (!line.startsWith("data:")) continue;
-//                                String data = line.substring(5).trim();
-//                                if (data.equals("[DONE]")) break;
-//
-//                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
-//                                lastChunk = chunk;
-//
-//                                Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
-//                                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
-//                                String content = (String) delta.get("content");
-//
-//                                if (content != null) {
-//                                    onContentChunk.accept(content);
-//                                    builder.append(content);
-//                                }
-//                            }
-//                        }
-//
-//                        if (lastChunk == null) {
-//                            throw new IllegalStateException("No valid chunk received.");
-//                        }
-//
-//                        LlamaContainer container = new LlamaContainer(lastChunk);
-//                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
-//                        return container;
+                        StringBuilder builder = new StringBuilder();
+                        Map<String, Object> lastChunk = null;
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (!line.startsWith("data:")) continue;
+                                String data = line.substring(5).trim();
+                                if (data.equals("[DONE]")) break;
+                                Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+                                lastChunk = chunk;
+                                Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+                                Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+                                String content = (String) delta.get("content");
+                                if (content != null) {
+                                    onContentChunk.accept(content);
+                                    builder.append(content);
+                                }
+                            }
+                        }
+                        if (lastChunk == null) {
+                            throw new IllegalStateException("No valid chunk received.");
+                        }
+                        LlamaContainer container = new LlamaContainer(lastChunk);
+                        container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+                        return container;
                     }
                 }
-
             } catch (Exception e) {
                 throw new RuntimeException("Local stream request failed: " + e.getMessage(), e);
             }
@@ -392,13 +243,17 @@ public class AIManager {
     }
     
     private CompletableFuture<MetadataContainer> completeLMStudioProcessRequest(Map<String, Object> requestBody, String endpoint, Consumer<String> onContentChunk) {
+        String apiKey = System.getenv("LMSTUDIO_API_KEY");
+//        if (apiKey == null || apiKey.isEmpty()) {
+//            return CompletableFuture.failedFuture(new IllegalStateException("Missing LMSTUDIO_API_KEY"));
+//        }
         return CompletableFuture.supplyAsync(() -> {
             try (CloseableHttpClient client = HttpClients.custom()
                     .setDefaultRequestConfig(REQUEST_CONFIG)
                     .build()) {
                 HttpPost post = new HttpPost(endpoint);
+                post.setHeader("Authorization", "Bearer " + apiKey);
                 post.setHeader("Content-Type", "application/json");
-                requestBody.putIfAbsent("stream", false);
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
@@ -406,21 +261,10 @@ public class AIManager {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        if (endpoint.contains("response")) {
-                            Map<String, Object> message = (Map<String, Object>) outer.get("message");
-                            String content = (String) message.get("content");
-                            String jsonContent = content
-                            .replaceFirst("^```json\\s*", "")
-                            .replaceFirst("\\s*```$", "")
-                            .trim();
-                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            OpenAIContainer response = new OpenAIContainer(inner);
-                            return (MetadataContainer) response;
-                        } else {
-                            return new OpenAIContainer(outer);
-                        }
-                    } else {;
+                        Map<String, Object> responseMap = mapper.readValue(respBody, new TypeReference<>() {});
+                        LMStudioContainer response = new LMStudioContainer(responseMap);
+                        return (MetadataContainer) response;
+                    } else {
                         throw new IOException("HTTP " + code + ": " + respBody);
                     }
                 }
@@ -442,7 +286,7 @@ public class AIManager {
      *  OpenAI
      */
     private CompletableFuture<MetadataContainer> completeOpenAIRequest(String instructions, String content, long previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
-        return completeBuildRequestBody(content, previousResponseId, model, endpoint, instructions, stream) // TODO: remove the get shell tool schema from this definition and embed it into the instruction
+        return completeBuildRequestBody(content, previousResponseId, model, endpoint, instructions, stream)
                 .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -525,27 +369,9 @@ public class AIManager {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
-                        String id = (String) outer.get("id");
-                        List<Map<String, Object>> choices = (List<Map<String, Object>>) outer.get("choices");
-                        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-                        String content = (String) message.get("content");
-                        if (id != null && id.startsWith("gen-")) {
-                            Map<String, Object> inner = mapper.readValue(content, new TypeReference<>() {});
-                            OpenAIContainer response = new OpenAIContainer(inner);
-                            return (MetadataContainer) response;
-                        } else if (id != null && id.startsWith("resp_")) {
-                            String jsonContent = content
-                                .replaceFirst("^```json\\s*", "")
-                                .replaceFirst("\\s*```$", "")
-                                .trim();
-                            Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                            OpenAIContainer response = new OpenAIContainer(inner);
-                            return (MetadataContainer) response;
-                        } else {
-                            OllamaContainer response = new OllamaContainer(outer);
-                            return (MetadataContainer) response;
-                        }
+                        Map<String, Object> inner = mapper.readValue(respBody, new TypeReference<>() {});
+                        OpenRouterContainer response = new OpenRouterContainer(inner);
+                        return (MetadataContainer) response;
                     } else {
                         System.out.println("HTTP error code: " + code);
                         throw new IOException("HTTP " + code + ": " + respBody);
@@ -557,29 +383,10 @@ public class AIManager {
         });
     }
 
-    public List<String> searchVectorStore(
-            String vectorStoreId,
-            String query,
-            Integer maxResults,
-            Map<String, Object> filters,
-            Map<String, Object> rankingOptions
-    ) {
-        return List.of();
-    }
-
     /*
      *  Main method
      */
-    public CompletableFuture<MetadataContainer> completeRequest(
-            String instructions,
-            String content,
-            long previousResponseId,
-            String model,
-            String requestType,
-            String endpoint,
-            boolean stream,
-            Consumer<String> onContentChunk,
-            String source
+    public CompletableFuture<MetadataContainer> completeRequest(String instructions, String content, long previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk, String source
     ) throws Exception {
         if (Maps.LLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeLlamaRequest(instructions, content, model, requestType, endpoint, stream, onContentChunk);
@@ -595,7 +402,8 @@ public class AIManager {
     }
 
     
-    public CompletableFuture<String> completeGetAIEndpoint(boolean multimodal, String requestedSource, String sourceOfRequest, String requestType) {
+    public CompletableFuture<String> completeGetAIEndpoint(boolean multimodal, String requestedSource, String sourceOfRequest, String requestType
+    ) {
         String endpoint = null;
         if ("cli".equals(sourceOfRequest)) {
             if ("latest".equals(requestedSource)) {

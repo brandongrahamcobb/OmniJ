@@ -31,6 +31,12 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 public class REPLManager {
 
     private AIManager aim = new AIManager();
@@ -200,8 +206,41 @@ public class REPLManager {
                         if (resp == null) {
                             throw new CompletionException(new IllegalStateException("AI returned null"));
                         }
-                        lastAIResponseContainer = resp;
-                        return resp;
+                        ObjectMapper mapper = new ObjectMapper();
+                        LlamaUtils llamaOuterUtils = new LlamaUtils(resp);
+                        String content = llamaOuterUtils.completeGetContent().join();
+                        String jsonContent = ToolHandler.extractJsonContent(content);
+                        LOGGER.fine("Extracted JSON: " + jsonContent);
+                        jsonContent = ToolHandler.sanitizeJsonContent(jsonContent);
+                        try {
+                            JsonNode rootNode = mapper.readTree(jsonContent);
+                            JsonNode actualObject;
+                            if (rootNode.isObject()) {
+                                actualObject = rootNode;
+                            } else if (rootNode.isArray()) {
+                                if (rootNode.size() == 0) {
+                                    throw new RuntimeException("JSON array is empty. Cannot extract metadata.");
+                                }
+                                actualObject = rootNode.get(0);
+                                if (!actualObject.isObject()) {
+                                    throw new RuntimeException("First element of array is not a JSON object.");
+                                }
+                            } else {
+                                throw new RuntimeException("Unexpected JSON structure: not object or array.");
+                            }
+                            Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
+                            String entityType = (String) resultMap.get("entityType");
+                            if (entityType != null) {
+                                if (entityType.startsWith("json_tool")) {
+                                    lastAIResponseContainer = new ToolContainer(resultMap);
+                                } else if (entityType.startsWith("json_chat")) {
+                                    lastAIResponseContainer = new MarkdownContainer(resultMap);
+                                }
+                            }
+                        } catch (JsonProcessingException jpe) {
+                            jpe.printStackTrace();
+                        }
+                        return lastAIResponseContainer;
                     });
 
                 } catch (Exception e) {

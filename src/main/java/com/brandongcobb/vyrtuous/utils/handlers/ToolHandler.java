@@ -24,6 +24,12 @@ import java.util.AbstractMap.SimpleEntry;
 import com.brandongcobb.vyrtuous.objects.*;
 import java.util.AbstractMap;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -110,6 +116,77 @@ public class ToolHandler {
         }
         return builder.toString().trim();
     }
+    
+    public static String removeThinkBlocks(String text) {
+        // Use a regular expression to find and replace the <think>...</think> pattern
+        // (?s) enables the DOTALL mode, so dot (.) matches newline characters as well.
+        // <think> matches the starting tag.
+        // .*? matches any characters (non-greedily) between the tags.
+        // </think> matches the closing tag.
+        String regex = "(?s)<think>.*?</think>";
+        return text.replaceAll(regex, "");
+    }
+    private static final Pattern THINK_PATTERN = Pattern.compile("<think>(.*?)</think>", Pattern.DOTALL);
+    private static final Pattern JSON_CODE_BLOCK_PATTERN = Pattern.compile("```json\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
+
+    public static String extractJsonContent(String input) {
+        Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
+        if (matcher.find()) {
+            return matcher.group(1).trim(); // clean JSON only
+        } else {
+            // Optional: fallback to naive cleanup
+            return input.replaceFirst("^```json\\s*", "")
+                        .replaceFirst("\\s*```$", "")
+                        .trim();
+        }
+    }
+
+    private String escapeControlCharacters(String input) {
+        // Replace newline and other control characters with their escaped equivalents
+        return input.replaceAll("[\\x00-\\x1F\\x7F]", "\\\\u00$0");
+    }
+
+    public static String sanitizeJsonContent(String input) {
+        ObjectMapper mapper = new ObjectMapper();
+
+        // If it's already valid JSON, return as-is.
+        try {
+            mapper.readTree(input);
+            return input;
+        } catch (IOException e) {
+            // Try unescaping if it's a quoted JSON string
+        }
+
+        // If input is a quoted JSON string, e.g. "\"{\\\"key\\\":\\\"val\\\"}\""
+        if ((input.startsWith("\"") && input.endsWith("\"")) ||
+            (input.startsWith("'") && input.endsWith("'"))) {
+            try {
+                // This will turn: "\"{\\\"key\\\":\\\"val\\\"}\"" → "{\"key\":\"val\"}"
+                String unescaped = mapper.readValue(input, String.class);
+                mapper.readTree(unescaped); // validate it
+                return unescaped;
+            } catch (IOException ignored) {
+                // Continue to fallback
+            }
+        }
+
+        // Fallback: strip illegal leading/trailing characters and try again
+        String cleaned = input.trim();
+
+        // Optional: remove common shell/echo leading text
+        if (cleaned.startsWith("Output:")) {
+            cleaned = cleaned.substring("Output:".length()).trim();
+        }
+
+        // Try a last ditch effort
+        try {
+            mapper.readTree(cleaned);
+            return cleaned;
+        } catch (IOException ignored) {}
+
+        // If all fails, return original input
+        return input;
+    }
 
     private void drainStream(InputStream inputStream) {
         new Thread(() -> {
@@ -121,7 +198,7 @@ public class ToolHandler {
         }).start();
     }
 
-    private String escapeCommandParts(String s) {
+    public String escapeCommandParts(String s) {
         if (s.startsWith("//'") && s.endsWith("//'")) {
             // Extract inner content
             String inner = s.substring(3, s.length() - 3);
@@ -417,26 +494,26 @@ public class ToolHandler {
     }
 
     
-    public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {
-        String type = responseObject.get(FILESEARCHTOOL_TYPE);
-        if (!"file_search".equals(type)) {
-            System.out.println("⚠️ Tool type is not file_search.");
-            return List.of();
-        }
-        List<String> vectorStoreIds = responseObject.get(FILESEARCHTOOL_VECTOR_STORE_IDS);
-        Map<String, Object> filters = responseObject.get(FILESEARCHTOOL_FILTERS);
-        Integer maxResults = responseObject.get(FILESEARCHTOOL_MAX_NUM_RESULTS);
-        Map<String, Object> rankingOptions = responseObject.get(FILESEARCHTOOL_RANKING_OPTIONS);
-        if (vectorStoreIds == null || vectorStoreIds.isEmpty()) {
-            System.err.println("❌ No vector store IDs provided.");
-            return List.of();
-        }
-        AIManager aim = new AIManager();
-        List<String> allResults = new ArrayList<>();
-        for (String storeId : vectorStoreIds) {
-            List<String> results = aim.searchVectorStore(storeId, query, maxResults, filters, rankingOptions);
-            if (results != null) allResults.addAll(results);
-        }
-        return allResults;
-    }
+//    public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {
+//        String type = responseObject.get(FILESEARCHTOOL_TYPE);
+//        if (!"file_search".equals(type)) {
+//            System.out.println("⚠️ Tool type is not file_search.");
+//            return List.of();
+//        }
+//        List<String> vectorStoreIds = responseObject.get(FILESEARCHTOOL_VECTOR_STORE_IDS);
+//        Map<String, Object> filters = responseObject.get(FILESEARCHTOOL_FILTERS);
+//        Integer maxResults = responseObject.get(FILESEARCHTOOL_MAX_NUM_RESULTS);
+//        Map<String, Object> rankingOptions = responseObject.get(FILESEARCHTOOL_RANKING_OPTIONS);
+//        if (vectorStoreIds == null || vectorStoreIds.isEmpty()) {
+//            System.err.println("❌ No vector store IDs provided.");
+//            return List.of();
+//        }
+//        AIManager aim = new AIManager();
+//        List<String> allResults = new ArrayList<>();
+//        for (String storeId : vectorStoreIds) {
+//            List<String> results = aim.searchVectorStore(storeId, query, maxResults, filters, rankingOptions);
+//            if (results != null) allResults.addAll(results);
+//        }
+//        return allResults;
+//    }
 }
