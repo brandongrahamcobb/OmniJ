@@ -78,6 +78,8 @@ public class Maps {
     );
     
     public static final Map<String, String> DISCORD_IMAGE_INSTRUCTIONS = Map.ofEntries(
+                                                                                       
+        Map.entry("llama", ""),
         Map.entry("openai", ModelRegistry.OPENAI_IMAGE_INSTRUCTIONS_DISCORD.asString())
     );
     
