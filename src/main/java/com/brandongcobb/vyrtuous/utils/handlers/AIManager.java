@@ -510,7 +510,6 @@ public class AIManager {
         String instructions = null;
         if ("cli".equals(sourceOfRequest)) {
             instructions = Maps.CLI_INSTRUCTIONS.get(provider);
-            System.out.println(instructions);
         } else if ("discord".equals(sourceOfRequest)) {
             if (multimodal) {
                 instructions = Maps.DISCORD_IMAGE_INSTRUCTIONS.get(provider);

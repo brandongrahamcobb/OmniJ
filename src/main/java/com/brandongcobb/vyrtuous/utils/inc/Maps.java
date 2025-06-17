@@ -39,7 +39,7 @@ public class Maps {
     );
     
     public static final Map<String, String> OPENROUTER_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "https://openrouter.api/v1/chat/completions"),
+        Map.entry("deprecated", "https://openrouter.api/v1/chat/completions"),
         Map.entry("moderations", "https://openrouter.api/v1/chat/completions"),
         Map.entry("responses", "https://openrouter.api/v1/chat/completions")
     );
@@ -106,7 +106,7 @@ public class Maps {
     );
     
     public static final Map<String, String> LLAMA_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://127.0.0.1:8080/api/chat")
+        Map.entry("deprecated", "http://127.0.0.1:8080/api/chat")
     );
 
     public static final Map<String, String> LATEST_CLI_ENDPOINT_URLS = Map.ofEntries(
@@ -122,15 +122,15 @@ public class Maps {
     );
 
     public static final Map<String, String> LLAMA_CLI_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://127.0.0.1:8080/api/chat")
+        Map.entry("deprecated", "http://127.0.0.1:8080/api/chat")
     );
     
     public static final Map<String, String> LLAMA_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://127.0.0.1:8080/api/chat")
+        Map.entry("deprecated", "http://127.0.0.1:8080/api/chat")
     );
     
     public static final Map<String, String> LLAMA_DISCORD_TEXT_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://127.0.0.1:8080/api/chat")
+        Map.entry("deprecated", "http://127.0.0.1:8080/api/chat")
     );
 
     public static final Map<String, String> OLLAMA_ENDPOINT_URLS = Map.ofEntries(
@@ -138,7 +138,7 @@ public class Maps {
     );
     
     public static final Map<String, String> LMSTUDIO_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("completions", "http://127.0.0.1:1234/v1/chat/completions")
+        Map.entry("deprecated", "http://127.0.0.1:1234/v1/chat/completions")
     );
     
     public static final Map<String, String> OPENAI_DISCORD_MULTIMODAL_URLS = Map.ofEntries(
