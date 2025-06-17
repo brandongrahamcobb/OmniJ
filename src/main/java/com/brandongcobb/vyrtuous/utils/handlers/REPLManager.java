@@ -1,6 +1,6 @@
 
-/* REPLManager.java The purpose of this class is to loop through
- * a cli sequence for shell commands.
+/* REPLManager.java The purpose of this class is to serve as the local
+ * CLI interface for a variety of AI endpoints.
  *
  * Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -20,22 +20,18 @@
 
 package com.brandongcobb.vyrtuous.utils.handlers;
 
-
 import com.brandongcobb.metadata.*;
-
-import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class REPLManager {
 
@@ -44,34 +40,20 @@ public class REPLManager {
     private final ContextManager contextManager = new ContextManager(3200);
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
-    private String lastAIResponseText = "";
-    private String lastShellOutput = "";
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private String originalDirective;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private ToolHandler th = new ToolHandler();
-    private final List<List<String>> pendingShellCommands = new ArrayList<>();
-    private final String responseSource = System.getenv("REPL_RESPONSE_SOURCE");
-    private final Set<String> seenCommandStrings = new HashSet<>();
-    private String lastCommandOutput = "";
-    private boolean acceptingTokens = true;
-    private boolean needsClarification = false;
-    private String newInput;
-    private boolean printed = false;
-    
-    private List<List<String>> oldCommands;
-    
     
     public void setApprovalMode(ApprovalMode mode) {
         LOGGER.fine("Setting approval mode: " + mode);
         this.approvalMode = mode;
     }
 
-    
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
     }
@@ -85,15 +67,10 @@ public class REPLManager {
         if (userInput == null || userInput.isBlank()) {
             return CompletableFuture.completedFuture(null);
         }
-
         contextManager.clear();
-        pendingShellCommands.clear();
-        seenCommandStrings.clear();
-        
         originalDirective = userInput;
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userInput = null;
-
         return completeRStep(scanner, true)
             .thenCompose(resp ->
                 completeEStep(resp, scanner, true)
@@ -145,21 +122,16 @@ public class REPLManager {
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
-
         String prompt = firstRun
             ? originalDirective
             : contextManager.buildPromptContext();
-
         String model = System.getenv("CLI_MODEL");
         String requestSource = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");// assuming this is already set elsewhere
-
         CompletableFuture<String> endpointFuture =
-            aim.completeGetAIEndpoint(false, requestSource, "cli", "completions");
-
+            aim.completeGetAIEndpoint(false, requestSource, "cli", requestType);
         CompletableFuture<String> instructionsFuture =
             aim.completeGetInstructions(false, "cli", requestSource);
-
         return endpointFuture
             .thenCombine(instructionsFuture, (endpoint, instructions) -> new AbstractMap.SimpleEntry<>(endpoint, instructions))
             .thenCompose(pair -> {
@@ -247,49 +219,27 @@ public class REPLManager {
         LOGGER.fine("Starting E-step");
         if (response instanceof ToolContainer tool) {
             ToolUtils tu = new ToolUtils(response);
-            lastAIResponseText = tu.completeGetText().join();
+            String lastAIResponseText = tu.completeGetText().join();
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
             lastAIResponseText = null;
-
             List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-
             if (newCmds == null || newCmds.isEmpty()) {
                 LOGGER.warning("No shell commands returned from tool");
-                return CompletableFuture.completedFuture(null); // Skip this step
+                return CompletableFuture.completedFuture(null);
             }
-
-            // Optional: log commands
             for (List<String> cmdParts : newCmds) {
                 String flat = String.join(" ", cmdParts);
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
             }
-
-            // Store in oldCommands for later reuse if needed
-            oldCommands = newCmds;
-
-            // Run all at once
             Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(newCmds);
             return runner.get().thenCompose(out -> {
-//                long tokenCount = contextManager.getTokenCount(out);
-//                StringBuilder newInputBuilder = new StringBuilder();
-//                newInputBuilder.append("⚠️ The console output token count is: ").append(tokenCount).append("\n");
-//                newInputBuilder.append("📋 Do you want to accept the console output?\n");
-//
-//                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInputBuilder.toString()));
-                lastCommandOutput = out;
-                
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, lastCommandOutput));
-
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
                 return CompletableFuture.completedFuture(null);
             });
-            //List<String> parts = pendingShellCommands.remove(0);
-            // Class-level field
-
-            // Inside your MarkdownContainer block:
         } else if (response instanceof MarkdownContainer) {
             MarkdownUtils markdownUtils = new MarkdownUtils(response);
-            needsClarification = markdownUtils.completeGetClarification().join();
-            acceptingTokens = true; //markdownUtils.completeGetAcceptingTokens().join();
+            boolean needsClarification = markdownUtils.completeGetClarification().join();
+            boolean acceptingTokens = true; //markdownUtils.completeGetAcceptingTokens().join();
             String output = markdownUtils.completeGetText().join();
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, output));
             output = null;
@@ -304,11 +254,9 @@ public class REPLManager {
                 String finalReason = markdownUtils.completeGetText().join();
                 System.out.println(finalReason);
                 System.out.println("✅ Task complete.");
-                pendingShellCommands.clear();
-                seenCommandStrings.clear();
                 contextManager.clear();
                 System.out.print("> ");
-                newInput = scanner.nextLine();
+                String newInput = scanner.nextLine();
                 return startREPL(scanner, newInput);
             }
             return CompletableFuture.completedFuture(null);
@@ -322,7 +270,6 @@ public class REPLManager {
         LOGGER.fine("Print-step");
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
         contextManager.printNewEntries(true, true, true, true, false, true, true);
-        printed = true;
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
