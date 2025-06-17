@@ -1,4 +1,5 @@
-/*  Predicator.java The purpose of this program is to run lambda functions before executing code on the main thread.
+/*  Predicator.java The purpose of this program is to run lambda functions
+ *  before executing code on the main thread.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -24,14 +25,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.Role;
 
 public class Predicator {
 

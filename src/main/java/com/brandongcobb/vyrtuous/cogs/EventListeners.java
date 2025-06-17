@@ -135,13 +135,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
             });
     }
     
-    private CompletableFuture<ServerRequest> completeCreateServerRequest(
-            String prompt,
-            long senderId,
-            boolean multimodal,
-            int historySize,
-            MetadataContainer previousResponse
-    ) {
+    private CompletableFuture<ServerRequest> completeCreateServerRequest(String prompt, long senderId, boolean multimodal, int historySize, MetadataContainer previousResponse) {
         return SettingsManager.completeGetSettingsInstance()
                 .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
                     .thenCompose(userSettings -> {
@@ -149,27 +143,31 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         String provider = userSettings[1];
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
                         return aim.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
-                            .thenCombine(aim.completeGetInstructions(multimodal, provider, "discord"), (endpoint, instructions) -> {
-                                String previousId = null;
-                                if ("openai".equals(provider) && previousResponse instanceof OpenAIContainer) {
-                                    previousId = (String) new OpenAIUtils(previousResponse).completeGetResponseId().join();
-                                    return new ServerRequest(
-                                        instructions,
-                                        prompt,
-                                        userModel,
-                                        Boolean.parseBoolean(System.getenv("DISCORD_STREAM")),
-                                        Boolean.parseBoolean(System.getenv("DISCORD_STORE")),
-                                        null,
-                                        endpoint,
-                                        previousId,
-                                        provider,
-                                        requestType
-                                    );
+                            .thenCombine(aim.completeGetInstructions(multimodal, provider, "discord"),
+                                (endpoint, instructions) -> new Object[] { endpoint, instructions })
+                            .thenCompose(data -> {
+                                String endpoint = (String) data[0];
+                                String instructions = (String) data[1];
+                                if ("openai".equals(provider) && previousResponse instanceof OpenAIContainer openai) {
+                                    return new OpenAIUtils(openai)
+                                        .completeGetResponseId()
+                                        .thenApply(previousId -> new ServerRequest(
+                                            instructions,
+                                            prompt,
+                                            userModel,
+                                            Boolean.parseBoolean(System.getenv("DISCORD_STREAM")),
+                                            Boolean.parseBoolean(System.getenv("DISCORD_STORE")),
+                                            null,
+                                            endpoint,
+                                            previousId,
+                                            provider,
+                                            requestType
+                                        ));
                                 } else {
                                     List<String> history = genericHistoryMap.computeIfAbsent(senderId, k -> new ArrayList<>());
                                     trimHistory(history, historySize);
                                     String fullPrompt = buildFullPrompt(history, prompt);
-                                    return new ServerRequest(
+                                    return CompletableFuture.completedFuture(new ServerRequest(
                                         instructions,
                                         fullPrompt,
                                         userModel,
@@ -180,18 +178,13 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                         null,
                                         provider,
                                         requestType
-                                    );
+                                    ));
                                 }
                             });
                     }));
         }
 
-    private CompletableFuture<Void> handleStreamedResponse(
-        Message originalMessage,
-        long senderId,
-        MetadataContainer previousResponse,
-        ServerRequest serverRequest
-    ) {
+    private CompletableFuture<Void> handleStreamedResponse(Message originalMessage, long senderId, MetadataContainer previousResponse, ServerRequest serverRequest) {
         return originalMessage.getChannel().sendMessage("Hi I'm Vyrtuous...").submit()
             .thenCompose(sentMessage -> {
                 BlockingQueue<String> queue = new LinkedBlockingQueue<>();
@@ -243,12 +236,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
     }
 
     
-    private CompletableFuture<Void> handleNonStreamedResponse(
-        Message message,
-        long senderId,
-        MetadataContainer previousResponse,
-        ServerRequest serverRequest
-    ) {
+    private CompletableFuture<Void> handleNonStreamedResponse(Message message, long senderId, MetadataContainer previousResponse, ServerRequest serverRequest) {
         try {
             return aim.completeRequest(
                 serverRequest.instructions,

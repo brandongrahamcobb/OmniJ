@@ -18,7 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
-
+import com.brandongcobb.vyrtuous.enums.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -20,6 +20,7 @@
 package com.brandongcobb.vyrtuous.utils.inc;
 
 import com.brandongcobb.metadata.*;
+import com.brandongcobb.vyrtuous.enums.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -37,7 +38,6 @@ import java.util.stream.Collectors;
 
 public class Helpers {
     
-    
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
 
     public static String FILE_AI_MANAGER;
@@ -52,6 +52,8 @@ public class Helpers {
     public static String FILE_HYBRID_COMMANDS;
     public static String FILE_LLAMA_CONTAINER;
     public static String FILE_LLAMA_UTILS;
+    public static String FILE_LMSTUDIO_CONTAINER;
+    public static String FILE_LMSTUDIO_UTILS;
     public static String FILE_MAIN_CONTAINER;
     public static String FILE_MARKDOWN_CONTAINER;
     public static String FILE_MARKDOWN_UTILS;
@@ -59,13 +61,17 @@ public class Helpers {
     public static String FILE_MODEL_INFO;
     public static String FILE_MODEL_REGISTRY;
     public static String FILE_MODERATION_MANAGER;
+    public static String FILE_OLLAMA_CONTAINER;
+    public static String FILE_OLLAMA_UTILS;
     public static String FILE_OPENAI_CONTAINER;
     public static String FILE_OPENAI_UTILS;
+    public static String FILE_OPENROUTER_CONTAINER;
     public static String FILE_OPENROUTER_UTILS;
     public static String FILE_PREDICATOR;
     public static String FILE_PROJECT_LOADER;
     public static String FILE_REPL_MANAGER;
     public static String FILE_SCHEMA_MERGER;
+    public static String FILE_SERVER_REQUEST;
     public static String FILE_SOURCE;
     public static String FILE_STRUCTURED_OUTPUT;
     public static String FILE_TOOL_CONTAINER;
@@ -79,33 +85,38 @@ public class Helpers {
     public static final Path DIR_TEMP = Paths.get(DIR_BASE.toString(), "vyrtuous", "temp");
     public static final Path PATH_AI_MANAGER           = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "AIManager.java");
     public static final Path PATH_APPROVAL_MODE        = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ApprovalMode.java");
-    public static final Path PATH_CHAT_CONTAINER       = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ChatContainer.java");
     public static final Path PATH_COG       = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "Cog.java");
-    public static final Path PATH_CONTEXT_ENTRY        = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ContextEntry.java");
+    public static final Path PATH_CONTEXT_ENTRY        = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "ContextEntry.java");
     public static final Path PATH_CONTEXT_MANAGER      = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ContextManager.java");
     public static final Path PATH_DISCORD_BOT          = Paths.get(DIR_BASE.toString(), "vyrtuous", "bots", "DiscordBot.java");
     public static final Path PATH_EVENT_LISTENERS      = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "EventListeners.java");
     public static final Path PATH_HELPERS              = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "inc", "Helpers.java");
     public static final Path PATH_HYBRID_COMMANDS      = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "HybridCommands.java");
-    public static final Path PATH_LLAMA_CONTAINER      = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "LlamaContainer.java");
+    public static final Path PATH_LLAMA_CONTAINER      = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "LlamaContainer.java");
     public static final Path PATH_LLAMA_UTILS          = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "LlamaUtils.java");
-    public static final Path PATH_MAIN_CONTAINER       = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MainContainer.java");
-    public static final Path PATH_MARKDOWN_CONTAINER   = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MarkdownContainer.java");
+    public static final Path PATH_LMSTUDIO_CONTAINER   = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "LMStudioContainer.java");
+    public static final Path PATH_LMSTUDIO_UTILS       = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "LMStudioUtils.java");
+    public static final Path PATH_MAIN_CONTAINER       = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "MainContainer.java");
+    public static final Path PATH_MARKDOWN_CONTAINER   = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "MarkdownContainer.java");
     public static final Path PATH_MARKDOWN_UTILS       = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MarkdownUtils.java");
     public static final Path PATH_MESSAGE_MANAGER      = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MessageManager.java");
     public static final Path PATH_MODEL_INFO           = Paths.get(DIR_BASE.toString(), "vyrtuous", "records", "ModelInfo.java");
     public static final Path PATH_MODEL_REGISTRY       = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "inc", "ModelRegistry.java");
     public static final Path PATH_MODERATION_MANAGER   = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ModerationManager.java");
-    public static final Path PATH_OPENAI_CONTAINER     = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "OpenAIContainer.java");
+    public static final Path PATH_OLLAMA_CONTAINER     = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OllamaContainer.java");
+    public static final Path PATH_OLLAMA_UTILS         = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OllamaUtils.java");
+    public static final Path PATH_OPENAI_CONTAINER     = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OpenAIContainer.java");
     public static final Path PATH_OPENAI_UTILS         = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "OpenAIUtils.java");
-    public static final Path PATH_OPENROUTER_UTILS     = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "OpenRouterUtils.java");
+    public static final Path PATH_OPENROUTER_CONTAINER = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OpenRouterContainer.java");
+    public static final Path PATH_OPENROUTER_UTILS     = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OpenRouterUtils.java");
     public static final Path PATH_PREDICATOR           = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "Predicator.java");
     public static final Path PATH_PROJECT_LOADER       = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ProjectLoader.java");
     public static final Path PATH_REPL_MANAGER         = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "REPLManager.java");
     public static final Path PATH_SCHEMA_MERGER        = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "SchemaMerger.java");
+    public static final Path PATH_SERVER_REQUEST       = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "ServerRequest.java");
     public static final Path PATH_SOURCE               = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "inc", "Source.java");
     public static final Path PATH_STRUCTURED_OUTPUT    = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "inc", "StructuredOutput.java");
-    public static final Path PATH_TOOL_CONTAINER       = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ToolContainer.java");
+    public static final Path PATH_TOOL_CONTAINER       = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "ToolContainer.java");
     public static final Path PATH_TOOL_HANDLER         = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ToolHandler.java");
     public static final Path PATH_TOOL_UTILS           = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ToolUtils.java");
     public static final Path PATH_VYRTUOUS             = Paths.get(DIR_BASE.toString(), "vyrtuous", "Vyrtuous.java");

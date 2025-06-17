@@ -26,7 +26,6 @@ public class ProjectLoader {
     
     public static String loadProjectSource() {
         Path sourceRoot = Paths.get("/app/src");
-
         try {
             return Files.walk(sourceRoot)
                 .filter(p -> !Files.isDirectory(p))

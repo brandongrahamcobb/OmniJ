@@ -17,6 +17,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.inc;
 
+import com.brandongcobb.vyrtuous.enums.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.brandongcobb.vyrtuous.records.ModelInfo;

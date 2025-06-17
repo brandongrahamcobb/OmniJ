@@ -1,5 +1,5 @@
-/*  ChatUtils.java The purpose of this class is to access the
-*   chat object.
+/*  OpenRouterUtils.java The purpose of this class is to access the data
+ *  stored in an OpenRouterContainer object.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

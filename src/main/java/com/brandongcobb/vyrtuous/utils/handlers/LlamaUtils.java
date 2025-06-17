@@ -1,5 +1,5 @@
-/*  ResponseUtils.java The purpose of this class is access the response
- *  object metadata.
+/*  LlamaUtils.java The purpose of this class is to access the data
+ *  stored in an LlamaContainer object.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -22,6 +22,9 @@ import com.brandongcobb.metadata.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -30,9 +33,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
 
 public class LlamaUtils {
     

@@ -1,10 +1,5 @@
-//
-//  SettingsManager.java
-//  
-//
-//  Created by Brandon Cobb on 6/8/25.
-//
-/*  SettingsManager.java
+/*  SettingsManager.java The purpose of this class is to handle configuration
+
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -23,6 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.vyrtuous.enums.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
@@ -31,31 +27,20 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import java.util.concurrent.CompletableFuture;
-
 import java.util.concurrent.ConcurrentHashMap;
-
+import java.util.concurrent.CompletableFuture;
 
 public class SettingsManager {
 
-    // Singleton instance
     private static SettingsManager settingsManager = new SettingsManager();
-
-    // In-memory maps for user preferences
     private final Map<Long, String> userModelPairs = new ConcurrentHashMap<>();
     private final Map<Long, String> userSourcePairs = new ConcurrentHashMap<>();
+    private static final String DEFAULT_MODEL = ModelRegistry.LLAMA_MODEL.toString();
+    private static final String DEFAULT_SOURCE = "llama";
 
-    // Default fallback values
-    private static final String DEFAULT_MODEL = ModelRegistry.LLAMA_MODEL.toString();  // Adjust if needed
-    private static final String DEFAULT_SOURCE = "llama";  // Adjust if needed
-
-    // Singleton getter
     public static CompletableFuture<SettingsManager> completeGetSettingsInstance() {
         return CompletableFuture.completedFuture(settingsManager);
     }
-
-    // --- Individual async getters ---
 
     public CompletableFuture<String> completeGetUserModel(Long userId) {
         return CompletableFuture.completedFuture(

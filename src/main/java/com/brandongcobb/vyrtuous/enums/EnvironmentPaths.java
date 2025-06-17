@@ -16,8 +16,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.inc;
+package com.brandongcobb.vyrtuous.enums;
 
+import com.brandongcobb.vyrtuous.utils.inc.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -25,7 +26,6 @@ public enum EnvironmentPaths {
     
     AI_MANAGER(Helpers.PATH_AI_MANAGER),
     APPROVAL_MODE(Helpers.PATH_APPROVAL_MODE),
-    CHAT_CONTAINER(Helpers.PATH_CHAT_CONTAINER),
     COG(Helpers.PATH_COG),
     CONTEXT_ENTRY(Helpers.PATH_CONTEXT_ENTRY),
     CONTEXT_MANAGER(Helpers.PATH_CONTEXT_MANAGER),
@@ -35,6 +35,8 @@ public enum EnvironmentPaths {
     HYBRID_COMMANDS(Helpers.PATH_HYBRID_COMMANDS),
     LLAMA_CONTAINER(Helpers.PATH_LLAMA_CONTAINER),
     LLAMA_UTILS(Helpers.PATH_LLAMA_UTILS),
+    LMSTUDIO_CONTAINER(Helpers.PATH_LMSTUDIO_CONTAINER),
+    LMSTUDIO_UTILS(Helpers.PATH_LMSTUDIO_UTILS),
     MAIN_CONTAINER(Helpers.PATH_MAIN_CONTAINER),
     MARKDOWN_CONTAINER(Helpers.PATH_MARKDOWN_CONTAINER),
     MARKDOWN_UTILS(Helpers.PATH_MARKDOWN_UTILS),
@@ -42,8 +44,11 @@ public enum EnvironmentPaths {
     MODEL_INFO(Helpers.PATH_MODEL_INFO),
     MODEL_REGISTRY(Helpers.PATH_MODEL_REGISTRY),
     MODERATION_MANAGER(Helpers.PATH_MODERATION_MANAGER),
+    OLLAMA_CONTAINER(Helpers.PATH_OLLAMA_CONTAINER),
+    OLLAMA_UTILS(Helpers.PATH_OLLAMA_UTILS),
     OPENAI_CONTAINER(Helpers.PATH_OPENAI_CONTAINER),
     OPENAI_UTILS(Helpers.PATH_OPENAI_UTILS),
+    OPENROUTER_CONTAINER(Helpers.PATH_OPENROUTER_CONTAINER),
     OPENROUTER_UTILS(Helpers.PATH_OPENROUTER_UTILS),
     PREDICATOR(Helpers.PATH_PREDICATOR),
     PROJECT_LOADER(Helpers.PATH_PROJECT_LOADER),

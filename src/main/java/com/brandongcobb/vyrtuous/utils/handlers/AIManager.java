@@ -73,84 +73,6 @@ public class AIManager {
     private StringBuilder builder = new StringBuilder();
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
 
-    private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
-        String content,
-        String previousResponseId,
-        String model,
-        String requestType,
-        String instructions,
-        boolean stream
-    ) {
-        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
-            Map<String, Object> body = new HashMap<>();
-            List<Map<String, Object>> messages = new ArrayList<>();
-            Map<String, Object> msgMap = new HashMap<>();
-            Map<String, Object> userMsg = new HashMap<>();
-            Map<String, Object> systemMsg = new HashMap<>();
-            switch (requestType) {
-                case "deprecated":
-                    body.put("model", model);
-                    systemMsg.put("role", "system");
-                    systemMsg.put("content", instructions);
-                    userMsg.put("role", "user");
-                    userMsg.put("content", content);
-                    body.put("stream", stream);
-                    body.put("n_predict", -1);
-                    body.put("max_tokens", -1);
-                    body.put("max_completion_tokens", -1);
-                    messages.add(systemMsg);
-                    messages.add(userMsg);
-                    body.put("messages", messages);
-                case "moderation":
-                    body.put("model", model);
-                    body.put("input", content);
-                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                case "latest":
-                    body.put("placeholder", "");
-                case "response":
-                    body.put("model", model);
-                    ModelInfo info = Maps.RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-                    if (info != null && info.status()) {
-                        body.put("max_output_tokens", tokens);
-                    } else {
-                        body.put("max_tokens", tokens);
-                    }
-                    body.put("instructions", instructions);
-                    systemMsg.put("role", "system");
-                    systemMsg.put("content", instructions);
-                    userMsg.put("role", "user");
-                    userMsg.put("content", content);
-                    messages.add(systemMsg);
-                    messages.add(userMsg);
-                    body.put("input", messages);
-                    body.put("stream", stream);
-                    if (previousResponseId != null) {
-                        body.put("previous_response_id", previousResponseId);
-                    }
-                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                default:
-                    body.put("placeholder", "");
-            }
-            return body;
-        });
-    }
-
-    private CompletableFuture<Long> completeCalculateMaxOutputTokens(String model, String prompt) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                Encoding encoding = registry.getEncoding("cl100k_base")
-                    .orElseThrow(() -> new IllegalStateException("Encoding cl100k_base not available"));
-                long promptTokens = encoding.encode(prompt).size();
-                ModelInfo outputInfo = Maps.RESPONSE_MODEL_OUTPUT_LIMITS.get(model);
-                long outputLimit = outputInfo != null ? outputInfo.upperLimit() : 4096;
-                long tokens = Math.max(1, outputLimit - promptTokens - 20);
-                if (tokens < 16) tokens = 16;
-                return tokens;
-            } catch (Exception e) {
-                return 0L;
-            }
-        });
-    }
 
     /*
      *  llama.cpp
@@ -453,8 +375,86 @@ public class AIManager {
     }
 
     /*
-     *  Main method
+     *  Generic
      */
+    private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
+        String content,
+        String previousResponseId,
+        String model,
+        String requestType,
+        String instructions,
+        boolean stream
+    ) {
+        return completeCalculateMaxOutputTokens(model, content).thenApplyAsync(tokens -> {
+            Map<String, Object> body = new HashMap<>();
+            List<Map<String, Object>> messages = new ArrayList<>();
+            Map<String, Object> msgMap = new HashMap<>();
+            Map<String, Object> userMsg = new HashMap<>();
+            Map<String, Object> systemMsg = new HashMap<>();
+            switch (requestType) {
+                case "deprecated":
+                    body.put("model", model);
+                    systemMsg.put("role", "system");
+                    systemMsg.put("content", instructions);
+                    userMsg.put("role", "user");
+                    userMsg.put("content", content);
+                    body.put("stream", stream);
+                    body.put("n_predict", -1);
+                    body.put("max_tokens", -1);
+                    body.put("max_completion_tokens", -1);
+                    messages.add(systemMsg);
+                    messages.add(userMsg);
+                    body.put("messages", messages);
+                case "moderation":
+                    body.put("model", model);
+                    body.put("input", content);
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                case "latest":
+                    body.put("placeholder", "");
+                case "response":
+                    body.put("model", model);
+                    ModelInfo info = Maps.RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                    if (info != null && info.status()) {
+                        body.put("max_output_tokens", tokens);
+                    } else {
+                        body.put("max_tokens", tokens);
+                    }
+                    body.put("instructions", instructions);
+                    systemMsg.put("role", "system");
+                    systemMsg.put("content", instructions);
+                    userMsg.put("role", "user");
+                    userMsg.put("content", content);
+                    messages.add(systemMsg);
+                    messages.add(userMsg);
+                    body.put("input", messages);
+                    body.put("stream", stream);
+                    if (previousResponseId != null) {
+                        body.put("previous_response_id", previousResponseId);
+                    }
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                default:
+                    body.put("placeholder", "");
+            }
+            return body;
+        });
+    }
+
+    private CompletableFuture<Long> completeCalculateMaxOutputTokens(String model, String prompt) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Encoding encoding = registry.getEncoding("cl100k_base")
+                    .orElseThrow(() -> new IllegalStateException("Encoding cl100k_base not available"));
+                long promptTokens = encoding.encode(prompt).size();
+                ModelInfo outputInfo = Maps.RESPONSE_MODEL_OUTPUT_LIMITS.get(model);
+                long outputLimit = outputInfo != null ? outputInfo.upperLimit() : 4096;
+                long tokens = Math.max(1, outputLimit - promptTokens - 20);
+                if (tokens < 16) tokens = 16;
+                return tokens;
+            } catch (Exception e) {
+                return 0L;
+            }
+        });
+    }
     public CompletableFuture<MetadataContainer> completeRequest(String instructions, String content, String previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk, String source
     ) throws Exception {
         if (Maps.LLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
@@ -470,7 +470,9 @@ public class AIManager {
         }
     }
 
-    
+    /*
+     *  Getters
+     */
     public CompletableFuture<String> completeGetAIEndpoint(boolean multimodal, String provider, String sourceOfRequest, String requestType
     ) {
         String endpoint = null;

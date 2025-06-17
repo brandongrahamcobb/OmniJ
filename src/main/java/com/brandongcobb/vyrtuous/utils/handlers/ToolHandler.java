@@ -1,4 +1,4 @@
-/* ToolHandler.java The purpose of this class is to handle the tools.
+/* ToolHandler.java The purpose of this class is to employ tools.
  *
  * Copyright (C) 2025  github.com/brandongrahamcobb
  *
