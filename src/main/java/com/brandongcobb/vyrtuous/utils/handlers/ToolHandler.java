@@ -471,67 +471,61 @@ public class ToolHandler {
     }
     
     public static CompletableFuture<String> executeCommands(List<List<String>> allCommands) {
-            CompletableFuture<String> future = new CompletableFuture<>();
+        CompletableFuture<String> future = new CompletableFuture<>();
 
-            // quick validation
-            if (allCommands.isEmpty()) {
-                future.completeExceptionally(new IllegalArgumentException("No commands provided"));
-                return future;
-            }
-
-            // build one single shell pipeline string
-            String commandLine = allCommands.stream()
-                .map(segment -> {
-                    if (segment.size() == 1 && SHELL_OPERATORS.contains(segment.get(0))) {
-                        return segment.get(0);
-                    } else {
-                        return segment.stream()
-                                      .map(ToolHandler::quoteToken)
-                                      .collect(Collectors.joining(" "));
-                    }
-                })
-                .collect(Collectors.joining(" "));
-
-            CommandLine cmd = new CommandLine("/bin/sh");
-            cmd.addArgument("-c", false);
-            cmd.addArgument(commandLine, false);
-
-            // capture both stdout+stderr
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream);
-
-            DefaultExecutor executor = new DefaultExecutor();
-            executor.setStreamHandler(streamHandler);
-            executor.setWatchdog(new ExecuteWatchdog(20_000)); // 20 s timeout
-            executor.setExitValues(null);                     // expect exit 0
-
-            // result handler completes the future
-            DefaultExecuteResultHandler handler = new DefaultExecuteResultHandler() {
-                @Override
-                public void onProcessComplete(int exitValue) {
-                    if (exitValue == 0) {
-                        future.complete(outputStream.toString(StandardCharsets.UTF_8));
-                    } else {
-                        future.completeExceptionally(
-                            new IOException("Command exited with code " + exitValue)
-                        );
-                    }
-                }
-                @Override
-                public void onProcessFailed(ExecuteException e) {
-                    future.completeExceptionally(e);
-                }
-            };
-
-            try {
-                executor.execute(cmd, handler);
-            } catch (IOException e) {
-                // immediate I/O failure (e.g. /bin/sh not found)
-                future.completeExceptionally(e);
-            }
-
+        if (allCommands.isEmpty()) {
+            future.completeExceptionally(new IllegalArgumentException("No commands provided"));
             return future;
         }
+
+        String commandLine = allCommands.stream()
+            .map(segment -> {
+                if (segment.size() == 1 && SHELL_OPERATORS.contains(segment.get(0))) {
+                    return segment.get(0);
+                } else {
+                    return segment.stream()
+                                  .map(ToolHandler::quoteToken)
+                                  .collect(Collectors.joining(" "));
+                }
+            })
+            .collect(Collectors.joining(" "));
+
+        CommandLine cmd = new CommandLine("/bin/sh");
+        cmd.addArgument("-c", false);
+        cmd.addArgument(commandLine, false);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream);
+
+        DefaultExecutor executor = new DefaultExecutor();
+        executor.setStreamHandler(streamHandler);
+        executor.setWatchdog(new ExecuteWatchdog(20_000));
+        executor.setExitValues(null); // accept any exit value
+
+        DefaultExecuteResultHandler handler = new DefaultExecuteResultHandler() {
+            @Override
+            public void onProcessComplete(int exitValue) {
+                // always complete with output, even if exit code is nonzero
+                future.complete(outputStream.toString(StandardCharsets.UTF_8));
+            }
+
+            @Override
+            public void onProcessFailed(ExecuteException e) {
+                // still return captured output, even on failure
+                future.complete(outputStream.toString(StandardCharsets.UTF_8));
+            }
+        };
+
+        try {
+            executor.execute(cmd, handler);
+        } catch (IOException e) {
+            // I/O failure – complete with exception
+            future.completeExceptionally(e);
+        }
+
+        return future;
+    }
+
 }
     
 //    public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {

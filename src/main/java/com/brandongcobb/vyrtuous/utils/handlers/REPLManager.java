@@ -51,9 +51,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -245,6 +245,7 @@ public class REPLManager {
             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, output));
             output = null;
             if (needsClarification && acceptingTokens) {
+                contextManager.printNewEntries(true, true, true, true, false, true, true);
                 System.out.print("> ");
                 String reply = scanner.nextLine();
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
@@ -270,7 +271,7 @@ public class REPLManager {
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
-        contextManager.printNewEntries(true, true, true, true, false, true, true);
+        contextManager.printNewEntries(true, false, true, true, false, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
