@@ -18,6 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.knuddels.jtokkit.api.Encoding;
 import com.knuddels.jtokkit.api.EncodingRegistry;
@@ -27,15 +28,6 @@ import java.util.ArrayList;
 
 public class ContextManager {
 
-    public static final String RESET = "\u001B[0m";
-    public static final String BLUE = "\u001B[34m";
-    public static final String BRIGHT_BLUE = "\u001B[94m";
-    public static final String CYAN = "\u001B[36m";
-    public static final String BRIGHT_CYAN = "\u001B[96m";
-    public static final String NAVY = "\u001B[38;5;18m";
-    public static final String SKY_BLUE = "\u001B[38;5;117m";
-    public static final String DODGER_BLUE = "\u001B[38;5;33m";
-    public static final String TEAL = "\u001B[38;5;30m";
     private final List<ContextEntry> entries = new ArrayList<>();
     private final int maxEntries;
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry(); // Commented out as token counting is disabled
@@ -74,16 +66,16 @@ public class ContextManager {
             if (shouldPrint) {
                 String color;
                 switch (type) {
-                    case USER_MESSAGE:   color = BRIGHT_BLUE; break;
-                    case AI_RESPONSE:    color = TEAL;        break;
-                    case COMMAND:        color = CYAN;        break;
-                    case COMMAND_OUTPUT: color = SKY_BLUE;    break;
-                    case TOKENS:         color = BRIGHT_CYAN; break;
-                    case SYSTEM_NOTE:    color = NAVY;        break;
-                    case SHELL_OUTPUT:   color = DODGER_BLUE; break;
-                    default:             color = RESET;       break;
+                    case USER_MESSAGE:   color = Vyrtuous.BRIGHT_BLUE; break;
+                    case AI_RESPONSE:    color = Vyrtuous.TEAL;        break;
+                    case COMMAND:        color = Vyrtuous.CYAN;        break;
+                    case COMMAND_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
+                    case TOKENS:         color = Vyrtuous.BRIGHT_CYAN; break;
+                    case SYSTEM_NOTE:    color = Vyrtuous.NAVY;        break;
+                    case SHELL_OUTPUT:   color = Vyrtuous.DODGER_BLUE; break;
+                    default:             color = Vyrtuous.RESET;       break;
                 }
-                System.out.println(color + entry.formatForPrompt() + RESET);
+                System.out.println(color + entry.formatForPrompt() + Vyrtuous.RESET);
             }
         }
     }
@@ -190,16 +182,16 @@ public class ContextManager {
             if (shouldPrint) {
                 String color;
                 switch (type) {
-                    case USER_MESSAGE:   color = BRIGHT_BLUE; break;
-                    case AI_RESPONSE:    color = TEAL;        break;
-                    case COMMAND:        color = CYAN;        break;
-                    case COMMAND_OUTPUT: color = SKY_BLUE;    break;
-                    case TOKENS:         color = BRIGHT_CYAN; break;
-                    case SYSTEM_NOTE:    color = NAVY;        break;
-                    case SHELL_OUTPUT:   color = DODGER_BLUE; break;
-                    default:             color = RESET;       break;
+                    case USER_MESSAGE:   color = Vyrtuous.BRIGHT_BLUE; break;
+                    case AI_RESPONSE:    color = Vyrtuous.TEAL;        break;
+                    case COMMAND:        color = Vyrtuous.CYAN;        break;
+                    case COMMAND_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
+                    case TOKENS:         color = Vyrtuous.BRIGHT_CYAN; break;
+                    case SYSTEM_NOTE:    color = Vyrtuous.NAVY;        break;
+                    case SHELL_OUTPUT:   color = Vyrtuous.DODGER_BLUE; break;
+                    default:             color = Vyrtuous.RESET;       break;
                 }
-                System.out.println(color + entry.formatForPrompt() + RESET);
+                System.out.println(color + entry.formatForPrompt() + Vyrtuous.RESET);
             }
         }
     }
