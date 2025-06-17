@@ -471,27 +471,27 @@ public class AIManager {
     }
 
     
-    public CompletableFuture<String> completeGetAIEndpoint(boolean multimodal, String requestedSource, String sourceOfRequest, String requestType
+    public CompletableFuture<String> completeGetAIEndpoint(boolean multimodal, String provider, String sourceOfRequest, String requestType
     ) {
         String endpoint = null;
         if ("cli".equals(sourceOfRequest)) {
-            if ("latest".equals(requestedSource)) {
+            if ("latest".equals(provider)) {
                 endpoint = Maps.LATEST_CLI_ENDPOINT_URLS.get(requestType);
-            } else if ("llama".equals(requestedSource)) {
+            } else if ("llama".equals(provider)) {
                 endpoint = Maps.LLAMA_CLI_ENDPOINT_URLS.get(requestType);
-            } else if ("openai".equals(requestedSource)) {
+            } else if ("openai".equals(provider)) {
                 endpoint = Maps.OPENAI_CLI_ENDPOINT_URLS.get(requestType);
             }
         } else if ("discord".equals(sourceOfRequest)) {
-            if ("latest".equals(requestedSource)) {
+            if ("latest".equals(provider)) {
                 endpoint = multimodal
                     ? Maps.LATEST_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)
                     : Maps.LATEST_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
-            } else if ("llama".equals(requestedSource)) {
+            } else if ("llama".equals(provider)) {
                 endpoint = multimodal
                     ? Maps.LLAMA_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)
                     : Maps.LLAMA_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
-            } else if ("openai".equals(requestedSource)) {
+            } else if ("openai".equals(provider)) {
                 endpoint = multimodal
                     ? Maps.OPENAI_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)
                     : Maps.OPENAI_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
@@ -501,27 +501,28 @@ public class AIManager {
         }
         if (endpoint == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(
-                "Invalid combination of requestedSource: " + requestedSource + " and sourceOfRequest: " + sourceOfRequest));
+                "Invalid combination of provider: " + provider + " and sourceOfRequest: " + sourceOfRequest));
         }
         return CompletableFuture.completedFuture(endpoint);
     }
     
-    public CompletableFuture<String> completeGetInstructions(boolean multimodal, String requestedSource, String sourceOfRequest) {
+    public CompletableFuture<String> completeGetInstructions(boolean multimodal, String provider, String sourceOfRequest) {
         String instructions = null;
         if ("cli".equals(sourceOfRequest)) {
-            instructions = Maps.CLI_INSTRUCTIONS.get(requestedSource);
+            instructions = Maps.CLI_INSTRUCTIONS.get(provider);
+            System.out.println(instructions);
         } else if ("discord".equals(sourceOfRequest)) {
             if (multimodal) {
-                instructions = Maps.DISCORD_IMAGE_INSTRUCTIONS.get(requestedSource);
+                instructions = Maps.DISCORD_IMAGE_INSTRUCTIONS.get(provider);
             } else {
-                instructions = Maps.DISCORD_TEXT_INSTRUCTIONS.get(requestedSource);
+                instructions = Maps.DISCORD_TEXT_INSTRUCTIONS.get(provider);
             }
         } else if ("twitch".equals(sourceOfRequest)) {
-            instructions = Maps.TWITCH_INSTRUCTIONS.get(requestedSource);
+            instructions = Maps.TWITCH_INSTRUCTIONS.get(provider);
         }
         if (instructions == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(
-                "Invalid combination of requestedSource: " + requestedSource + " and sourceOfRequest: " + sourceOfRequest));
+                "Invalid combination of provider: " + provider + " and sourceOfRequest: " + sourceOfRequest));
         }
         return CompletableFuture.completedFuture(instructions);
     }

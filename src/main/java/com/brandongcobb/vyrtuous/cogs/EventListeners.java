@@ -98,7 +98,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         serverRequest.endpoint,
                         serverRequest.stream,
                         (Consumer<String>) null,
-                        serverRequest.source
+                        serverRequest.provider
                     ).thenCompose(moderationContainer -> {
                         CompletableFuture<Boolean> flaggedFuture = switch (moderationContainer) {
                             case OpenAIContainer o -> new OpenAIUtils(o).completeGetFlagged();
@@ -146,12 +146,12 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
                     .thenCompose(userSettings -> {
                         String userModel = userSettings[0];
-                        String source = userSettings[1];
+                        String provider = userSettings[1];
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
-                        return aim.completeGetAIEndpoint(multimodal, source, "discord", requestType)
-                            .thenCombine(aim.completeGetInstructions(multimodal, "discord", source), (endpoint, instructions) -> {
+                        return aim.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
+                            .thenCombine(aim.completeGetInstructions(multimodal, "discord", provider), (endpoint, instructions) -> {
                                 long previousId = 0L;
-                                if ("openai".equals(source) && previousResponse instanceof OpenAIContainer) {
+                                if ("openai".equals(provider) && previousResponse instanceof OpenAIContainer) {
                                     previousId = Long.valueOf(new OpenAIUtils(previousResponse).completeGetResponseId().join());
                                     return new ServerRequest(
                                         instructions,
@@ -162,7 +162,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                         null,
                                         endpoint,
                                         previousId,
-                                        source,
+                                        provider,
                                         requestType
                                     );
                                 } else {
@@ -178,7 +178,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                         history,
                                         endpoint,
                                         0L,
-                                        source,
+                                        provider,
                                         requestType
                                     );
                                 }
@@ -214,7 +214,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         serverRequest.endpoint,
                         serverRequest.stream,
                         queue::offer,
-                        System.getenv("DISCORD_REQUEST_SOURCE")
+                        System.getenv("DISCORD_PROVIDER")
                     );
                     CompletableFuture<Void> streamFuture = mem.completeStreamResponse(sentMessage, nextChunkSupplier);
                     return CompletableFuture.allOf(responseFuture, streamFuture)
@@ -259,7 +259,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 serverRequest.endpoint,
                 serverRequest.stream,
                 null,
-                System.getenv("DISCORD_REQUEST_SOURCE")
+                System.getenv("DISCORD_PROVIDER")
             ).thenCompose(responseObject -> {
                 genericUserResponseMap.put(senderId, responseObject);
                 CompletableFuture<String> contentFuture;

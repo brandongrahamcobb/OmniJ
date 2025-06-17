@@ -51,9 +51,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -126,12 +126,12 @@ public class REPLManager {
             ? originalDirective
             : contextManager.buildPromptContext();
         String model = System.getenv("CLI_MODEL");
-        String requestSource = System.getenv("CLI_PROVIDER");
+        String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");// assuming this is already set elsewhere
         CompletableFuture<String> endpointFuture =
-            aim.completeGetAIEndpoint(false, requestSource, "cli", requestType);
+            aim.completeGetAIEndpoint(false, provider, "cli", requestType);
         CompletableFuture<String> instructionsFuture =
-            aim.completeGetInstructions(false, "cli", requestSource);
+            aim.completeGetInstructions(false, provider, "cli");
         return endpointFuture
             .thenCombine(instructionsFuture, (endpoint, instructions) -> new AbstractMap.SimpleEntry<>(endpoint, instructions))
             .thenCompose(pair -> {
@@ -142,12 +142,12 @@ public class REPLManager {
 
                 try {
                     if (firstRun) {
-                        call = aim.completeRequest( instructions, prompt, 0L, model, requestType, endpoint, false, null, requestSource
+                        call = aim.completeRequest(instructions, prompt, 0L, model, requestType, endpoint, false, null, provider
                         );
                     } else {
                         MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("id", Metadata.LONG);
                         long prevId = (long) lastAIResponseContainer.get(previousResponseIdKey);
-                        call = aim.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.valueOf(System.getenv("CLI_STREAM")), null, requestSource
+                        call = aim.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.valueOf(System.getenv("CLI_STREAM")), null, provider
                         );
                     }
                     return call.handle((resp, ex) -> {
@@ -160,7 +160,7 @@ public class REPLManager {
                         }
                         String content = null;
                         ObjectMapper mapper = new ObjectMapper();
-                        switch (requestSource) {
+                        switch (provider) {
                             case "llama":
                                 LlamaUtils llamaOuterUtils = new LlamaUtils(resp);
                                 content = llamaOuterUtils.completeGetContent().join();

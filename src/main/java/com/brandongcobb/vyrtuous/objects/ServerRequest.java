@@ -18,11 +18,11 @@ public class ServerRequest {
     public boolean stream;
     public List<String> conversationHistory;
     public long previousResponseId;
-    public String source;
+    public String provider;
     public String requestType;
     public String endpoint;
     
-    public ServerRequest (String instructions, String prompt, String model, boolean store, boolean stream, List<String> history, String endpoint, long previousResponseId, String source, String requestType) {
+    public ServerRequest (String instructions, String prompt, String model, boolean store, boolean stream, List<String> history, String endpoint, long previousResponseId, String provider, String requestType) {
         this.instructions = instructions;
         this.prompt = prompt;
         this.model = model;
@@ -30,7 +30,7 @@ public class ServerRequest {
         this.store = store;
         this.conversationHistory = history;
         this.previousResponseId = previousResponseId;
-        this.source = source;
+        this.provider = provider;
         this.requestType = requestType;
         this.endpoint = endpoint;
     }
