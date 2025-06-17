@@ -170,34 +170,14 @@ public class REPLManager {
 
                 try {
                     if (firstRun) {
-                        call = aim.completeRequest(
-                            instructions,
-                            prompt,
-                            0L,
-                            model,
-                            requestType,
-                            endpoint,
-                            false,
-                            null,
-                            requestSource
+                        call = aim.completeRequest( instructions, prompt, 0L, model, requestType, endpoint, false, null, requestSource
                         );
                     } else {
                         MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("id", Metadata.LONG);
                         long prevId = (long) lastAIResponseContainer.get(previousResponseIdKey);
-
-                        call = aim.completeRequest(
-                            instructions,
-                            prompt,
-                            prevId,
-                            model,
-                            requestType,
-                            endpoint,
-                            false,
-                            null,
-                            requestSource
+                        call = aim.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.valueOf(System.getenv("CLI_STREAM")), null, requestSource
                         );
                     }
-
                     return call.handle((resp, ex) -> {
                         if (ex != null) {
                             LOGGER.severe("completeRequest failed: " + ex.getMessage());
@@ -206,9 +186,20 @@ public class REPLManager {
                         if (resp == null) {
                             throw new CompletionException(new IllegalStateException("AI returned null"));
                         }
+                        String content = null;
                         ObjectMapper mapper = new ObjectMapper();
-                        LlamaUtils llamaOuterUtils = new LlamaUtils(resp);
-                        String content = llamaOuterUtils.completeGetContent().join();
+                        switch (requestSource) {
+                            case "llama":
+                                LlamaUtils llamaOuterUtils = new LlamaUtils(resp);
+                                content = llamaOuterUtils.completeGetContent().join();
+                                break;
+                            case "openai":
+                                OpenAIUtils openaiUtils = new OpenAIUtils(resp);
+                                content = (String) openaiUtils.completeGetOutput().join();
+                                break;
+                            default:
+                                return new MetadataContainer();
+                        }
                         String jsonContent = ToolHandler.extractJsonContent(content);
                         LOGGER.fine("Extracted JSON: " + jsonContent);
                         jsonContent = ToolHandler.sanitizeJsonContent(jsonContent);

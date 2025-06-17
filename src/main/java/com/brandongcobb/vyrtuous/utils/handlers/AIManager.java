@@ -261,9 +261,38 @@ public class AIManager {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
-                        Map<String, Object> responseMap = mapper.readValue(respBody, new TypeReference<>() {});
-                        LMStudioContainer response = new LMStudioContainer(responseMap);
-                        return (MetadataContainer) response;
+                        if (onContentChunk == null) {
+                            LOGGER.fine(respBody);
+                            Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                            LMStudioContainer lmStudioContainer = new LMStudioContainer(outer);
+                            return (MetadataContainer) lmStudioContainer;
+                        } else {
+                            StringBuilder builder = new StringBuilder();
+                            Map<String, Object> lastChunk = null;
+                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    if (!line.startsWith("data:")) continue;
+                                    String data = line.substring(5).trim();
+                                    if (data.equals("[DONE]")) break;
+                                    Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+                                    lastChunk = chunk;
+                                    Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+                                    Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+                                    String content = (String) delta.get("content");
+                                    if (content != null) {
+                                        onContentChunk.accept(content);
+                                        builder.append(content);
+                                    }
+                                }
+                            }
+                            if (lastChunk == null) {
+                                throw new IllegalStateException("No valid chunk received.");
+                            }
+                            LMStudioContainer container = new LMStudioContainer(lastChunk);
+                            container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+                            return container;
+                        }
                     } else {
                         throw new IOException("HTTP " + code + ": " + respBody);
                     }
@@ -309,29 +338,40 @@ public class AIManager {
                     int statusCode = resp.getStatusLine().getStatusCode();
                     String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (statusCode >= 200 && statusCode < 300) {
-                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
-                        OpenAIContainer openaiOuterResponse = new OpenAIContainer(outer);
-                        OpenAIUtils openaiOuterUtils = new OpenAIUtils(openaiOuterResponse);
-                        String content = (String) openaiOuterUtils.completeGetOutput().join();
-                        String jsonContent = content
-                            .replaceFirst("^```json\\s*", "")
-                            .replaceFirst("\\s*```$", "")
-                            .trim();
-                        if (!jsonContent.contains("local_shell_command_sequence_finished")) {
-                            throw new Exception("CRITICAL ERROR");
+                        
+                        if (onContentChunk == null) {
+                            LOGGER.fine(responseBody);
+                            Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
+                            OpenAIContainer openaiContainer = new OpenAIContainer(outer);
+                            return (MetadataContainer) openaiContainer;
+                        } else {
+                            StringBuilder builder = new StringBuilder();
+                            Map<String, Object> lastChunk = null;
+                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    if (!line.startsWith("data:")) continue;
+                                    String data = line.substring(5).trim();
+                                    if (data.equals("[DONE]")) break;
+                                    Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+                                    lastChunk = chunk;
+                                    Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+                                    Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+                                    String content = (String) delta.get("content");
+                                    if (content != null) {
+                                        onContentChunk.accept(content);
+                                        builder.append(content);
+                                    }
+                                }
+                            }
+                            if (lastChunk == null) {
+                                throw new IllegalStateException("No valid chunk received.");
+                            }
+                            OpenAIContainer container = new OpenAIContainer(lastChunk);
+                            container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+                            return container;
                         }
-                        System.out.flush();
-                        Map<String, Object> inner = mapper.readValue(jsonContent, new TypeReference<>() {});
-                        MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("id", Metadata.LONG);
-                        long previousResponseId = (long) openaiOuterUtils.completeGetResponseId().join();
-                        String text = (String) openaiOuterUtils.completeGetText().join();
-                        String reasoning = (String) openaiOuterUtils.completeGetText().join();
-                        inner.put("id", previousResponseId);
-                        String summary = (String) inner.get("summary");
-                        inner.put("summary", text + reasoning + summary);
-                        ToolContainer toolResponse = new ToolContainer(inner);
-                        toolResponse.put(previousResponseIdKey, previousResponseId);
-                        return (MetadataContainer) toolResponse;
+
                     } else {
                         throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);
                     }
@@ -369,9 +409,38 @@ public class AIManager {
                     int code = resp.getStatusLine().getStatusCode();
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
-                        Map<String, Object> inner = mapper.readValue(respBody, new TypeReference<>() {});
-                        OpenRouterContainer response = new OpenRouterContainer(inner);
-                        return (MetadataContainer) response;
+                        if (onContentChunk == null) {
+                            LOGGER.fine(respBody);
+                            Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                            OpenRouterContainer openRouterContainer = new OpenRouterContainer(outer);
+                            return (MetadataContainer) openRouterContainer;
+                        } else {
+                            StringBuilder builder = new StringBuilder();
+                            Map<String, Object> lastChunk = null;
+                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    if (!line.startsWith("data:")) continue;
+                                    String data = line.substring(5).trim();
+                                    if (data.equals("[DONE]")) break;
+                                    Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+                                    lastChunk = chunk;
+                                    Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+                                    Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+                                    String content = (String) delta.get("content");
+                                    if (content != null) {
+                                        onContentChunk.accept(content);
+                                        builder.append(content);
+                                    }
+                                }
+                            }
+                            if (lastChunk == null) {
+                                throw new IllegalStateException("No valid chunk received.");
+                            }
+                            OpenRouterContainer container = new OpenRouterContainer(lastChunk);
+                            container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+                            return container;
+                        }
                     } else {
                         System.out.println("HTTP error code: " + code);
                         throw new IOException("HTTP " + code + ": " + respBody);
