@@ -149,7 +149,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         String provider = userSettings[1];
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
                         return aim.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
-                            .thenCombine(aim.completeGetInstructions(multimodal, "discord", provider), (endpoint, instructions) -> {
+                            .thenCombine(aim.completeGetInstructions(multimodal, provider, "discord"), (endpoint, instructions) -> {
                                 String previousId = null;
                                 if ("openai".equals(provider) && previousResponse instanceof OpenAIContainer) {
                                     previousId = (String) new OpenAIUtils(previousResponse).completeGetResponseId().join();

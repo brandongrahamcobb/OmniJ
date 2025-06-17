@@ -501,7 +501,7 @@ public class AIManager {
         }
         if (endpoint == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(
-                "Invalid combination of provider: " + provider + " and sourceOfRequest: " + sourceOfRequest));
+                "Invalid combination of provider: " + provider + " and sourceOfRequest: " + sourceOfRequest + " for endpoint."));
         }
         return CompletableFuture.completedFuture(endpoint);
     }
@@ -521,7 +521,7 @@ public class AIManager {
         }
         if (instructions == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(
-                "Invalid combination of provider: " + provider + " and sourceOfRequest: " + sourceOfRequest));
+                "Invalid combination of provider: " + provider + " and sourceOfRequest: " + sourceOfRequest + " for instructions."));
         }
         return CompletableFuture.completedFuture(instructions);
     }
