@@ -82,7 +82,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
         CompletableFuture<String> contentFuture = (attachments != null && !attachments.isEmpty())
             ? mem.completeProcessAttachments(attachments).thenApply(list -> {
                 multimodal[0] = true;
-                return String.join("\n", list) + "\n" + message.getContentDisplay();
+                return String.join("\n", list) + "\n" + message.getContentDisplay().replace("@Vyrtuous ", "");
             })
             : CompletableFuture.completedFuture(message.getContentDisplay());
         contentFuture
