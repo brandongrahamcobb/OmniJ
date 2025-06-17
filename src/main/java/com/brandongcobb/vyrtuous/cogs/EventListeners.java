@@ -150,9 +150,9 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
                         return aim.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
                             .thenCombine(aim.completeGetInstructions(multimodal, "discord", provider), (endpoint, instructions) -> {
-                                long previousId = 0L;
+                                String previousId = null;
                                 if ("openai".equals(provider) && previousResponse instanceof OpenAIContainer) {
-                                    previousId = Long.valueOf(new OpenAIUtils(previousResponse).completeGetResponseId().join());
+                                    previousId = (String) new OpenAIUtils(previousResponse).completeGetResponseId().join();
                                     return new ServerRequest(
                                         instructions,
                                         prompt,
@@ -177,7 +177,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                                         Boolean.parseBoolean(System.getenv("DISCORD_STORE")),
                                         history,
                                         endpoint,
-                                        0L,
+                                        null,
                                         provider,
                                         requestType
                                     );
@@ -221,7 +221,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         .thenCompose(v -> responseFuture)
                         .thenCompose(responseObject -> {
                             genericUserResponseMap.put(senderId, responseObject);
-                            long newResponseId = serverRequest.previousResponseId;
+                            String newResponseId = serverRequest.previousResponseId;
                             if (responseObject instanceof OpenAIContainer openai) {
                                 return new OpenAIUtils(openai).completeSetPreviousResponseId(newResponseId);
                             } else if (responseObject instanceof LlamaContainer llama) {

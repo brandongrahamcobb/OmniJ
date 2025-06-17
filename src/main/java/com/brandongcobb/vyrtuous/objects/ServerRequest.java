@@ -17,12 +17,12 @@ public class ServerRequest {
     public boolean store;
     public boolean stream;
     public List<String> conversationHistory;
-    public long previousResponseId;
+    public String previousResponseId;
     public String provider;
     public String requestType;
     public String endpoint;
     
-    public ServerRequest (String instructions, String prompt, String model, boolean store, boolean stream, List<String> history, String endpoint, long previousResponseId, String provider, String requestType) {
+    public ServerRequest (String instructions, String prompt, String model, boolean store, boolean stream, List<String> history, String endpoint, String previousResponseId, String provider, String requestType) {
         this.instructions = instructions;
         this.prompt = prompt;
         this.model = model;

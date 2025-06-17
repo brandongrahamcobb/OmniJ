@@ -75,7 +75,7 @@ public class AIManager {
 
     private CompletableFuture<Map<String, Object>> completeBuildRequestBody(
         String content,
-        long previousResponseId,
+        String previousResponseId,
         String model,
         String requestType,
         String instructions,
@@ -124,7 +124,7 @@ public class AIManager {
                     messages.add(userMsg);
                     body.put("input", messages);
                     body.put("stream", stream);
-                    if (previousResponseId == 0L) {
+                    if (previousResponseId != null) {
                         body.put("previous_response_id", previousResponseId);
                     }
                     body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
@@ -164,7 +164,7 @@ public class AIManager {
         boolean stream,
         Consumer<String> onContentChunk
     ) {
-        return completeBuildRequestBody(content, 1L, model, requestType, instructions, stream)
+        return completeBuildRequestBody(content, null, model, requestType, instructions, stream)
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -238,7 +238,7 @@ public class AIManager {
      *  lmstudio
      */
     private CompletableFuture<MetadataContainer> completeLMStudioRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
-        return completeBuildRequestBody(content, 2L, model, requestType, instructions, stream)
+        return completeBuildRequestBody(content, null, model, requestType, instructions, stream)
                 .thenCompose(reqBody -> completeLMStudioProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -307,14 +307,14 @@ public class AIManager {
      *  Ollama
      */
     private CompletableFuture<MetadataContainer> completeOllamaRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
-        return completeBuildRequestBody(content, 3L, model, requestType, instructions, stream)
+        return completeBuildRequestBody(content, null, model, requestType, instructions, stream)
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
     /*
      *  OpenAI
      */
-    private CompletableFuture<MetadataContainer> completeOpenAIRequest(String instructions, String content, long previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
+    private CompletableFuture<MetadataContainer> completeOpenAIRequest(String instructions, String content, String previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
         return completeBuildRequestBody(content, previousResponseId, model, endpoint, instructions, stream)
                 .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint, onContentChunk));
     }
@@ -386,7 +386,7 @@ public class AIManager {
      *  OpenRouter
      */
     private CompletableFuture<MetadataContainer> completeOpenRouterRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
-        return completeBuildRequestBody(content, 4L, model, requestType, instructions, stream)
+        return completeBuildRequestBody(content, null, model, requestType, instructions, stream)
                 .thenCompose(reqBody -> completeOpenRouterProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -455,7 +455,7 @@ public class AIManager {
     /*
      *  Main method
      */
-    public CompletableFuture<MetadataContainer> completeRequest(String instructions, String content, long previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk, String source
+    public CompletableFuture<MetadataContainer> completeRequest(String instructions, String content, String previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk, String source
     ) throws Exception {
         if (Maps.LLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeLlamaRequest(instructions, content, model, requestType, endpoint, stream, onContentChunk);

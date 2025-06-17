@@ -142,10 +142,10 @@ public class REPLManager {
 
                 try {
                     if (firstRun) {
-                        call = aim.completeRequest(instructions, prompt, 0L, model, requestType, endpoint, false, null, provider);
+                        call = aim.completeRequest(instructions, prompt, null, model, requestType, endpoint, false, null, provider);
                     } else {
-                        MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("id", Metadata.LONG);
-                        long prevId = (long) lastAIResponseContainer.get(previousResponseIdKey);
+                        MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
+                        String prevId = (String) lastAIResponseContainer.get(previousResponseIdKey);
                         call = aim.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.valueOf(System.getenv("CLI_STREAM")), null, provider);
                     }
                     return call.handle((resp, ex) -> {
@@ -163,12 +163,12 @@ public class REPLManager {
                             case "llama":
                                 LlamaUtils llamaUtils = new LlamaUtils(resp);
                                 content = llamaUtils.completeGetContent().join();
-                                previousResponseId = llamaUtils.completeGetPreviousResponseId().join();
+                                previousResponseId = llamaUtils.completeGetResponseId().join();
                                 break;
                             case "openai":
                                 OpenAIUtils openaiUtils = new OpenAIUtils(resp);
                                 content = (String) openaiUtils.completeGetOutput().join();
-                                previousResponseId = openaiUtils.completeGetPreviousResponseId().join();
+                                previousResponseId = openaiUtils.completeGetResponseId().join();
                                 break;
                             default:
                                 return new MetadataContainer();

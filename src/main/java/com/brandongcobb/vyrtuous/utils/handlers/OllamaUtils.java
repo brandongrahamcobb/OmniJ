@@ -74,9 +74,9 @@ public class OllamaUtils {
     /*
      *    Setters
      */
-    public CompletableFuture<Void> completeSetPreviousResponseId(long previousResponseId) {
+    public CompletableFuture<Void> completeSetPreviousResponseId(String previousResponseId) {
         return CompletableFuture.runAsync(() -> {
-            MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.LONG);
+            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
             this.container.put(previousResponseIdKey, previousResponseId);
         });
     }

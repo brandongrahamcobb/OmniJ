@@ -181,19 +181,19 @@ public class OpenAIUtils {
         });
     }
     
-    public CompletableFuture<Long> completeGetResponseId() {
+    public CompletableFuture<String> completeGetResponseId() {
         return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<Long> responseIdKey = new MetadataKey<>("id", Metadata.LONG);
-            return Long.valueOf(this.container.get(responseIdKey));
+            MetadataKey<String> responseIdKey = new MetadataKey<>("id", Metadata.STRING);
+            return (String) this.container.get(responseIdKey);
         });
     }
 
     /*
      *    Setters
      */
-    public CompletableFuture<Void> completeSetPreviousResponseId(long previousResponseId) {
+    public CompletableFuture<Void> completeSetPreviousResponseId(String previousResponseId) {
         return CompletableFuture.runAsync(() -> {
-            MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.LONG);
+            MetadataKey<String> previousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
             this.container.put(previousResponseIdKey, previousResponseId);
         });
     }
