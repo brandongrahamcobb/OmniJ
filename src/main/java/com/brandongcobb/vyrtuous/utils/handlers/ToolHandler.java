@@ -45,17 +45,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.io.File;
-import java.util.Arrays;
-import java.util.AbstractMap;
-
 import java.util.stream.Collectors;
-
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.DefaultExecuteResultHandler;
+import org.apache.commons.exec.ExecuteException;
+import org.apache.commons.exec.ExecuteWatchdog;
+import org.apache.commons.exec.PumpStreamHandler;
 
 public class ToolHandler {
 
@@ -106,6 +114,13 @@ public class ToolHandler {
     public static final String LOCALSHELLTOOL_COMMANDS_LIST = "localshelltool_commands_list";
     public static final String LOCALSHELLTOOL_CALL_IDS = "localshelltool_call_ids";
     
+    private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");
+    private static final Pattern SHELL_SPECIALS = Pattern.compile("(?<!\\\\)([;{}()|])");
+    private static final Set<String> SHELL_OPERATORS = Set.of("|", ";", "&&", "||", ">", "<", ">>");
+    
+    private static final Pattern THINK_PATTERN = Pattern.compile("<think>(.*?)</think>", Pattern.DOTALL);
+    private static final Pattern JSON_CODE_BLOCK_PATTERN = Pattern.compile("```json\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
+    
     private static String readStream(InputStream stream) throws IOException {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
@@ -118,23 +133,15 @@ public class ToolHandler {
     }
     
     public static String removeThinkBlocks(String text) {
-        // Use a regular expression to find and replace the <think>...</think> pattern
-        // (?s) enables the DOTALL mode, so dot (.) matches newline characters as well.
-        // <think> matches the starting tag.
-        // .*? matches any characters (non-greedily) between the tags.
-        // </think> matches the closing tag.
         String regex = "(?s)<think>.*?</think>";
         return text.replaceAll(regex, "");
     }
-    private static final Pattern THINK_PATTERN = Pattern.compile("<think>(.*?)</think>", Pattern.DOTALL);
-    private static final Pattern JSON_CODE_BLOCK_PATTERN = Pattern.compile("```json\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
 
     public static String extractJsonContent(String input) {
         Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
         if (matcher.find()) {
-            return matcher.group(1).trim(); // clean JSON only
+            return matcher.group(1).trim();
         } else {
-            // Optional: fallback to naive cleanup
             return input.replaceFirst("^```json\\s*", "")
                         .replaceFirst("\\s*```$", "")
                         .trim();
@@ -148,43 +155,32 @@ public class ToolHandler {
 
     public static String sanitizeJsonContent(String input) {
         ObjectMapper mapper = new ObjectMapper();
-
-        // If it's already valid JSON, return as-is.
         try {
             mapper.readTree(input);
             return input;
-        } catch (IOException e) {
-            // Try unescaping if it's a quoted JSON string
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
         }
-
-        // If input is a quoted JSON string, e.g. "\"{\\\"key\\\":\\\"val\\\"}\""
         if ((input.startsWith("\"") && input.endsWith("\"")) ||
             (input.startsWith("'") && input.endsWith("'"))) {
             try {
-                // This will turn: "\"{\\\"key\\\":\\\"val\\\"}\"" → "{\"key\":\"val\"}"
                 String unescaped = mapper.readValue(input, String.class);
-                mapper.readTree(unescaped); // validate it
+                mapper.readTree(unescaped);
                 return unescaped;
-            } catch (IOException ignored) {
-                // Continue to fallback
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
             }
         }
-
-        // Fallback: strip illegal leading/trailing characters and try again
         String cleaned = input.trim();
-
-        // Optional: remove common shell/echo leading text
         if (cleaned.startsWith("Output:")) {
             cleaned = cleaned.substring("Output:".length()).trim();
         }
-
-        // Try a last ditch effort
         try {
             mapper.readTree(cleaned);
             return cleaned;
-        } catch (IOException ignored) {}
-
-        // If all fails, return original input
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
         return input;
     }
 
@@ -200,10 +196,7 @@ public class ToolHandler {
 
     public String escapeCommandParts(String s) {
         if (s.startsWith("//'") && s.endsWith("//'")) {
-            // Extract inner content
             String inner = s.substring(3, s.length() - 3);
-
-            // Escape for Java + shell
             StringBuilder escaped = new StringBuilder();
             for (char c : inner.toCharArray()) {
                 switch (c) {
@@ -235,24 +228,18 @@ public class ToolHandler {
                     case '<':
                     case '&':
                     case ';':
-                        escaped.append("\\" + c);  // Shell metacharacters
+                        escaped.append("\\" + c);
                         break;
                     default:
                         escaped.append(c);
                 }
             }
-
             return "'" + escaped.toString() + "'";
         } else {
             return s;
         }
     }
 
-
-
-    private static final Pattern SAFE_TOKEN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");
-    private static final Pattern SHELL_SPECIALS = Pattern.compile("(?<!\\\\)([;{}()|])");
-    private static final Set<String> SHELL_OPERATORS = Set.of("|", ";", "&&", "||", ">", "<", ">>");
     
     private AbstractMap.SimpleEntry<List<List<String>>, List<String>> splitIntoSegmentsAndOperators(List<List<String>> tokens) {
         List<List<String>> segments = new ArrayList<>();
@@ -328,6 +315,7 @@ public class ToolHandler {
             }
         }, executor);
     }
+    
     
     private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
         List<Process> processes = new ArrayList<>();
@@ -407,11 +395,9 @@ public class ToolHandler {
                     }
                 });
                 pipeThread.start();
-
                 processes.add(currProc);
                 lastProcess = currProc;
             }
-            // Handle conditionals: &&, ||
             else if (i > 0 && List.of("&&", "||").contains(operators.get(i - 1))) {
                 Process prevProc = processes.get(processes.size() - 1);
                 int prevExit = prevProc.waitFor();
@@ -422,52 +408,38 @@ public class ToolHandler {
                 Process proc = pb.start();
                 
                 if (i == segments.size() - 1) {
-                    // Last process, read output later synchronously, just drain error
                     proc.getErrorStream();
                 } else {
-                    // Intermediate process, drain both to avoid blocking
                     proc.getInputStream();
                     proc.getErrorStream();
                 }
                 processes.add(proc);
                 lastProcess = proc;
             }
-            // Sequential (e.g. `;`) or first process
             else {
                 Process proc = pb.start();
-                
                 if (i == segments.size() - 1) {
-                    // Last process, read output later synchronously, just drain error
                     proc.getErrorStream();
                 } else {
-                    // Intermediate process, drain both to avoid blocking
                     proc.getInputStream();
                     proc.getErrorStream();
                 }
                 processes.add(proc);
                 lastProcess = proc;
             }
-
             i++;
         }
-
         if (lastProcess == null) throw new IllegalStateException("No process executed");
-
-        // Read last process output
         StringBuilder fullOutput = new StringBuilder();
-
         for (int j = 0; j < processes.size(); j++) {
             Process proc = processes.get(j);
             boolean isRedirected = false;
-
-            // Handle redirected output (e.g., > or >>)
             if (j < operators.size()) {
                 String op = operators.get(j);
                 if (op.equals(">") || op.equals(">>")) {
                     isRedirected = true;
                 }
             }
-
             if (!isRedirected) {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
                     String line;
@@ -476,10 +448,8 @@ public class ToolHandler {
                     }
                 }
             }
-
-            proc.waitFor(); // ensure process completes
+            proc.waitFor();
         }
-
         return fullOutput.toString().trim();
     }
 
@@ -492,7 +462,77 @@ public class ToolHandler {
             output.flush();
         }
     }
+    
+    private static String quoteToken(String token) {
+        if (token.matches("^[a-zA-Z0-9/_\\-\\.]+$")) {
+            return token;
+        }
+        return "'" + token.replace("'", "'\\''") + "'";
+    }
+    
+    public static CompletableFuture<String> executeCommands(List<List<String>> allCommands) {
+            CompletableFuture<String> future = new CompletableFuture<>();
 
+            // quick validation
+            if (allCommands.isEmpty()) {
+                future.completeExceptionally(new IllegalArgumentException("No commands provided"));
+                return future;
+            }
+
+            // build one single shell pipeline string
+            String commandLine = allCommands.stream()
+                .map(segment -> {
+                    if (segment.size() == 1 && SHELL_OPERATORS.contains(segment.get(0))) {
+                        return segment.get(0);
+                    } else {
+                        return segment.stream()
+                                      .map(ToolHandler::quoteToken)
+                                      .collect(Collectors.joining(" "));
+                    }
+                })
+                .collect(Collectors.joining(" "));
+
+            CommandLine cmd = new CommandLine("/bin/sh");
+            cmd.addArgument("-c", false);
+            cmd.addArgument(commandLine, false);
+
+            // capture both stdout+stderr
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream);
+
+            DefaultExecutor executor = new DefaultExecutor();
+            executor.setStreamHandler(streamHandler);
+            executor.setWatchdog(new ExecuteWatchdog(20_000)); // 20 s timeout
+            executor.setExitValues(null);                     // expect exit 0
+
+            // result handler completes the future
+            DefaultExecuteResultHandler handler = new DefaultExecuteResultHandler() {
+                @Override
+                public void onProcessComplete(int exitValue) {
+                    if (exitValue == 0) {
+                        future.complete(outputStream.toString(StandardCharsets.UTF_8));
+                    } else {
+                        future.completeExceptionally(
+                            new IOException("Command exited with code " + exitValue)
+                        );
+                    }
+                }
+                @Override
+                public void onProcessFailed(ExecuteException e) {
+                    future.completeExceptionally(e);
+                }
+            };
+
+            try {
+                executor.execute(cmd, handler);
+            } catch (IOException e) {
+                // immediate I/O failure (e.g. /bin/sh not found)
+                future.completeExceptionally(e);
+            }
+
+            return future;
+        }
+}
     
 //    public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {
 //        String type = responseObject.get(FILESEARCHTOOL_TYPE);
@@ -516,4 +556,4 @@ public class ToolHandler {
 //        }
 //        return allResults;
 //    }
-}
+

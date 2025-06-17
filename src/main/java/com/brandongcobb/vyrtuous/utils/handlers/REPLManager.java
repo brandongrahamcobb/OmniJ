@@ -232,7 +232,7 @@ public class REPLManager {
                 String flat = String.join(" ", cmdParts);
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
             }
-            Supplier<CompletableFuture<String>> runner = () -> th.executeCommandsAsList(newCmds);
+            Supplier<CompletableFuture<String>> runner = () -> th.executeCommands(newCmds);
             return runner.get().thenCompose(out -> {
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
                 return CompletableFuture.completedFuture(null);
