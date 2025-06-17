@@ -124,151 +124,147 @@ public class REPLManager {
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
-        String prompt = firstRun
-            ? originalDirective
-            : contextManager.buildPromptContext();
+        String prompt = firstRun ? originalDirective : contextManager.buildPromptContext();
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
-        String requestType = System.getenv("CLI_REQUEST_TYPE");// assuming this is already set elsewhere
-        CompletableFuture<String> endpointFuture =
-            aim.completeGetAIEndpoint(false, provider, "cli", requestType);
-        CompletableFuture<String> instructionsFuture =
-            aim.completeGetInstructions(false, provider, "cli");
-        return endpointFuture
-            .thenCombine(instructionsFuture, (endpoint, instructions) -> new AbstractMap.SimpleEntry<>(endpoint, instructions))
-            .thenCompose(pair -> {
-                String endpoint = pair.getKey();
-                String instructions = pair.getValue();
-                
-                CompletableFuture<MetadataContainer> call;
-
-                try {
-                    if (firstRun) {
-                        call = aim.completeRequest(instructions, prompt, null, model, requestType, endpoint, false, null, provider);
-                    } else {
-                        MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
-                        String prevId = (String) lastAIResponseContainer.get(previousResponseIdKey);
-                        call = aim.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.valueOf(System.getenv("CLI_STREAM")), null, provider);
-                    }
-                    return call.handle((resp, ex) -> {
-                        if (ex != null) {
-                            LOGGER.severe("completeRequest failed: " + ex.getMessage());
-                            throw new CompletionException(ex);
-                        }
+        String requestType = System.getenv("CLI_REQUEST_TYPE");
+        CompletableFuture<String> endpointFuture = aim.completeGetAIEndpoint(false, provider, "cli", requestType);
+        CompletableFuture<String> instructionsFuture = aim.completeGetInstructions(false, provider, "cli");
+        return endpointFuture.thenCombine(instructionsFuture, AbstractMap.SimpleEntry::new).thenCompose(pair -> {
+            String endpoint = pair.getKey();
+            String instructions = pair.getValue();
+            String prevId = null;
+            if (!firstRun) {
+                MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
+                prevId = (String) lastAIResponseContainer.get(previousResponseIdKey);
+            }
+            try {
+                return aim
+                    .completeRequest(instructions, prompt, prevId, model, requestType, endpoint,
+                        Boolean.parseBoolean(System.getenv("CLI_STREAM")), null, provider)
+                    .thenCompose(resp -> {
                         if (resp == null) {
-                            throw new CompletionException(new IllegalStateException("AI returned null"));
+                            return CompletableFuture.failedFuture(new IllegalStateException("AI returned null"));
                         }
-                        String content = null;
-                        String previousResponseId = null;
-                        ObjectMapper mapper = new ObjectMapper();
+                        CompletableFuture<String> contentFuture;
+                        CompletableFuture<String> responseIdFuture;
                         switch (provider) {
-                            case "llama":
+                            case "llama" -> {
                                 LlamaUtils llamaUtils = new LlamaUtils(resp);
-                                content = llamaUtils.completeGetContent().join();
-                                previousResponseId = llamaUtils.completeGetResponseId().join();
-                                break;
-                            case "openai":
+                                contentFuture = llamaUtils.completeGetContent();
+                                responseIdFuture = llamaUtils.completeGetResponseId();
+                            }
+                            case "openai" -> {
                                 OpenAIUtils openaiUtils = new OpenAIUtils(resp);
-                                content = (String) openaiUtils.completeGetOutput().join();
-                                previousResponseId = openaiUtils.completeGetResponseId().join();
-                                break;
-                            default:
-                                return new MetadataContainer();
-                        }
-                        String jsonContent = ToolHandler.extractJsonContent(content);
-                        LOGGER.fine("Extracted JSON: " + jsonContent);
-                        jsonContent = ToolHandler.sanitizeJsonContent(jsonContent);
-                        try {
-                            JsonNode rootNode = mapper.readTree(jsonContent);
-                            JsonNode actualObject;
-                            if (rootNode.isObject()) {
-                                actualObject = rootNode;
-                            } else if (rootNode.isArray()) {
-                                if (rootNode.size() == 0) {
-                                    throw new RuntimeException("JSON array is empty. Cannot extract metadata.");
-                                }
-                                actualObject = rootNode.get(0);
-                                if (!actualObject.isObject()) {
-                                    throw new RuntimeException("First element of array is not a JSON object.");
-                                }
-                            } else {
-                                throw new RuntimeException("Unexpected JSON structure: not object or array.");
+                                contentFuture = openaiUtils.completeGetOutput().thenApply(String.class::cast);
+                                responseIdFuture = openaiUtils.completeGetResponseId();
                             }
-                            Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
-                            resultMap.put("id", previousResponseId);
-                            String entityType = (String) resultMap.get("entityType");
-                            if (entityType != null) {
-                                if (entityType.startsWith("json_tool")) {
-                                    lastAIResponseContainer = new ToolContainer(resultMap);
-                                } else if (entityType.startsWith("json_chat")) {
-                                    lastAIResponseContainer = new MarkdownContainer(resultMap);
-                                }
+                            default -> {
+                                return CompletableFuture.completedFuture(new MetadataContainer());
                             }
-                        } catch (JsonProcessingException jpe) {
-                            jpe.printStackTrace();
                         }
-                        return lastAIResponseContainer;
+                        return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
+                            ObjectMapper mapper = new ObjectMapper();
+                            try {
+                                String jsonContent = ToolHandler.extractJsonContent(content);
+                                LOGGER.fine("Extracted JSON: " + jsonContent);
+                                jsonContent = ToolHandler.sanitizeJsonContent(jsonContent);
+                                JsonNode rootNode = mapper.readTree(jsonContent);
+                                JsonNode actualObject = rootNode.isObject()
+                                    ? rootNode
+                                    : (rootNode.isArray() && rootNode.size() > 0 && rootNode.get(0).isObject())
+                                        ? rootNode.get(0)
+                                        : null;
+                                if (actualObject == null) {
+                                    throw new RuntimeException("Unexpected JSON structure");
+                                }
+                                Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
+                                resultMap.put("id", responseId);
+                                String entityType = (String) resultMap.get("entityType");
+                                if (entityType != null) {
+                                    if (entityType.startsWith("json_tool")) {
+                                        lastAIResponseContainer = new ToolContainer(resultMap);
+                                    } else if (entityType.startsWith("json_chat")) {
+                                        lastAIResponseContainer = new MarkdownContainer(resultMap);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                LOGGER.severe("JSON parse error: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                            return lastAIResponseContainer;
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        LOGGER.severe("completeRequest failed: " + ex.getMessage());
+                        throw new CompletionException(ex);
                     });
                 } catch (Exception e) {
-                    CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
-                    failed.completeExceptionally(e);
-                    return failed;
+                    e.printStackTrace();
+                    return CompletableFuture.completedFuture(null);
                 }
-            });
+        });
     }
-
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
         if (response instanceof ToolContainer tool) {
             ToolUtils tu = new ToolUtils(response);
-            String lastAIResponseText = tu.completeGetText().join();
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-            lastAIResponseText = null;
-            List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-            if (newCmds == null || newCmds.isEmpty()) {
-                LOGGER.warning("No shell commands returned from tool");
-                return CompletableFuture.completedFuture(null);
-            }
-            for (List<String> cmdParts : newCmds) {
-                String flat = String.join(" ", cmdParts);
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
-            }
-            Supplier<CompletableFuture<String>> runner = () -> th.executeCommands(newCmds);
-            return runner.get().thenCompose(out -> {
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
-                return CompletableFuture.completedFuture(null);
+            return tu.completeGetText().thenCompose(lastAIResponseText -> {
+                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+                List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
+                if (newCmds == null || newCmds.isEmpty()) {
+                    LOGGER.warning("No shell commands returned from tool");
+                    return CompletableFuture.completedFuture(null);
+                }
+                for (List<String> cmdParts : newCmds) {
+                    String flat = String.join(" ", cmdParts);
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
+                }
+                return th.executeCommands(newCmds).thenApply(out -> {
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
+                    return null;
+                });
             });
-        } else if (response instanceof MarkdownContainer) {
-            MarkdownUtils markdownUtils = new MarkdownUtils(response);
-            boolean needsClarification = markdownUtils.completeGetClarification().join();
-            boolean acceptingTokens = true; //markdownUtils.completeGetAcceptingTokens().join();
-            String output = markdownUtils.completeGetText().join();
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, output));
-            output = null;
-            if (needsClarification && acceptingTokens) {
-                contextManager.printNewEntries(true, true, true, true, false, true, true);
-                System.out.print("> ");
-                String reply = scanner.nextLine();
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
-                reply = null;
-            }
-            boolean finished = markdownUtils.completeGetLocalShellFinished().join();
-            if (finished) {
-                String finalReason = markdownUtils.completeGetText().join();
-                System.out.println(finalReason);
-                System.out.println("✅ Task complete.");
-                contextManager.clear();
-                System.out.print("> ");
-                String newInput = scanner.nextLine();
-                return startREPL(scanner, newInput);
-            }
-            return CompletableFuture.completedFuture(null);
+        } else if (response instanceof MarkdownContainer markdown) {
+            MarkdownUtils markdownUtils = new MarkdownUtils(markdown);
+            CompletableFuture<Boolean> clarificationFuture = markdownUtils.completeGetClarification();
+            CompletableFuture<Boolean> acceptingTokensFuture = markdownUtils.completeGetAcceptingTokens();
+            CompletableFuture<String> textFuture = markdownUtils.completeGetText();
+            return clarificationFuture
+                .thenCombine(acceptingTokensFuture, AbstractMap.SimpleEntry::new)
+                .thenCombine(textFuture, (pair, output) -> {
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, output));
+                    return new Object[] { pair.getKey(), pair.getValue(), output };
+                })
+                .thenCompose(data -> {
+                    boolean needsClarification = (boolean) data[0];
+                    boolean acceptingTokens = (boolean) data[1];
+                    if (needsClarification && acceptingTokens) {
+                        contextManager.printNewEntries(true, true, true, true, false, true, true);
+                        System.out.print("> ");
+                        String reply = scanner.nextLine();  // still sync, unless replaced with async input
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
+                    }
+                    return markdownUtils.completeGetLocalShellFinished().thenCompose(finished -> {
+                        if (finished) {
+                            return markdownUtils.completeGetText().thenCompose(finalReason -> {
+                                System.out.println(finalReason);
+                                System.out.println("✅ Task complete.");
+                                contextManager.clear();
+                                System.out.print("> ");
+                                String newInput = scanner.nextLine();  // sync input
+                                return startREPL(scanner, newInput);
+                            });
+                        } else {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                    });
+                });
         } else {
             return CompletableFuture.completedFuture(null);
         }
     }
-
 
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
@@ -276,7 +272,6 @@ public class REPLManager {
         contextManager.printNewEntries(true, false, true, true, false, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
-
 
     private CompletableFuture<Void> completeLStep(Scanner scanner) {
         LOGGER.fine("Loop to R-step");
