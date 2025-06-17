@@ -137,18 +137,16 @@ public class REPLManager {
             .thenCompose(pair -> {
                 String endpoint = pair.getKey();
                 String instructions = pair.getValue();
-
+                
                 CompletableFuture<MetadataContainer> call;
 
                 try {
                     if (firstRun) {
-                        call = aim.completeRequest(instructions, prompt, 0L, model, requestType, endpoint, false, null, provider
-                        );
+                        call = aim.completeRequest(instructions, prompt, 0L, model, requestType, endpoint, false, null, provider);
                     } else {
                         MetadataKey<Long> previousResponseIdKey = new MetadataKey<>("id", Metadata.LONG);
                         long prevId = (long) lastAIResponseContainer.get(previousResponseIdKey);
-                        call = aim.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.valueOf(System.getenv("CLI_STREAM")), null, provider
-                        );
+                        call = aim.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.valueOf(System.getenv("CLI_STREAM")), null, provider);
                     }
                     return call.handle((resp, ex) -> {
                         if (ex != null) {
@@ -159,15 +157,18 @@ public class REPLManager {
                             throw new CompletionException(new IllegalStateException("AI returned null"));
                         }
                         String content = null;
+                        String previousResponseId = null;
                         ObjectMapper mapper = new ObjectMapper();
                         switch (provider) {
                             case "llama":
-                                LlamaUtils llamaOuterUtils = new LlamaUtils(resp);
-                                content = llamaOuterUtils.completeGetContent().join();
+                                LlamaUtils llamaUtils = new LlamaUtils(resp);
+                                content = llamaUtils.completeGetContent().join();
+                                previousResponseId = llamaUtils.completeGetPreviousResponseId().join();
                                 break;
                             case "openai":
                                 OpenAIUtils openaiUtils = new OpenAIUtils(resp);
                                 content = (String) openaiUtils.completeGetOutput().join();
+                                previousResponseId = openaiUtils.completeGetPreviousResponseId().join();
                                 break;
                             default:
                                 return new MetadataContainer();
@@ -192,6 +193,7 @@ public class REPLManager {
                                 throw new RuntimeException("Unexpected JSON structure: not object or array.");
                             }
                             Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
+                            resultMap.put("id", previousResponseId);
                             String entityType = (String) resultMap.get("entityType");
                             if (entityType != null) {
                                 if (entityType.startsWith("json_tool")) {
@@ -205,7 +207,6 @@ public class REPLManager {
                         }
                         return lastAIResponseContainer;
                     });
-
                 } catch (Exception e) {
                     CompletableFuture<MetadataContainer> failed = new CompletableFuture<>();
                     failed.completeExceptionally(e);
