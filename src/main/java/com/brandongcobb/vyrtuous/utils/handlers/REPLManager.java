@@ -213,18 +213,28 @@ public class REPLManager {
             return tu.completeGetText().thenCompose(lastAIResponseText -> {
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
                 List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-                if (newCmds == null || newCmds.isEmpty()) {
-                    LOGGER.warning("No shell commands returned from tool");
-                    return CompletableFuture.completedFuture(null);
+                String base64 = tu.completeGetStdinBase64().join();
+//                if (newCmds == null || newCmds.isEmpty()) {
+//                    LOGGER.warning("No shell commands returned from tool");
+//                    return CompletableFuture.completedFuture(null);
+//                }
+//                for (List<String> cmdParts : newCmds) {
+//                    String flat = String.join(" ", cmdParts);
+//                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
+//                }
+                //return th.executeCommands(newCmds).thenApply(out -> {
+                try {
+                    return th.executeBase64Commands(base64).thenAccept(out -> {
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
+                    });
+                } catch (Exception e){
+                    e.printStackTrace();
+                    return CompletableFuture.failedFuture(e);
                 }
-                for (List<String> cmdParts : newCmds) {
-                    String flat = String.join(" ", cmdParts);
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
-                }
-                return th.executeCommands(newCmds).thenApply(out -> {
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
-                    return null;
-                });
+            }).exceptionally(ex -> {
+                ex.printStackTrace();
+                // You can handle error logging here, then return null to complete normally
+                return null;
             });
         } else if (response instanceof MarkdownContainer markdown) {
             MarkdownUtils markdownUtils = new MarkdownUtils(markdown);

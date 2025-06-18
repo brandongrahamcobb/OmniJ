@@ -75,6 +75,13 @@ public class ToolUtils {
             return this.container.get(acceptingTokensMetadataKey);
         });
     }
+    
+    public CompletableFuture<String> completeGetStdinBase64() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<String> stdinBase64Key = new MetadataKey<>("stdin64_base64", Metadata.STRING);
+            return this.container.get(stdinBase64Key);
+        });
+    }
  
     public CompletableFuture<Integer> completeGetTotalTokenCount() {
         return CompletableFuture.supplyAsync(() -> {

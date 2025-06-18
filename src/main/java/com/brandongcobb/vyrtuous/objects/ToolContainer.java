@@ -42,6 +42,7 @@ import java.util.concurrent.CompletionException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -247,10 +248,16 @@ public class ToolContainer extends MainContainer {
                     }
 
                     Object operationObj = outputItem.get("operation");
+                    Object stdinBase64Obj = responseMap.get("stdin_base64");
+                    String stdinBase64 = null;
+                    if (stdinBase64Obj instanceof String s) {
+                        stdinBase64 = s;
+                    }
+
                     if (operationObj instanceof Map<?, ?> operation) {
 
                         Object commandsObj = operation.get("commands");
-
+                        
                         if (commandsObj instanceof List<?> outerList && !outerList.isEmpty()) {
                             Object first = outerList.get(0);
 
@@ -284,6 +291,9 @@ public class ToolContainer extends MainContainer {
                             } else {
                                 System.err.println("⚠️ Unknown command structure: " + outerList);
                             }
+                        } else if (stdinBase64 != null) {
+                            MetadataKey<String> stdinBytesKey = new MetadataKey<>("stdin64_base64", Metadata.STRING);
+                            put(stdinBytesKey, stdinBase64);
                         } else {
                             System.err.println("⚠️ No commands found or commands not in list form.");
                         }

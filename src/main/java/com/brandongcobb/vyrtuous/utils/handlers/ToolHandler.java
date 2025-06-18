@@ -54,6 +54,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -120,7 +121,88 @@ public class ToolHandler {
     
     private static final Pattern THINK_PATTERN = Pattern.compile("<think>(.*?)</think>", Pattern.DOTALL);
     private static final Pattern JSON_CODE_BLOCK_PATTERN = Pattern.compile("```json\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
+    public static List<String> parseOperators(String commandLine) {
+        List<String> operators = new ArrayList<>();
+        List<String> tokens = tokenize(commandLine);
+
+        for (String token : tokens) {
+            if (SHELL_OPERATORS.contains(token)) {
+                operators.add(token);
+            }
+        }
+        return operators;
+    }
     
+    private static List<String> tokenize(String commandLine) {
+        List<String> tokens = new ArrayList<>();
+        int i = 0;
+        while (i < commandLine.length()) {
+            char c = commandLine.charAt(i);
+
+            // Skip whitespace
+            if (Character.isWhitespace(c)) {
+                i++;
+                continue;
+            }
+
+            // Check for multi-char operators first (&&, ||, >>)
+            if (i + 1 < commandLine.length()) {
+                String twoChar = commandLine.substring(i, i + 2);
+                if (SHELL_OPERATORS.contains(twoChar)) {
+                    tokens.add(twoChar);
+                    i += 2;
+                    continue;
+                }
+            }
+
+            // Check for single-char operator
+            if (SHELL_OPERATORS.contains(String.valueOf(c))) {
+                tokens.add(String.valueOf(c));
+                i++;
+                continue;
+            }
+
+            // Otherwise, parse a normal token until next whitespace or operator
+            int start = i;
+            while (i < commandLine.length() &&
+                  !Character.isWhitespace(commandLine.charAt(i)) &&
+                  !isOperatorStart(commandLine, i)) {
+                i++;
+            }
+            tokens.add(commandLine.substring(start, i));
+        }
+        return tokens;
+    }
+
+    private static boolean isOperatorStart(String str, int index) {
+        // Check 2-char operator
+        if (index + 1 < str.length()) {
+            String twoChar = str.substring(index, index + 2);
+            if (SHELL_OPERATORS.contains(twoChar)) return true;
+        }
+        // Check 1-char operator
+        return SHELL_OPERATORS.contains(String.valueOf(str.charAt(index)));
+    }
+    public static List<List<String>> parseSegments(String commandLine) {
+        List<List<String>> segments = new ArrayList<>();
+        List<String> tokens = tokenize(commandLine);
+
+        List<String> currentSegment = new ArrayList<>();
+        for (String token : tokens) {
+            if (SHELL_OPERATORS.contains(token)) {
+                if (!currentSegment.isEmpty()) {
+                    segments.add(currentSegment);
+                    currentSegment = new ArrayList<>();
+                }
+            } else {
+                currentSegment.add(token);
+            }
+        }
+        if (!currentSegment.isEmpty()) {
+            segments.add(currentSegment);
+        }
+        return segments;
+    }
     private static String readStream(InputStream stream) throws IOException {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
@@ -315,6 +397,27 @@ public class ToolHandler {
             }
         }, executor);
     }
+    
+    public CompletableFuture<String> executeBase64Commands(String base64Command) throws Exception {
+        String decodedCommand = new String(Base64.getDecoder().decode(base64Command), StandardCharsets.UTF_8);
+
+        // Parse decodedCommand to segments and operators:
+        // e.g. "ls -l | grep foo > out.txt" =>
+        // segments = [["ls","-l"], ["grep","foo"], ["out.txt"]]
+        // operators = ["|", ">"]
+
+        List<List<String>> segments = parseSegments(decodedCommand);
+        List<String> operators = parseOperators(decodedCommand);
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return executePipeline(segments, operators);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
     
     
     private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
