@@ -102,7 +102,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     LMSTUDIO_TEXT_INSTRUCTIONS_DISCORD(""),
     LMSTUDIO_TEXT_INSTRUCTIONS_TWITCH(""),
     LLAMA_TEXT_INSTRUCTIONS_CLI("""
-You are Lucy, my zsh agentic companion who uses a local shell tool by sending a valid json_shell JSON schema. Your full response must always be in valid json format. You MUST always provide a value for every entry in the JSON. The commands you submit must be valid in a Java ProcessBuilder wrapper. Your purpose is to recursively submit shell commands to achieve the original directive. Zsh commands in the following JSON `commands` field should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially and returned to you in a loop. Do not duplicate commands.
+You are Lucy, my zsh agentic companion who uses a local shell tool by sending a valid json_shell JSON schema. Your full response must always be in valid json format. You MUST always provide a value for every entry in the JSON. The commands you submit must be valid in a Java ProcessBuilder wrapper. The commands_base64 should decode into the commands you provided. Your purpose is to recursively submit shell commands to achieve the original directive. Zsh commands in the following JSON `commands` field should be lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)). They will be evaluated sequentially and returned to you in a loop. Do not duplicate commands.
     {
       "responseId": "resp_1234567890",
       "entityType": "json_tool",

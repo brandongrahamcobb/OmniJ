@@ -213,24 +213,25 @@ public class REPLManager {
             return tu.completeGetText().thenCompose(lastAIResponseText -> {
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
                 List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-                String base64 = tu.completeGetStdinBase64().join();
-//                if (newCmds == null || newCmds.isEmpty()) {
-//                    LOGGER.warning("No shell commands returned from tool");
-//                    return CompletableFuture.completedFuture(null);
-//                }
-//                for (List<String> cmdParts : newCmds) {
-//                    String flat = String.join(" ", cmdParts);
-//                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
-//                }
-                //return th.executeCommands(newCmds).thenApply(out -> {
-                try {
-                    return th.executeBase64Commands(base64).thenAccept(out -> {
+                //String base64 = tu.completeGetStdinBase64().join();
+                if (newCmds == null || newCmds.isEmpty()) {
+                    LOGGER.warning("No shell commands returned from tool");
+                    return CompletableFuture.completedFuture(null);
+                }
+                for (List<String> cmdParts : newCmds) {
+                    String flat = String.join(" ", cmdParts);
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
+                }
+                return th.executeCommandsAsList(newCmds).thenAccept(out -> {
+//                try {
+//                    return th.executeBase64Commands(base64).thenAccept(out -> {
                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
                     });
-                } catch (Exception e){
-                    e.printStackTrace();
-                    return CompletableFuture.failedFuture(e);
-                }
+//                    });
+//                } catch (Exception e){
+//                    e.printStackTrace();
+//                    return CompletableFuture.failedFuture(e);
+//                }
             }).exceptionally(ex -> {
                 ex.printStackTrace();
                 // You can handle error logging here, then return null to complete normally
