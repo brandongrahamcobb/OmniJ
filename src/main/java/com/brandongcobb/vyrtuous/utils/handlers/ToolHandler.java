@@ -399,6 +399,7 @@ public class ToolHandler {
     }
     
     public CompletableFuture<String> executeBase64Commands(String base64Command) throws Exception {
+        System.out.println(base64Command);
         String decodedCommand = new String(Base64.getDecoder().decode(base64Command), StandardCharsets.UTF_8);
 
         // Parse decodedCommand to segments and operators:

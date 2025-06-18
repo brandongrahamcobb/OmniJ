@@ -143,7 +143,7 @@ You are Lucy, my zsh agentic companion who uses a local shell tool by sending a 
           "callIdentifier": "tool_call_abc123",
           "operation": {
             "commands": ["*"],
-            "stdin_base64": "LS0tIGEvc3JjL0FwcC5qYXZhCisrKyB..." 
+            "commands_base64": "LS0tIGEvc3JjL0FwcC5qYXZhCisrKyB..." 
           },
           "messages": [
             {

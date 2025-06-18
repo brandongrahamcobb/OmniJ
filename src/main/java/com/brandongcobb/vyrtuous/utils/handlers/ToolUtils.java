@@ -78,7 +78,7 @@ public class ToolUtils {
     
     public CompletableFuture<String> completeGetStdinBase64() {
         return CompletableFuture.supplyAsync(() -> {
-            MetadataKey<String> stdinBase64Key = new MetadataKey<>("stdin64_base64", Metadata.STRING);
+            MetadataKey<String> stdinBase64Key = new MetadataKey<>("commands_base64", Metadata.STRING);
             return this.container.get(stdinBase64Key);
         });
     }

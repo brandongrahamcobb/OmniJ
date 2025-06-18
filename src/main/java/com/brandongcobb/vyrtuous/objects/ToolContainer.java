@@ -248,14 +248,10 @@ public class ToolContainer extends MainContainer {
                     }
 
                     Object operationObj = outputItem.get("operation");
-                    Object stdinBase64Obj = responseMap.get("stdin_base64");
-                    String stdinBase64 = null;
-                    if (stdinBase64Obj instanceof String s) {
-                        stdinBase64 = s;
-                    }
 
                     if (operationObj instanceof Map<?, ?> operation) {
-
+                        
+                        String stdinBase64 = (String) operation.get("commands_base64");
                         Object commandsObj = operation.get("commands");
                         
                         if (commandsObj instanceof List<?> outerList && !outerList.isEmpty()) {
@@ -291,12 +287,13 @@ public class ToolContainer extends MainContainer {
                             } else {
                                 System.err.println("⚠️ Unknown command structure: " + outerList);
                             }
-                        } else if (stdinBase64 != null) {
-                            MetadataKey<String> stdinBytesKey = new MetadataKey<>("stdin64_base64", Metadata.STRING);
-                            put(stdinBytesKey, stdinBase64);
                         } else {
                             System.err.println("⚠️ No commands found or commands not in list form.");
+                        } if (stdinBase64 != null) {
+                            MetadataKey<String> stdinBytesKey = new MetadataKey<>("commands_base64", Metadata.STRING);
+                            put(stdinBytesKey, stdinBase64);
                         }
+
                     }
                 }
 
