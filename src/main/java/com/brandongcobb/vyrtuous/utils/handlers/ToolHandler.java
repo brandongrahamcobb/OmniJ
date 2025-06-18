@@ -58,7 +58,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
@@ -66,16 +65,6 @@ import org.apache.commons.exec.DefaultExecuteResultHandler;
 import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.PumpStreamHandler;
-import org.jline.reader.*;
-import org.jline.reader.impl.DefaultParser;
-import org.jline.reader.impl.LineReaderImpl;
-import org.jline.terminal.TerminalBuilder;
-
-// call once, reuse:
-
-
-
-
 
 public class ToolHandler {
 
@@ -143,39 +132,7 @@ public class ToolHandler {
         }
         return operators;
     }
-    public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (allCommands == null || allCommands.isEmpty()) {
-                    throw new IllegalArgumentException("No commands provided");
-                }
-
-                // Flatten tokens into a single sequence
-                List<String> flat = allCommands.stream()
-                    .flatMap(List::stream)
-                    .collect(Collectors.toList());
-
-                // Split on shell operators like |, &&, >, etc.
-                AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(flat);
-                List<List<String>> segments = split.getKey();
-                List<String> operators = split.getValue();
-
-                // Apply ~ expansion and escaping
-                segments = segments.stream()
-                    .map(segment -> segment.stream()
-                        .map(this::expandHome)
-                        .map(this::escapeCommandParts)
-                        .collect(Collectors.toList()))
-                    .collect(Collectors.toList());
-
-                // Execute pipeline
-                return executePipeline(segments, operators);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }, Executors.newSingleThreadExecutor());
-    }
-
+    
     private static List<String> tokenize(String commandLine) {
         List<String> tokens = new ArrayList<>();
         int i = 0;
@@ -262,49 +219,52 @@ public class ToolHandler {
         return text.replaceAll(regex, "");
     }
 
+    public static String extractJsonContent(String input) {
+        Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        } else {
+            return input.replaceFirst("^```json\\s*", "")
+                        .replaceFirst("\\s*```$", "")
+                        .trim();
+        }
+    }
+
     private String escapeControlCharacters(String input) {
         // Replace newline and other control characters with their escaped equivalents
         return input.replaceAll("[\\x00-\\x1F\\x7F]", "\\\\u00$0");
     }
 
-    public static String extractJsonContent(String input) {
-        Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
-        if (matcher.find()) {
-            String raw = matcher.group(1).trim();
-            return sanitizeJsonContent(unescapeIfQuoted(raw));
-        }
-        return sanitizeJsonContent(unescapeIfQuoted(input));
-    }
-
-    private static String unescapeIfQuoted(String input) {
-        if ((input.startsWith("\"") && input.endsWith("\"")) ||
-            (input.startsWith("'") && input.endsWith("'"))) {
-            try {
-                return new ObjectMapper().readValue(input, String.class); // unescape inner quotes
-            } catch (IOException e) {
-                return input; // fallback
-            }
-        }
-        return input;
-    }
-
     public static String sanitizeJsonContent(String input) {
-        // Attempt JSON parsing
         ObjectMapper mapper = new ObjectMapper();
         try {
             mapper.readTree(input);
             return input;
-        } catch (IOException e) {
-            // Try fix common escape issues
-            input = input.replace("\\\"", "\"").replace("\\\\", "\\"); // double escapes
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        if ((input.startsWith("\"") && input.endsWith("\"")) ||
+            (input.startsWith("'") && input.endsWith("'"))) {
             try {
-                mapper.readTree(input);
-                return input;
-            } catch (IOException ignored) {}
+                String unescaped = mapper.readValue(input, String.class);
+                mapper.readTree(unescaped);
+                return unescaped;
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
+        }
+        String cleaned = input.trim();
+        if (cleaned.startsWith("Output:")) {
+            cleaned = cleaned.substring("Output:".length()).trim();
+        }
+        try {
+            mapper.readTree(cleaned);
+            return cleaned;
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
         }
         return input;
     }
-
 
     private void drainStream(InputStream inputStream) {
         new Thread(() -> {
@@ -317,34 +277,76 @@ public class ToolHandler {
     }
 
     public String escapeCommandParts(String s) {
-        if (s.startsWith("'") && s.endsWith("'")) return s; // already quoted
-        if (SAFE_TOKEN.matcher(s).matches()) return s; // safe as-is
-
-        return "'" + s.replace("'", "'\"'\"'") + "'"; // safest quoting method
+        if (s.startsWith("//'") && s.endsWith("//'")) {
+            String inner = s.substring(3, s.length() - 3);
+            StringBuilder escaped = new StringBuilder();
+            for (char c : inner.toCharArray()) {
+                switch (c) {
+                    case '"':
+                        escaped.append("\\\"");
+                        break;
+                    case '\'':
+                        escaped.append("\\'");
+                        break;
+                    case '\\':
+                        escaped.append("\\\\");
+                        break;
+                    case '{':
+                        escaped.append("\\{");
+                        break;
+                    case '}':
+                        escaped.append("\\}");
+                        break;
+                    case '$':
+                        escaped.append("\\$");
+                        break;
+                    case '`':
+                        escaped.append("\\`");
+                        break;
+                    case '|':
+                        escaped.append("\\|");
+                        break;
+                    case '>':
+                    case '<':
+                    case '&':
+                    case ';':
+                        escaped.append("\\" + c);
+                        break;
+                    default:
+                        escaped.append(c);
+                }
+            }
+            return "'" + escaped.toString() + "'";
+        } else {
+            return s;
+        }
     }
 
     
-    private SimpleEntry<List<List<String>>, List<String>> splitIntoSegmentsAndOperators(List<String> tokens) {
+    private AbstractMap.SimpleEntry<List<List<String>>, List<String>> splitIntoSegmentsAndOperators(List<List<String>> tokens) {
         List<List<String>> segments = new ArrayList<>();
         List<String> operators = new ArrayList<>();
-        List<String> current = new ArrayList<>();
 
-        for (String token : tokens) {
-            if (SHELL_OPERATORS.contains(token)) {
-                if (current.isEmpty()) throw new IllegalArgumentException("Operator without preceding command: " + token);
-                segments.add(new ArrayList<>(current));
-                operators.add(token);
-                current.clear();
+        for (int i = 0; i < tokens.size(); i++) {
+            List<String> part = tokens.get(i);
+            if (part.size() == 1 && SHELL_OPERATORS.contains(part.get(0))) {
+                if (segments.isEmpty()) {
+                    throw new IllegalArgumentException("Command cannot start with operator: " + part.get(0));
+                }
+                operators.add(part.get(0));
             } else {
-                current.add(token);
+                segments.add(part);
+                if (segments.size() > 1 && operators.size() < segments.size() - 1) {
+                    operators.add(";");
+                }
             }
         }
-        if (!current.isEmpty()) segments.add(current);
-        if (segments.size() != operators.size() + 1)
-            throw new IllegalStateException("Misaligned segments/operators");
-        return new SimpleEntry<>(segments, operators);
-    }
+        if (segments.size() != operators.size() + 1) {
+            throw new IllegalStateException("Segments and operators misaligned.");
+        }
 
+        return new AbstractMap.SimpleEntry<>(segments, operators);
+    }
     
     private String expandHome(String path) {
         String home = System.getProperty("user.home");
@@ -357,44 +359,44 @@ public class ToolHandler {
     }
     
     
-//    public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
-//        ExecutorService executor = Executors.newSingleThreadExecutor();
-//
-//        return CompletableFuture.supplyAsync(() -> {
-//            try {
-//                if (allCommands.isEmpty()) {
-//                    throw new IllegalArgumentException("No commands provided");
-//                }
-//                if (SHELL_OPERATORS.contains(allCommands.get(0).get(0))) {
-//                    throw new IllegalArgumentException("Command cannot start with operator");
-//                }
-//                if (SHELL_OPERATORS.contains(allCommands.get(allCommands.size()-1).get(0))) {
-//                    throw new IllegalArgumentException("Command cannot end with operator");
-//                }
-//                // Construct segments as List<List<String>> for executePipeline
-//                List<List<String>> segmentTokens = allCommands.stream()
-//                    .map(segment -> segment.stream()
-//                        .map(this::expandHome)// if you want to expand ~ in each token
-//                        .collect(Collectors.toList()))
-//                    .collect(Collectors.toList());
-//                AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);
-//                List<List<String>> segments = split.getKey();
-//                segments = segments.stream()
-//                    .map(segment -> segment.stream()
-//                        .map(token -> {
-//                                return escapeCommandParts(token); // leave quoted segments untouched
-//                        })
-//                        .collect(Collectors.toList()))
-//                    .collect(Collectors.toList());// Correct type: List<List<String>>
-//                List<String> operators = split.getValue();
-//                return executePipeline(segments, operators);
-//            } catch (Exception e) {
-//                throw new RuntimeException(e);
-//            } finally {
-//                executor.shutdown();
-//            }
-//        }, executor);
-//    }
+    public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (allCommands.isEmpty()) {
+                    throw new IllegalArgumentException("No commands provided");
+                }
+                if (SHELL_OPERATORS.contains(allCommands.get(0).get(0))) {
+                    throw new IllegalArgumentException("Command cannot start with operator");
+                }
+                if (SHELL_OPERATORS.contains(allCommands.get(allCommands.size()-1).get(0))) {
+                    throw new IllegalArgumentException("Command cannot end with operator");
+                }
+                // Construct segments as List<List<String>> for executePipeline
+                List<List<String>> segmentTokens = allCommands.stream()
+                    .map(segment -> segment.stream()
+                        .map(this::expandHome)// if you want to expand ~ in each token
+                        .collect(Collectors.toList()))
+                    .collect(Collectors.toList());
+                AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);
+                List<List<String>> segments = split.getKey();
+                segments = segments.stream()
+                    .map(segment -> segment.stream()
+                        .map(token -> {
+                                return escapeCommandParts(token); // leave quoted segments untouched
+                        })
+                        .collect(Collectors.toList()))
+                    .collect(Collectors.toList());// Correct type: List<List<String>>
+                List<String> operators = split.getValue();
+                return executePipeline(segments, operators);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } finally {
+                executor.shutdown();
+            }
+        }, executor);
+    }
     
     public CompletableFuture<String> executeBase64Commands(String base64Command) throws Exception {
         System.out.println(base64Command);
