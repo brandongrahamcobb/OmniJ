@@ -58,6 +58,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
@@ -65,6 +66,16 @@ import org.apache.commons.exec.DefaultExecuteResultHandler;
 import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.PumpStreamHandler;
+import org.jline.reader.*;
+import org.jline.reader.impl.DefaultParser;
+import org.jline.reader.impl.LineReaderImpl;
+import org.jline.terminal.TerminalBuilder;
+
+// call once, reuse:
+
+
+
+
 
 public class ToolHandler {
 
@@ -133,44 +144,85 @@ public class ToolHandler {
         return operators;
     }
     
+    public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (allCommands == null || allCommands.isEmpty()) {
+                    throw new IllegalArgumentException("No commands provided");
+                }
+
+                // Flatten tokens into a single sequence
+                List<String> flat = allCommands.stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+
+                // Split on shell operators like |, &&, >, etc.
+                AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(flat);
+                List<List<String>> segments = split.getKey();
+                List<String> operators = split.getValue();
+
+                // Apply ~ expansion and escaping
+                segments = segments.stream()
+                    .map(segment -> segment.stream()
+                        .map(this::expandHome)
+                        .map(this::escapeCommandParts)
+                        .collect(Collectors.toList()))
+                    .collect(Collectors.toList());
+                // Execute pipeline
+                return executePipeline(segments, operators);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }, Executors.newSingleThreadExecutor());
+    }
+
     private static List<String> tokenize(String commandLine) {
         List<String> tokens = new ArrayList<>();
-        int i = 0;
-        while (i < commandLine.length()) {
+        StringBuilder current = new StringBuilder();
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+
+        for (int i = 0; i < commandLine.length(); i++) {
             char c = commandLine.charAt(i);
 
-            // Skip whitespace
-            if (Character.isWhitespace(c)) {
-                i++;
-                continue;
-            }
-
-            // Check for multi-char operators first (&&, ||, >>)
-            if (i + 1 < commandLine.length()) {
-                String twoChar = commandLine.substring(i, i + 2);
-                if (SHELL_OPERATORS.contains(twoChar)) {
-                    tokens.add(twoChar);
-                    i += 2;
-                    continue;
+            if (c == '\'' && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+                current.append(c);
+            } else if (c == '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+                current.append(c);
+            } else if (Character.isWhitespace(c) && !inSingleQuote && !inDoubleQuote) {
+                if (current.length() > 0) {
+                    tokens.add(current.toString());
+                    current.setLength(0);
                 }
-            }
+            } else if (!inSingleQuote && !inDoubleQuote && isOperatorStart(commandLine, i)) {
+                if (current.length() > 0) {
+                    tokens.add(current.toString());
+                    current.setLength(0);
+                }
 
-            // Check for single-char operator
-            if (SHELL_OPERATORS.contains(String.valueOf(c))) {
+                // Handle 2-char operator
+                if (i + 1 < commandLine.length()) {
+                    String twoChar = commandLine.substring(i, i + 2);
+                    if (SHELL_OPERATORS.contains(twoChar)) {
+                        tokens.add(twoChar);
+                        i++;
+                        continue;
+                    }
+                }
+
+                // 1-char operator
                 tokens.add(String.valueOf(c));
-                i++;
-                continue;
+            } else {
+                current.append(c);
             }
-
-            // Otherwise, parse a normal token until next whitespace or operator
-            int start = i;
-            while (i < commandLine.length() &&
-                  !Character.isWhitespace(commandLine.charAt(i)) &&
-                  !isOperatorStart(commandLine, i)) {
-                i++;
-            }
-            tokens.add(commandLine.substring(start, i));
         }
+
+        if (current.length() > 0) {
+            tokens.add(current.toString());
+        }
+
         return tokens;
     }
 
@@ -204,7 +256,7 @@ public class ToolHandler {
         return segments;
     }
     private static String readStream(InputStream stream) throws IOException {
-        StringBuilder builder = new StringBuilder();
+    StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -213,62 +265,56 @@ public class ToolHandler {
         }
         return builder.toString().trim();
     }
-    
+
     public static String removeThinkBlocks(String text) {
-        String regex = "(?s)<think>.*?</think>";
+        String regex = "(?s)<think>(.*?)</think>";
         return text.replaceAll(regex, "");
     }
 
-    public static String extractJsonContent(String input) {
-        Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
-        if (matcher.find()) {
-            return matcher.group(1).trim();
-        } else {
-            return input.replaceFirst("^```json\\s*", "")
-                        .replaceFirst("\\s*```$", "")
-                        .trim();
-        }
-    }
-
     private String escapeControlCharacters(String input) {
-        // Replace newline and other control characters with their escaped equivalents
-        return input.replaceAll("[\\x00-\\x1F\\x7F]", "\\\\u00$0");
-    }
-
-    public static String sanitizeJsonContent(String input) {
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            mapper.readTree(input);
-            return input;
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-        if ((input.startsWith("\"") && input.endsWith("\"")) ||
-            (input.startsWith("'") && input.endsWith("'"))) {
-            try {
-                String unescaped = mapper.readValue(input, String.class);
-                mapper.readTree(unescaped);
-                return unescaped;
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
+        StringBuilder escaped = new StringBuilder();
+        for (char c : input.toCharArray()) {
+            if (c <= 0x1F || c == 0x7F) {
+                escaped.append(String.format("\\u%04x", (int) c));
+            } else {
+                escaped.append(c);
             }
         }
-        String cleaned = input.trim();
-        if (cleaned.startsWith("Output:")) {
-            cleaned = cleaned.substring("Output:".length()).trim();
-        }
-        try {
-            mapper.readTree(cleaned);
-            return cleaned;
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+        return escaped.toString();
+    }
+
+    private static String unescapeIfQuoted(String input) {
+        if ((input.startsWith("\"") && input.endsWith("\"")) || (input.startsWith("'") && input.endsWith("'"))) {
+            try {
+                return new ObjectMapper().readValue(input, String.class); // unescape inner quotes
+            } catch (IOException e) {
+                return input; // fallback
+            }
         }
         return input;
     }
 
+    public static String sanitizeJsonContent(String input) {
+        // Attempt JSON parsing
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            mapper.readTree(input);
+            return input;
+        } catch (IOException e) {
+            // Try fix common escape issues
+            input = input.replace("\\", "\\\\").replace("\"", "\\\"");
+            try {
+                mapper.readTree(input);
+                return input;
+            } catch (IOException ignored) {}
+        }
+        return input;
+    }
+
+
     private void drainStream(InputStream inputStream) {
         new Thread(() -> {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
                 while (reader.readLine() != null) { /* discard or collect output */ }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -300,17 +346,20 @@ public class ToolHandler {
                     case '$':
                         escaped.append("\\$");
                         break;
-                    case '`':
-                        escaped.append("\\`");
-                        break;
                     case '|':
                         escaped.append("\\|");
                         break;
                     case '>':
+                        escaped.append("\\>");
+                        break;
                     case '<':
+                        escaped.append("\\<");
+                        break;
                     case '&':
+                        escaped.append("\\&");
+                        break;
                     case ';':
-                        escaped.append("\\" + c);
+                        escaped.append("\\;");
                         break;
                     default:
                         escaped.append(c);
@@ -322,32 +371,30 @@ public class ToolHandler {
         }
     }
 
-    
-    private AbstractMap.SimpleEntry<List<List<String>>, List<String>> splitIntoSegmentsAndOperators(List<List<String>> tokens) {
+
+    private SimpleEntry<List<List<String>>, List<String>> splitIntoSegmentsAndOperators(List<String> tokens) {
         List<List<String>> segments = new ArrayList<>();
         List<String> operators = new ArrayList<>();
+        List<String> current = new ArrayList<>();
 
-        for (int i = 0; i < tokens.size(); i++) {
-            List<String> part = tokens.get(i);
-            if (part.size() == 1 && SHELL_OPERATORS.contains(part.get(0))) {
-                if (segments.isEmpty()) {
-                    throw new IllegalArgumentException("Command cannot start with operator: " + part.get(0));
+        for (String token : tokens) {
+    if (SHELL_OPERATORS.contains(token)) {
+                if (current.isEmpty()) {
+                    throw new IllegalArgumentException("Operator without preceding command: " + token);
                 }
-                operators.add(part.get(0));
+                segments.add(new ArrayList<>(current));
+                operators.add(token);
+                current.clear();
             } else {
-                segments.add(part);
-                if (segments.size() > 1 && operators.size() < segments.size() - 1) {
-                    operators.add(";");
-                }
+                current.add(token);
             }
         }
-        if (segments.size() != operators.size() + 1) {
-            throw new IllegalStateException("Segments and operators misaligned.");
+        if (!current.isEmpty()) {
+            segments.add(current);
         }
-
-        return new AbstractMap.SimpleEntry<>(segments, operators);
+        return new SimpleEntry<>(segments, operators);
     }
-    
+
     private String expandHome(String path) {
         String home = System.getProperty("user.home");
         if (path.equals("~")) {
@@ -357,46 +404,55 @@ public class ToolHandler {
         }
         return path;
     }
-    
-    
-    public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
 
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (allCommands.isEmpty()) {
-                    throw new IllegalArgumentException("No commands provided");
-                }
-                if (SHELL_OPERATORS.contains(allCommands.get(0).get(0))) {
-                    throw new IllegalArgumentException("Command cannot start with operator");
-                }
-                if (SHELL_OPERATORS.contains(allCommands.get(allCommands.size()-1).get(0))) {
-                    throw new IllegalArgumentException("Command cannot end with operator");
-                }
-                // Construct segments as List<List<String>> for executePipeline
-                List<List<String>> segmentTokens = allCommands.stream()
-                    .map(segment -> segment.stream()
-                        .map(this::expandHome)// if you want to expand ~ in each token
-                        .collect(Collectors.toList()))
-                    .collect(Collectors.toList());
-                AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);
-                List<List<String>> segments = split.getKey();
-                segments = segments.stream()
-                    .map(segment -> segment.stream()
-                        .map(token -> {
-                                return escapeCommandParts(token); // leave quoted segments untouched
-                        })
-                        .collect(Collectors.toList()))
-                    .collect(Collectors.toList());// Correct type: List<List<String>>
-                List<String> operators = split.getValue();
-                return executePipeline(segments, operators);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                executor.shutdown();
-            }
-        }, executor);
+    public static String extractJsonContent(String input) {
+        Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(input);
+        if (matcher.find()) {
+            String raw = matcher.group(1).trim();
+            return sanitizeJsonContent(unescapeIfQuoted(raw));
+        }
+        return sanitizeJsonContent(unescapeIfQuoted(input));
     }
+    
+    
+//    public CompletableFuture<String> executeCommandsAsList(List<List<String>> allCommands) {
+//        ExecutorService executor = Executors.newSingleThreadExecutor();
+//
+//        return CompletableFuture.supplyAsync(() -> {
+//            try {
+//                if (allCommands.isEmpty()) {
+//                    throw new IllegalArgumentException("No commands provided");
+//                }
+//                if (SHELL_OPERATORS.contains(allCommands.get(0).get(0))) {
+//                    throw new IllegalArgumentException("Command cannot start with operator");
+//                }
+//                if (SHELL_OPERATORS.contains(allCommands.get(allCommands.size()-1).get(0))) {
+//                    throw new IllegalArgumentException("Command cannot end with operator");
+//                }
+//                // Construct segments as List<List<String>> for executePipeline
+//                List<List<String>> segmentTokens = allCommands.stream()
+//                    .map(segment -> segment.stream()
+//                        .map(this::expandHome)// if you want to expand ~ in each token
+//                        .collect(Collectors.toList()))
+//                    .collect(Collectors.toList());
+//                AbstractMap.SimpleEntry<List<List<String>>, List<String>> split = splitIntoSegmentsAndOperators(segmentTokens);
+//                List<List<String>> segments = split.getKey();
+//                segments = segments.stream()
+//                    .map(segment -> segment.stream()
+//                        .map(token -> {
+//                                return escapeCommandParts(token); // leave quoted segments untouched
+//                        })
+//                        .collect(Collectors.toList()))
+//                    .collect(Collectors.toList());// Correct type: List<List<String>>
+//                List<String> operators = split.getValue();
+//                return executePipeline(segments, operators);
+//            } catch (Exception e) {
+//                throw new RuntimeException(e);
+//            } finally {
+//                executor.shutdown();
+//            }
+//        }, executor);
+//    }
     
     public CompletableFuture<String> executeBase64Commands(String base64Command) throws Exception {
         System.out.println(base64Command);
@@ -417,17 +473,18 @@ public class ToolHandler {
                 throw new RuntimeException(e);
             }
         });
+        
     }
-
-    
     
     private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
+        
+        System.out.println(Vyrtuous.CYAN + "test" + Vyrtuous.RESET);
         List<Process> processes = new ArrayList<>();
+        List<Thread> pipeThreads = new ArrayList<>();
         Process lastProcess = null;
 
         int i = 0;
         while (i < segments.size()) {
-            
             List<String> segment = segments.get(i);
             String command = String.join(" ", segment);
 
@@ -435,73 +492,56 @@ public class ToolHandler {
             ProcessBuilder pb = new ProcessBuilder(commandList);
             pb.redirectErrorStream(true);
 
-            // Handle redirection operator that follows current segment
+            // Redirection
             if (i < operators.size()) {
                 String op = operators.get(i);
                 if (op.equals(">") || op.equals(">>")) {
-                    if (i + 1 >= segments.size()) throw new IllegalArgumentException("Expected filename after " + op);
+                    if (i + 1 >= segments.size())
+                        throw new IllegalArgumentException("Expected filename after " + op);
                     File outFile = new File(segments.get(i + 1).get(0));
                     pb.redirectOutput(op.equals(">") ?
-                        ProcessBuilder.Redirect.to(outFile) :
-                        ProcessBuilder.Redirect.appendTo(outFile));
+                            ProcessBuilder.Redirect.to(outFile) :
+                            ProcessBuilder.Redirect.appendTo(outFile));
                     i += 2;
-
                     Process proc = pb.start();
                     processes.add(proc);
                     lastProcess = proc;
-
-                    proc.getInputStream();
-                    proc.getErrorStream();
                     continue;
                 } else if (op.equals("<")) {
-                    if (i + 1 >= segments.size()) throw new IllegalArgumentException("Expected filename after <");
+                    if (i + 1 >= segments.size())
+                        throw new IllegalArgumentException("Expected filename after <");
                     File inFile = new File(segments.get(i + 1).get(0));
                     pb.redirectInput(ProcessBuilder.Redirect.from(inFile));
                     i += 2;
                     Process proc = pb.start();
-                    
-                    if (i == segments.size() - 1) {
-                        // Last process, read output later synchronously, just drain error
-                        proc.getErrorStream();
-                    } else {
-                        // Intermediate process, drain both to avoid blocking
-                        proc.getInputStream();
-                        proc.getErrorStream();
-                    }
                     processes.add(proc);
                     lastProcess = proc;
                     continue;
                 }
             }
 
-            // Handle piping
+            // Piping
             if (i > 0 && "|".equals(operators.get(i - 1))) {
                 Process prevProc = processes.get(processes.size() - 1);
-                pb.redirectInput(ProcessBuilder.Redirect.PIPE);
                 Process currProc = pb.start();
-                if (i == segments.size() - 1) {
-                    // Last process, read output later synchronously, just drain error
-                    currProc.getErrorStream();
-                } else {
-                    // Intermediate process, drain both to avoid blocking
-                    currProc.getInputStream();
-                    currProc.getErrorStream();
-                }
 
                 InputStream prevOut = prevProc.getInputStream();
                 OutputStream currIn = currProc.getOutputStream();
 
                 Thread pipeThread = new Thread(() -> {
-                    try (prevOut; currIn) {
+                    try {
                         pipeStreams(prevOut, currIn);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 });
                 pipeThread.start();
+                pipeThreads.add(pipeThread);
+
                 processes.add(currProc);
                 lastProcess = currProc;
             }
+            // Conditionals
             else if (i > 0 && List.of("&&", "||").contains(operators.get(i - 1))) {
                 Process prevProc = processes.get(processes.size() - 1);
                 int prevExit = prevProc.waitFor();
@@ -510,53 +550,42 @@ public class ToolHandler {
                     break;
                 }
                 Process proc = pb.start();
-                
-                if (i == segments.size() - 1) {
-                    proc.getErrorStream();
-                } else {
-                    proc.getInputStream();
-                    proc.getErrorStream();
-                }
                 processes.add(proc);
                 lastProcess = proc;
             }
+            // Standalone
             else {
                 Process proc = pb.start();
-                if (i == segments.size() - 1) {
-                    proc.getErrorStream();
-                } else {
-                    proc.getInputStream();
-                    proc.getErrorStream();
-                }
                 processes.add(proc);
                 lastProcess = proc;
             }
             i++;
         }
-        if (lastProcess == null) throw new IllegalStateException("No process executed");
-        StringBuilder fullOutput = new StringBuilder();
-        for (int j = 0; j < processes.size(); j++) {
-            Process proc = processes.get(j);
-            boolean isRedirected = false;
-            if (j < operators.size()) {
-                String op = operators.get(j);
-                if (op.equals(">") || op.equals(">>")) {
-                    isRedirected = true;
-                }
+
+        if (lastProcess == null)
+            throw new IllegalStateException("No process executed");
+
+        // Wait for piping threads
+        for (Thread t : pipeThreads) {
+            t.join();
+        }
+
+        // Capture final output
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(lastProcess.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
             }
-            if (!isRedirected) {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        fullOutput.append(line).append("\n");
-                    }
-                }
-            }
+        }
+
+        // Wait for all processes
+        for (Process proc : processes) {
             proc.waitFor();
         }
-        return fullOutput.toString().trim();
-    }
 
+        return output.toString().trim();
+    }
 
     private void pipeStreams(InputStream input, OutputStream output) throws IOException {
         byte[] buffer = new byte[8192];
