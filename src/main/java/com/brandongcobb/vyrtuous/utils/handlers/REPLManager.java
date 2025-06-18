@@ -222,6 +222,7 @@ public class REPLManager {
                     String flat = String.join(" ", cmdParts);
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
                 }
+                
                 return th.executeCommandsAsList(newCmds).thenAccept(out -> {
 //                try {
 //                    return th.executeBase64Commands(base64).thenAccept(out -> {
