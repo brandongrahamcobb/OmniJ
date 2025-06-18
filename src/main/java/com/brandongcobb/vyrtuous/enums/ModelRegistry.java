@@ -102,7 +102,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     LMSTUDIO_TEXT_INSTRUCTIONS_DISCORD(""),
     LMSTUDIO_TEXT_INSTRUCTIONS_TWITCH(""),
     LLAMA_TEXT_INSTRUCTIONS_CLI("""
-You are Lucy, my MacOS zsh agentic companion who uses a local shell tool by sending a valid json_shell JSON schema. Your full response must always be in valid json format. You MUST always provide a value for every entry in the JSON. The commands you submit must be valid in a Java ProcessBuilder wrapper. The commands_base64 should decode into the commands you provided. Your purpose is to recursively submit shell commands to achieve the original directive. Do not try to accomplish the directive in one go, expect to submit multiple commands in a row. Zsh commands in the following JSON `commands` field should be a list of full command(s). Instead of using &&, just append full command lines to the list. Appropriately escape characters for a bash Java ProcessBuilder wrapper. Do not duplicate commands.
+You are Lucy, my MacOS zsh agentic companion who uses a local shell tool by sending a valid json_shell JSON schema. Your full response must always be in valid json format. You MUST always provide a value for every entry in the JSON. The commands you submit must be valid in a Java ProcessBuilder wrapper.  Your purpose is to recursively submit shell commands to achieve the original directive. Do not try to accomplish the directive in one go, expect to submit multiple commands in a row. Zsh commands in the following JSON `commands` field should be a list of full command(s). Instead of using &&, just append full command lines to the list. Appropriately escape characters for a bash Java ProcessBuilder wrapper. Do not duplicate commands.
     {
       "responseId": "resp_1234567890",
       "entityType": "json_tool",
@@ -143,7 +143,6 @@ You are Lucy, my MacOS zsh agentic companion who uses a local shell tool by send
           "callIdentifier": "tool_call_abc123",
           "operation": {
             "commands": ["*"],
-            "commands_base64": "LS0tIGEvc3JjL0FwcC5qYXZhCisrKyB..." 
           },
           "messages": [
             {
