@@ -133,6 +133,16 @@ public class ContextManager {
     public synchronized void clear() {
         entries.clear(); // Commented out
     }
+    
+    public synchronized void clearModified() {
+        if (entries.size() > 1) {
+            ContextEntry first = entries.get(0);
+            entries.clear();
+            entries.add(first);
+        }
+        lastBuildIndex = entries.size(); // Keep lastBuildIndex in sync
+    }
+
 
     /**
      * Calculates the token count of the current prompt context.
@@ -154,7 +164,7 @@ public class ContextManager {
         try {
             Encoding encoding = registry.getEncoding("cl100k_base")
                 .orElseThrow(() -> new IllegalStateException("Encoding cl100k_base not available"));
-            return encoding.encode(prompt).size();
+            return encoding.encode(prompt).size() * 2;
         } catch (Exception e) {
             return 0L;
         }

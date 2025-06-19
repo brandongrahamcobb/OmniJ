@@ -253,7 +253,7 @@ public class REPLManager {
                     boolean needsClarification = (boolean) data[0];
                     boolean acceptingTokens = (boolean) data[1];
                     if (needsClarification && acceptingTokens) {
-                        contextManager.printNewEntries(true, true, true, true, false, true, true);
+                        contextManager.printNewEntries(true, true, true, true, true, true, true);
                         System.out.print("> ");
                         String reply = scanner.nextLine();  // still sync, unless replaced with async input
                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
@@ -262,8 +262,9 @@ public class REPLManager {
                         if (finished) {
                             return markdownUtils.completeGetText().thenCompose(finalReason -> {
                                 System.out.println(finalReason);
-                                System.out.println("✅ Task complete.");
-                                contextManager.clear();
+                                contextManager.clearModified();
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, finalReason));
+                                contextManager.printNewEntries(true, true, true, true, true, true, true);
                                 System.out.print("> ");
                                 String newInput = scanner.nextLine();  // sync input
                                 return startREPL(scanner, newInput);
