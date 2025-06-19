@@ -43,8 +43,9 @@ public class OpenRouterContainer extends MainContainer {
         if (completionMessage != null) {
             String role = (String) completionMessage.get("role");
             MetadataKey<String> completionContentKey = new MetadataKey<>("content", Metadata.STRING);
-            String completionContent = completionMessage != null ? (String) completionMessage.get("content") : null;
             Object contentObj = completionMessage.get("content");
+            String content = (String) contentObj;
+            put(completionContentKey, content);
             if (!(contentObj instanceof List<?> contentList)) return;
             for (Object itemObj : contentList) {
                 MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);

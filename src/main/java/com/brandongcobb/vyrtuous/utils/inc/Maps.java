@@ -40,9 +40,9 @@ public class Maps {
     );
     
     public static final Map<String, String> OPENROUTER_ENDPOINT_URLS = Map.ofEntries(
-        Map.entry("deprecated", "https://openrouter.api/v1/chat/completions"),
-        Map.entry("moderations", "https://openrouter.api/v1/chat/completions"),
-        Map.entry("responses", "https://openrouter.api/v1/chat/completions")
+        Map.entry("deprecated", "https://openrouter.ai/api/v1/chat/completions"),
+        Map.entry("moderations", "https://openrouter.ai/api/v1/chat/completions"),
+        Map.entry("responses", "https://openrouter.ai/api/v1/chat/completions")
     );
     
     public static final Map<String, String> DISCORD_TEXT_ENDPOINTS = Map.ofEntries(
@@ -50,7 +50,7 @@ public class Maps {
         Map.entry("llama", "http://127.0.0.1:8080/api/chat"),
         Map.entry("lmstudio", "http://127.0.0.1:1234/v1/chat/completion"),
         Map.entry("openai", "https://api.openai.com/v1/completions"),
-        Map.entry("openrouter", "https://openrouter.api/v1/chat/completions")
+        Map.entry("openrouter", "https://openrouter.ai/api/v1/chat/completions")
     );
     
     public static final Map<String, String> DISCORD_MULTIMODAL_ENDPOINTS = Map.ofEntries(
@@ -58,7 +58,7 @@ public class Maps {
         Map.entry("llama", "http://127.0.0.1:8080/api/chat"),
         Map.entry("lmstudio", "http://127.0.0.1:1234/v1/chat/completion"),
         Map.entry("openai", "https://api.openai.com/v1/completions"),
-        Map.entry("openrouter", "https://openrouter.api/v1/chat/completions")
+        Map.entry("openrouter", "https://openrouter.ai/api/v1/chat/completions")
     );
                                     
     public static final String[] LLAMA_MODELS = {"gemma-3-12B-it-QAT-Q4_0.gguf"}; // TODO: enable user installations of models.
@@ -75,7 +75,7 @@ public class Maps {
         Map.entry("https://api.openai.com/v1/moderations", "moderations"),
         Map.entry("https://api.openai.com/v1/responses", "responses"),
         Map.entry("https://api.openai.com/v1/uploads", "uploads"),
-        Map.entry("https://openrouter.api/v1/chat/completions", "deprecated")
+        Map.entry("https://openrouter.ai/api/v1/chat/completions", "deprecated")
     );
     
     public static final Map<String, String> DISCORD_IMAGE_INSTRUCTIONS = Map.ofEntries(
@@ -177,6 +177,18 @@ public class Maps {
     public static final Map<String, String> OPENAI_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("completions", "https://api.openai.com/v1/completions"),
         Map.entry("responses", "https://api.openai.com/v1/responses")
+    );
+    
+    public static final Map<String, String> OPENROUTER_DISCORD_TEXT_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("deprecated", "https://openrouter.ai/api/v1/chat/completions")
+    );
+
+    public static final Map<String, String> OPENROUTER_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("deprecated", "https://openrouter.ai/api/v1/chat/completions")
+    );
+    
+    public static final Map<String, String> OPENROUTER_CLI_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("deprecated", "https://openrouter.ai/api/v1/chat/completions")
     );
     
     public static Map<String, Object> createModerationSchema() {

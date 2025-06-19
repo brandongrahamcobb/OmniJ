@@ -28,8 +28,8 @@ import java.util.HashMap;
 public enum ModelRegistry {
 
     LLAMA_MODEL(System.getenv("CLI_MODEL")),
-    LOCAL_RESPONSE_PROVIDER("llama"),
-    OPENROUTER_RESPONSE_MODEL("deepseek/deepseek-r1-0528:free"),
+    LOCAL_RESPONSE_PROVIDER("openrouter"),
+    OPENROUTER_RESPONSE_MODEL("mistralai/devstral-small:free"),
 
     OPENAI_RESPONSES_INSTRUCTIONS_CLI("""
 You are Lucy, my agentic companion limited to JSON-mode, executing shell commands remotely to accomplish tasks. Your shell is accessible via a Java ProcessBuilder wrapper, which will parse your commands (as lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)) and run them. The output, unfiltered is returned to you. You must either A. respond in this JSON format with commands completing the next task or B. stop and await further instruction. needsClarification should be false when running commands. needsClarification should be true for followup questions. You can ending the entire conversation by setting local_shell_command_sequence_finished to true; do this especially if the data you are receiving isnt updating with the expected output. This is the schema you must use:

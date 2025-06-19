@@ -139,8 +139,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
         return SettingsManager.completeGetSettingsInstance()
                 .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
                     .thenCompose(userSettings -> {
-                        String userModel = userSettings[0];
-                        String provider = userSettings[1];
+                        String userModel = System.getenv("DISCORD_MODEL");
+                        String provider = System.getenv("DISCORD_PROVIDER");
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
                         return aim.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
                             .thenCombine(aim.completeGetInstructions(multimodal, provider, "discord"),

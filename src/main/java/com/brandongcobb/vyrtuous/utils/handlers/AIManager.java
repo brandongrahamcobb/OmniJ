@@ -483,6 +483,8 @@ public class AIManager {
                 endpoint = Maps.LLAMA_CLI_ENDPOINT_URLS.get(requestType);
             } else if ("openai".equals(provider)) {
                 endpoint = Maps.OPENAI_CLI_ENDPOINT_URLS.get(requestType);
+            } else if ("openrouter".equals(provider)) {
+                endpoint = Maps.OPENROUTER_CLI_ENDPOINT_URLS.get(requestType);
             }
         } else if ("discord".equals(sourceOfRequest)) {
             if ("latest".equals(provider)) {
@@ -497,6 +499,10 @@ public class AIManager {
                 endpoint = multimodal
                     ? Maps.OPENAI_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)
                     : Maps.OPENAI_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
+            } else if ("openrouter".equals(provider)) {
+                endpoint = multimodal
+                    ? Maps.OPENROUTER_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)
+                    : Maps.OPENROUTER_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
             }
         } else if ("twitch".equals(sourceOfRequest)) {
             // Optional: Add Twitch logic here
