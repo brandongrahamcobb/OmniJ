@@ -478,7 +478,6 @@ public class ToolHandler {
     
     private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
         
-        System.out.println(Vyrtuous.CYAN + "test" + Vyrtuous.RESET);
         List<Process> processes = new ArrayList<>();
         List<Thread> pipeThreads = new ArrayList<>();
         Process lastProcess = null;

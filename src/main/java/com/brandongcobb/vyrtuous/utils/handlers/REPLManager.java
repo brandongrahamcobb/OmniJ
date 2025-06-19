@@ -250,16 +250,16 @@ public class REPLManager {
                     return new Object[] { pair.getKey(), pair.getValue(), output };
                 })
                 .thenCompose(data -> {
-                    boolean needsClarification = (boolean) data[0];
-                    boolean acceptingTokens = (boolean) data[1];
-                    if (needsClarification && acceptingTokens) {
-                        contextManager.printNewEntries(true, true, true, true, true, true, true);
-                        System.out.print("> ");
-                        String reply = scanner.nextLine();  // still sync, unless replaced with async input
-                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
-                    }
                     return markdownUtils.completeGetLocalShellFinished().thenCompose(finished -> {
-                        if (finished) {
+                        boolean needsClarification = (boolean) data[0];
+                        boolean acceptingTokens = true; //(boolean) data[1];
+                        if (needsClarification && acceptingTokens) {
+                            contextManager.printNewEntries(true, true, true, true, true, true, true);
+                            System.out.print("> ");
+                            String reply = scanner.nextLine();  // still sync, unless replaced with async input
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
+                        }
+                        if (finished && !needsClarification) {
                             return markdownUtils.completeGetText().thenCompose(finalReason -> {
                                 System.out.println(finalReason);
                                 contextManager.clearModified();
