@@ -53,9 +53,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
     }
@@ -261,7 +261,6 @@ public class REPLManager {
                         }
                         if (finished && !needsClarification) {
                             return markdownUtils.completeGetText().thenCompose(finalReason -> {
-                                System.out.println(finalReason);
                                 contextManager.clearModified();
                                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, finalReason));
                                 contextManager.printNewEntries(true, true, true, true, true, true, true);
