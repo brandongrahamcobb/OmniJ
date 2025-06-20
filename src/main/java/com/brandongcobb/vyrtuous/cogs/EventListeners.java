@@ -74,7 +74,12 @@ public class EventListeners extends ListenerAdapter implements Cog {
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
-        if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX")) || !message.getContentRaw().contains("@Vyrtuous") || !message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId())) {
+        if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX"))) {
+            if (message.getReferencedMessage() != null) {
+                if (!message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId()) && !message.getContentRaw().contains("@Vyrtuous")) {
+                    return;
+                }
+            }
             return;
         }
         long senderId = event.getAuthor().getIdLong();
