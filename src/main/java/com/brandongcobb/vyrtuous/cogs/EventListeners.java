@@ -74,7 +74,9 @@ public class EventListeners extends ListenerAdapter implements Cog {
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
-        if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX"))) return;
+        if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX")) || !message.getContentRaw().contains("@Vyrtuous") || !message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId())) {
+            return;
+        }
         long senderId = event.getAuthor().getIdLong();
         List<Attachment> attachments = message.getAttachments();
         MetadataContainer previousResponse = genericUserResponseMap.get(senderId);

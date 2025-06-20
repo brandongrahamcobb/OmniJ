@@ -281,7 +281,7 @@ public class REPLManager {
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
-        contextManager.printNewEntries(true, false, true, true, false, true, true);
+        contextManager.printNewEntries(true, true, true, true, false, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
