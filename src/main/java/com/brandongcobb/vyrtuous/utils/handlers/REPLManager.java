@@ -153,6 +153,8 @@ public class REPLManager {
                                 LlamaUtils llamaUtils = new LlamaUtils(resp);
                                 contentFuture = llamaUtils.completeGetContent();
                                 responseIdFuture = llamaUtils.completeGetResponseId();
+                                String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
                             }
                             case "openai" -> {
                                 OpenAIUtils openaiUtils = new OpenAIUtils(resp);
@@ -210,65 +212,61 @@ public class REPLManager {
         LOGGER.fine("Starting E-step");
         if (response instanceof ToolContainer tool) {
             ToolUtils tu = new ToolUtils(response);
-            return tu.completeGetText().thenCompose(lastAIResponseText -> {
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-                //String base64 = tu.completeGetStdinBase64().join();
-                if (newCmds == null || newCmds.isEmpty()) {
-                    LOGGER.warning("No shell commands returned from tool");
-                    return CompletableFuture.completedFuture(null);
-                }
-                for (List<String> cmdParts : newCmds) {
-                    String flat = String.join(" ", cmdParts);
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
-                }
-                
-                return th.executeCommandsAsList(newCmds).thenAccept(out -> {
-//                try {
-//                    return th.executeBase64Commands(base64).thenAccept(out -> {
+            return tu.completeGetText()
+                .thenCompose(lastAIResponseText -> {
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
+                    List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
+                    if (newCmds == null || newCmds.isEmpty()) {
+                        LOGGER.warning("No shell commands returned from tool");
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    for (List<String> cmdParts : newCmds) {
+                        String flat = String.join(" ", cmdParts);
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
+                    }
+                    return th.executeCommandsAsList(newCmds).thenAccept(out -> {
                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
                     });
-//                    });
-//                } catch (Exception e){
-//                    e.printStackTrace();
-//                    return CompletableFuture.failedFuture(e);
-//                }
-            }).exceptionally(ex -> {
-                ex.printStackTrace();
-                // You can handle error logging here, then return null to complete normally
-                return null;
-            });
+                })
+                .exceptionally(ex -> {
+                    ex.printStackTrace();
+                    return null;
+                });
+
         } else if (response instanceof MarkdownContainer markdown) {
             MarkdownUtils markdownUtils = new MarkdownUtils(markdown);
             CompletableFuture<Boolean> clarificationFuture = markdownUtils.completeGetClarification();
-            CompletableFuture<Boolean> acceptingTokensFuture = markdownUtils.completeGetAcceptingTokens();
+            CompletableFuture<Boolean> summarizeFuture = markdownUtils.completeGetProgressiveSummaryFlag();
             CompletableFuture<String> textFuture = markdownUtils.completeGetText();
+
             return clarificationFuture
-                .thenCombine(acceptingTokensFuture, AbstractMap.SimpleEntry::new)
-                .thenCombine(textFuture, (pair, output) -> {
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, output));
-                    return new Object[] { pair.getKey(), pair.getValue(), output };
+                .thenCombine(textFuture, (needsClarification, aiResponseText) -> {
+                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, aiResponseText));
+                    return new AbstractMap.SimpleEntry<>(needsClarification, aiResponseText);
                 })
-                .thenCompose(data -> {
-                    return markdownUtils.completeGetLocalShellFinished().thenCompose(finished -> {
-                        boolean needsClarification = (boolean) data[0];
-                        boolean acceptingTokens = true; //(boolean) data[1];
-                        if (needsClarification && acceptingTokens) {
-                            contextManager.printNewEntries(true, true, true, true, true, true, true);
-                            System.out.print("> ");
-                            String reply = scanner.nextLine();  // still sync, unless replaced with async input
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, reply));
-                        }
-                        if (finished && !needsClarification) {
-                            return markdownUtils.completeGetText().thenCompose(finalReason -> {
-                                contextManager.clearModified();
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, finalReason));
-                                contextManager.printNewEntries(true, true, true, true, true, true, true);
+                .thenCompose(entry -> {
+                    boolean needsClarification = entry.getKey();
+
+                    return summarizeFuture.thenCompose(progressiveSummaryFlag -> {
+                        if (needsClarification && !progressiveSummaryFlag) {
+                            return markdownUtils.completeGetText().thenCompose(summary -> {
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
+                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                                 System.out.print("> ");
-                                String newInput = scanner.nextLine();  // sync input
+                                String newInput = scanner.nextLine(); // synchronous input
                                 return startREPL(scanner, newInput);
                             });
+
+                        } else if (!needsClarification && progressiveSummaryFlag) {
+                            return markdownUtils.completeGetText().thenCompose(summary -> {
+                                contextManager.clearModified();
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
+                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                                return CompletableFuture.completedFuture(null);
+                            });
+
                         } else {
+                            LOGGER.warning("Unhandled markdown state: no clarification, no summary");
                             return CompletableFuture.completedFuture(null);
                         }
                     });
@@ -278,10 +276,10 @@ public class REPLManager {
         }
     }
 
+
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
-        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, String.valueOf(contextManager.getContextTokenCount())));
-        contextManager.printNewEntries(true, true, true, true, false, true, true);
+        String tokenCount = String.valueOf(contextManager.getContextTokenCount());
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 

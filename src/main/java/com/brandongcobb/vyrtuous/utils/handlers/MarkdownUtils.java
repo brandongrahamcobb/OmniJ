@@ -93,5 +93,12 @@ public class MarkdownUtils {
             return this.container.get(localShellFinishedMetadataKey);
         });
     }
+    
+    public CompletableFuture<Boolean> completeGetProgressiveSummaryFlag() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<Boolean> progressiveSummaryMetadataKey = new MetadataKey<>("progressive_summary", Metadata.BOOLEAN);
+            return this.container.get(progressiveSummaryMetadataKey);
+        });
+    }
 }
 

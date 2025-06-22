@@ -48,6 +48,7 @@ public class ContextManager {
                                 boolean includeCommandOutputs,
                                 boolean includeTokens,
                                 boolean includeSystemNotes,
+                                boolean includeProgressiveSummary,
                                 boolean includeShellOutput) {
 
         List<ContextEntry> newEntries = getNewEntriesSinceLastCall();
@@ -62,6 +63,7 @@ public class ContextManager {
                 (type == ContextEntry.Type.COMMAND_OUTPUT   && includeCommandOutputs) ||
                 (type == ContextEntry.Type.TOKENS           && includeTokens)         ||
                 (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
+                (type == ContextEntry.Type.PROGRESSIVE_SUMMARY && includeProgressiveSummary) ||
                 (type == ContextEntry.Type.SHELL_OUTPUT     && includeShellOutput);
 
             if (shouldPrint) {
@@ -135,12 +137,19 @@ public class ContextManager {
     }
     
     public synchronized void clearModified() {
-        if (entries.size() > 1) {
-            ContextEntry first = entries.get(0);
-            entries.clear();
-            entries.add(first);
+        List<ContextEntry> preserved = new ArrayList<>();
+
+        for (ContextEntry entry : entries) {
+            ContextEntry.Type type = entry.getType();
+            if (type == ContextEntry.Type.USER_MESSAGE || type == ContextEntry.Type.PROGRESSIVE_SUMMARY) {
+                preserved.add(entry);
+            }
+            // All other types are excluded
         }
-        lastBuildIndex = entries.size(); // Keep lastBuildIndex in sync
+
+        entries.clear();
+        entries.addAll(preserved);
+        lastBuildIndex = entries.size(); // Keep index in sync
     }
 
 
@@ -176,6 +185,7 @@ public class ContextManager {
                              boolean includeCommandOutputs,
                              boolean includeTokens,
                              boolean includeSystemNotes,
+                             boolean includeProgressiveSummary,
                              boolean includeShellOutput) {
 
         for (ContextEntry entry : entries) {
@@ -188,6 +198,7 @@ public class ContextManager {
                 (type == ContextEntry.Type.COMMAND_OUTPUT   && includeCommandOutputs) ||
                 (type == ContextEntry.Type.TOKENS           && includeTokens)         ||
                 (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
+                (type == ContextEntry.Type.PROGRESSIVE_SUMMARY  && includeProgressiveSummary) ||
                 (type == ContextEntry.Type.SHELL_OUTPUT     && includeShellOutput);
 
             if (shouldPrint) {
@@ -199,6 +210,7 @@ public class ContextManager {
                     case COMMAND_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
                     case TOKENS:         color = Vyrtuous.BRIGHT_CYAN; break;
                     case SYSTEM_NOTE:    color = Vyrtuous.NAVY;        break;
+                    case PROGRESSIVE_SUMMARY: color = Vyrtuous.NAVY;    break;
                     case SHELL_OUTPUT:   color = Vyrtuous.DODGER_BLUE; break;
                     default:             color = Vyrtuous.RESET;       break;
                 }
@@ -208,7 +220,11 @@ public class ContextManager {
     }
 
 
-
+   public int countEntries() {
+       return entries.size();
+   }
+    
+    
     /**
      * Summarizes old context entries.
      * The core logic is commented out as context management is disabled.

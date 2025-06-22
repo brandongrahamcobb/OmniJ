@@ -19,7 +19,7 @@ package com.brandongcobb.vyrtuous.objects;
 
 public class ContextEntry {
     
-    public enum Type { USER_MESSAGE, AI_RESPONSE, COMMAND, COMMAND_OUTPUT, TOKENS, SYSTEM_NOTE, SHELL_OUTPUT }
+    public enum Type { USER_MESSAGE, AI_RESPONSE, COMMAND, COMMAND_OUTPUT, TOKENS, SYSTEM_NOTE, PROGRESSIVE_SUMMARY, SHELL_OUTPUT }
     
     private final Type type;
     private final String content;
@@ -45,6 +45,7 @@ public class ContextEntry {
             case COMMAND_OUTPUT: return "[Output]: " + content;
             case TOKENS: return "[Tokens]: " + content;
             case SYSTEM_NOTE: return "[System]: " + content;
+            case PROGRESSIVE_SUMMARY: return "[Progressive Summary]: " + content;
             case SHELL_OUTPUT: return "[Shell Output]: " + content;
             default: return content;
         }

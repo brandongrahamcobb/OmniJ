@@ -203,6 +203,13 @@ public class MarkdownContainer extends MainContainer {
         }
         
         
+        MetadataKey<Boolean> progressiveSummaryMetadataKey = new MetadataKey<>("progressive_summary", Metadata.BOOLEAN);
+        Boolean progressiveSummary = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("progressive_summary") : null;
+        if (progressiveSummary != null) {
+            put(progressiveSummaryMetadataKey, progressiveSummary);
+        }
+        
+        
 
         MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("results", Metadata.STRING);
         Object outputObj = responseMap != null ? responseMap.get("results") : null;

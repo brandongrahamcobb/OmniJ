@@ -552,6 +552,13 @@ public class ToolHandler {
                 processes.add(proc);
                 lastProcess = proc;
             }
+            // Semicolon: execute unconditionally and start next command
+            else if (i > 0 && ";".equals(operators.get(i - 1))) {
+                Process proc = pb.start();
+                processes.add(proc);
+                lastProcess = proc;
+            }
+
             // Standalone
             else {
                 Process proc = pb.start();
