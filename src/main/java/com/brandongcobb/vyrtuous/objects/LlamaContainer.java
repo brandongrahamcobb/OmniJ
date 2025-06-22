@@ -40,9 +40,13 @@ public class LlamaContainer extends MainContainer {
         
         MetadataKey<String> idKey = new MetadataKey<>("id", Metadata.STRING);
         MetadataKey<Integer> tokenCountKey = new MetadataKey<>("token_count", Metadata.INTEGER);
-        Integer totalTokens = (Integer) responseMap.get("total_tokens");
+        Map<String, Object> usage = (Map<String, Object>) responseMap.get("usage");
+        if (usage != null && usage.get("total_tokens") instanceof Number) {
+            Integer totalTokens =  ((Number) usage.get("total_tokens")).intValue();
+            put(tokenCountKey, totalTokens);
+        }
         //Integer tokensPredicted = (Integer) responseMap.get("tokens_predicted");
-        put(tokenCountKey, totalTokens); //Evaluated + tokensPredicted);
+         //Evaluated + tokensPredicted);
             
         MetadataKey<String> modelKey = new MetadataKey<>("model", Metadata.STRING);
         MetadataKey<Integer> createdKey = new MetadataKey<>("created", Metadata.INTEGER);
@@ -79,11 +83,18 @@ public class LlamaContainer extends MainContainer {
                                 List<String> commands = cmdList.stream()
                                     .map(Object::toString)
                                     .toList();
-                                boolean isSingleCommandInParts = commands.stream().noneMatch(s -> s.contains(" "));
-                                if (isSingleCommandInParts) {
-                                    String combined = String.join(" ", commands);
-                                    put(th.LOCALSHELLTOOL_COMMANDS, List.of(combined));
+
+                                // Heuristic: if there's only one string, or if any entry contains an operator or semicolon, treat it as a full command string
+                                boolean containsShellOperators = commands.stream().anyMatch(s ->
+                                    s.matches(".*[;&|><(){}].*")
+                                );
+
+                                if (commands.size() == 1 || containsShellOperators) {
+                                    // Treat as a single shell command string
+                                    String fullCommand = String.join(" ", commands);
+                                    put(th.LOCALSHELLTOOL_COMMANDS, List.of(fullCommand));
                                 } else {
+                                    // Treat as separate commands (e.g., ["ls", "-la"])
                                     put(th.LOCALSHELLTOOL_COMMANDS, commands);
                                 }
                             } else if (cmdObj instanceof String singleCommand) {
@@ -91,7 +102,6 @@ public class LlamaContainer extends MainContainer {
                             } else if (cmdObj != null) {
                                 put(th.LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
                             }
-
                         }
                     }
                 }
