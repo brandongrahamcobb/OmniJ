@@ -165,7 +165,7 @@ public class ToolHandler {
                 segments = segments.stream()
                     .map(segment -> segment.stream()
                         .map(this::expandHome)
-                        .map(this::escapeCommandParts)
+                      //  .map(this::escapeCommandParts)
                         .collect(Collectors.toList()))
                     .collect(Collectors.toList());
                 // Execute pipeline
@@ -312,15 +312,19 @@ public class ToolHandler {
     }
 
 
+    private StringBuilder lastOutputBuffer = new StringBuilder();
+
     private void drainStream(InputStream inputStream) {
         new Thread(() -> {
-    try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-                while (reader.readLine() != null) { /* discard or collect output */ }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+                while (reader.readLine() != null) { /* discard */ }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }).start();
     }
+
+
 
     public String escapeCommandParts(String s) {
         if (s.startsWith("//'") && s.endsWith("//'")) {
@@ -477,38 +481,44 @@ public class ToolHandler {
     }
     
     private String executePipeline(List<List<String>> segments, List<String> operators) throws Exception {
-        
         List<Process> processes = new ArrayList<>();
         List<Thread> pipeThreads = new ArrayList<>();
         Process lastProcess = null;
 
         int i = 0;
         while (i < segments.size()) {
-            List<String> segment = segments.get(i);
-            String command = String.join(" ", segment);
+            List<String> segment = new ArrayList<>();
+            segment.add("gtimeout");
+            segment.add("120");
+            
+            segment.add("bash");
+            segment.add("-c");
+            segment.addAll(segments.get(i));
 
-            List<String> commandList = List.of("gtimeout", "120", "bash", "-c", command);
-            ProcessBuilder pb = new ProcessBuilder(commandList);
-            pb.redirectErrorStream(true);
+            ProcessBuilder pb = new ProcessBuilder(segment);
+            pb.redirectErrorStream(true); // merge stderr into stdout
 
-            // Redirection
+            // Handle redirection
             if (i < operators.size()) {
                 String op = operators.get(i);
                 if (op.equals(">") || op.equals(">>")) {
-                    if (i + 1 >= segments.size())
+                    if (i + 1 >= segments.size()) {
                         throw new IllegalArgumentException("Expected filename after " + op);
+                    }
                     File outFile = new File(segments.get(i + 1).get(0));
                     pb.redirectOutput(op.equals(">") ?
                             ProcessBuilder.Redirect.to(outFile) :
                             ProcessBuilder.Redirect.appendTo(outFile));
                     i += 2;
                     Process proc = pb.start();
+                    // only drain intermediate output (not lastProcess)
                     processes.add(proc);
                     lastProcess = proc;
                     continue;
                 } else if (op.equals("<")) {
-                    if (i + 1 >= segments.size())
+                    if (i + 1 >= segments.size()) {
                         throw new IllegalArgumentException("Expected filename after <");
+                    }
                     File inFile = new File(segments.get(i + 1).get(0));
                     pb.redirectInput(ProcessBuilder.Redirect.from(inFile));
                     i += 2;
@@ -519,7 +529,7 @@ public class ToolHandler {
                 }
             }
 
-            // Piping
+            // Handle piping
             if (i > 0 && "|".equals(operators.get(i - 1))) {
                 Process prevProc = processes.get(processes.size() - 1);
                 Process currProc = pb.start();
@@ -530,6 +540,7 @@ public class ToolHandler {
                 Thread pipeThread = new Thread(() -> {
                     try {
                         pipeStreams(prevOut, currIn);
+                        currIn.close(); // important!
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -540,7 +551,7 @@ public class ToolHandler {
                 processes.add(currProc);
                 lastProcess = currProc;
             }
-            // Conditionals
+            // Handle conditionals
             else if (i > 0 && List.of("&&", "||").contains(operators.get(i - 1))) {
                 Process prevProc = processes.get(processes.size() - 1);
                 int prevExit = prevProc.waitFor();
@@ -552,31 +563,37 @@ public class ToolHandler {
                 processes.add(proc);
                 lastProcess = proc;
             }
-            // Semicolon: execute unconditionally and start next command
+            // Handle semicolon
             else if (i > 0 && ";".equals(operators.get(i - 1))) {
                 Process proc = pb.start();
                 processes.add(proc);
                 lastProcess = proc;
             }
-
-            // Standalone
+            // Handle standalone
             else {
                 Process proc = pb.start();
                 processes.add(proc);
                 lastProcess = proc;
             }
+
+            // Drain intermediate process output
+            if (i != segments.size() - 1) {
+                drainStream(lastProcess.getInputStream());
+            }
+
             i++;
         }
 
-        if (lastProcess == null)
+        if (lastProcess == null) {
             throw new IllegalStateException("No process executed");
+        }
 
-        // Wait for piping threads
+        // Wait for all pipe threads
         for (Thread t : pipeThreads) {
             t.join();
         }
 
-        // Capture final output
+        // Capture output from last process
         StringBuilder output = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(lastProcess.getInputStream()))) {
             String line;
@@ -592,6 +609,10 @@ public class ToolHandler {
 
         return output.toString().trim();
     }
+
+
+
+
 
     private void pipeStreams(InputStream input, OutputStream output) throws IOException {
         byte[] buffer = new byte[8192];
@@ -618,18 +639,11 @@ public class ToolHandler {
         }
 
         String commandLine = allCommands.stream()
-            .map(segment -> {
-                if (segment.size() == 1 && SHELL_OPERATORS.contains(segment.get(0))) {
-                    return segment.get(0);
-                } else {
-                    return segment.stream()
-                                  .map(ToolHandler::quoteToken)
-                                  .collect(Collectors.joining(" "));
-                }
-            })
+            .flatMap(List::stream)       // flatten inner lists into stream of tokens
             .collect(Collectors.joining(" "));
 
-        CommandLine cmd = new CommandLine("/bin/sh");
+
+        CommandLine cmd = new CommandLine("/bin/zsh");
         cmd.addArgument("-c", false);
         cmd.addArgument(commandLine, false);
 

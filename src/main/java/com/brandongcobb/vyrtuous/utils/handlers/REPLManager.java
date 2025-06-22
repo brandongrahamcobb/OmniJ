@@ -53,9 +53,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
     }
@@ -224,7 +224,7 @@ public class REPLManager {
                         String flat = String.join(" ", cmdParts);
                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
                     }
-                    return th.executeCommandsAsList(newCmds).thenAccept(out -> {
+                    return th.executeCommands(newCmds).thenAccept(out -> {
                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
                     });
                 })
