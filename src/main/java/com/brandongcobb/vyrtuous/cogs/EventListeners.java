@@ -83,7 +83,9 @@ public class EventListeners extends ListenerAdapter implements Cog {
                     return;
                 }
             }
-            return;
+            else if (!message.getContentRaw().contains("@Vyrtuous")) {
+                return;
+            }
         }
         long senderId = event.getAuthor().getIdLong();
         List<Attachment> attachments = message.getAttachments();
