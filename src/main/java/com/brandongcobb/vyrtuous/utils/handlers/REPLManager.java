@@ -238,38 +238,47 @@ public class REPLManager {
             CompletableFuture<Boolean> clarificationFuture = markdownUtils.completeGetClarification();
             CompletableFuture<Boolean> summarizeFuture = markdownUtils.completeGetProgressiveSummaryFlag();
             CompletableFuture<String> textFuture = markdownUtils.completeGetText();
+            CompletableFuture<Boolean> shellFinishedFuture = markdownUtils.completeGetLocalShellFinished();
 
-            return clarificationFuture
-                .thenCombine(textFuture, (needsClarification, aiResponseText) -> {
+            return CompletableFuture.allOf(clarificationFuture, summarizeFuture, textFuture, shellFinishedFuture)
+                .thenCompose(voided -> {
+                    boolean needsClarification = clarificationFuture.join();
+                    boolean progressiveSummaryFlag = summarizeFuture.join();
+                    String aiResponseText = textFuture.join();
+                    boolean localShellFinished = shellFinishedFuture.join();
+
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, aiResponseText));
-                    return new AbstractMap.SimpleEntry<>(needsClarification, aiResponseText);
-                })
-                .thenCompose(entry -> {
-                    boolean needsClarification = entry.getKey();
 
-                    return summarizeFuture.thenCompose(progressiveSummaryFlag -> {
-                        if (needsClarification && !progressiveSummaryFlag) {
-                            return markdownUtils.completeGetText().thenCompose(summary -> {
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
-                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                                System.out.print("> ");
-                                String newInput = scanner.nextLine(); // synchronous input
-                                return startREPL(scanner, newInput);
-                            });
+                    if (needsClarification && !progressiveSummaryFlag) {
+                        return markdownUtils.completeGetText().thenCompose(summary -> {
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
+                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                            System.out.print("> ");
+                            String newInput = scanner.nextLine(); // blocking
+                            return startREPL(scanner, newInput);
+                        });
+                    }
 
-                        } else if (!needsClarification && progressiveSummaryFlag) {
-                            return markdownUtils.completeGetText().thenCompose(summary -> {
-                                contextManager.clearModified();
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
-                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                                return CompletableFuture.completedFuture(null);
-                            });
-
-                        } else {
-                            LOGGER.warning("Unhandled markdown state: no clarification, no summary");
+                    if (!needsClarification && progressiveSummaryFlag) {
+                        return markdownUtils.completeGetText().thenCompose(summary -> {
+                            contextManager.clearModified();
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
+                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                             return CompletableFuture.completedFuture(null);
-                        }
-                    });
+                        });
+                    }
+
+                    if (localShellFinished) {
+                        return markdownUtils.completeGetText().thenCompose(summary -> {
+                            contextManager.clear();
+                            System.out.print("> ");
+                            String newInput = scanner.nextLine(); // blocking
+                            return startREPL(scanner, newInput);
+                        });
+                    }
+
+                    LOGGER.warning("Unhandled markdown state: no clarification, no summary, shell not finished");
+                    return CompletableFuture.completedFuture(null);
                 });
         } else {
             return CompletableFuture.completedFuture(null);
