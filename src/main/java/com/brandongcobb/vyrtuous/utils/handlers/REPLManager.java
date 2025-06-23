@@ -246,7 +246,7 @@ public class REPLManager {
 
                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, aiResponseText));
 
-                    if (needsClarification && !progressiveSummaryFlag) {
+                    if (needsClarification && !progressiveSummaryFlag && !localShellFinished) {
                         return markdownUtils.completeGetText().thenCompose(summary -> {
                             contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
                             contextManager.printNewEntries(true, true, true, true, true, true, true, true);
@@ -256,7 +256,7 @@ public class REPLManager {
                         });
                     }
 
-                    if (!needsClarification && progressiveSummaryFlag) {
+                    if (!needsClarification && progressiveSummaryFlag && !localShellFinished) {
                         return markdownUtils.completeGetText().thenCompose(summary -> {
                             contextManager.clearModified();
                             contextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
