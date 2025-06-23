@@ -77,15 +77,13 @@ public class EventListeners extends ListenerAdapter implements Cog {
         if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX"))) {
             return;
         }
-        if (message.getReferencedMessage() != null || !message.getContentRaw().contains("@Vyrtuous")) {
-            if (message.getReferencedMessage() != null) {
-                if (!message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId())) {
-                    return;
-                }
-            }
-            else if (!message.getContentRaw().contains("@Vyrtuous")) {
+        if (message.getReferencedMessage() != null) {
+            if (!message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId())) {
                 return;
             }
+        }
+        else if (!message.getContentRaw().contains("<@1318597210119864385>")) {
+            return;
         }
         long senderId = event.getAuthor().getIdLong();
         List<Attachment> attachments = message.getAttachments();
