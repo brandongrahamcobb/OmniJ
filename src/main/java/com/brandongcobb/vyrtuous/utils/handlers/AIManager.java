@@ -66,8 +66,8 @@ public class AIManager {
     
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
-            .setConnectTimeout(10_000)
-            .setConnectionRequestTimeout(10_000)
+            .setConnectTimeout(600_000)
+            .setConnectionRequestTimeout(600_000)
             .setSocketTimeout(600_000)
             .build();
     private StringBuilder builder = new StringBuilder();

@@ -87,39 +87,36 @@ public class REPLManager {
 
 
     private CompletableFuture<MetadataContainer> completeRStepWithTimeout(Scanner scanner, boolean firstRun) {
-        CompletableFuture<MetadataContainer> promise = new CompletableFuture<>();
         final int maxRetries = 2;
+        final long timeout = 600_000;
+        CompletableFuture<MetadataContainer> result = new CompletableFuture<>();
+
         Runnable attempt = new Runnable() {
             int retries = 0;
+
             @Override
             public void run() {
                 retries++;
                 completeRStep(scanner, firstRun)
-                    .orTimeout(60, TimeUnit.SECONDS)
+                    .orTimeout(timeout, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
-                        if (err != null) {
+                        if (err != null || resp == null) {
                             if (retries <= maxRetries) {
-                                LOGGER.fine("R-step attempt " + retries + " failed, retrying...");
+                                LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
                                 replExecutor.submit(this);
                             } else {
-                                LOGGER.severe("R-step failed after retries");
-                                promise.completeExceptionally(err);
-                            }
-                        } else if (resp == null) {
-                            if (retries <= maxRetries) {
-                                LOGGER.warning("R-step returned null, retrying...");
-                                replExecutor.submit(this);
-                            } else {
-                                promise.completeExceptionally(new IllegalStateException("R-step null response"));
+                                LOGGER.severe("R-step permanently failed after " + retries + " attempts.");
+                                result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
                             }
                         } else {
-                            promise.complete(resp);
+                            result.complete(resp);
                         }
                     });
             }
         };
+
         replExecutor.submit(attempt);
-        return promise;
+        return result;
     }
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
@@ -294,7 +291,7 @@ public class REPLManager {
 
     private CompletableFuture<Void> completeLStep(Scanner scanner) {
         LOGGER.fine("Loop to R-step");
-        return completeRStep(scanner, false)
+        return completeRStepWithTimeout(scanner, false)
             .thenCompose(resp ->
                 completeEStep(resp, scanner, false)
                     .thenCompose(eDone ->
