@@ -77,8 +77,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
         if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX"))) {
             return;
         }
-        if (message.getReferencedMessage() != null) {
-            if (!message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId()) || !message.getContentRaw().contains("@Vyrtuous")) {
+        if (message.getReferencedMessage() != null || !message.getContentRaw().contains("@Vyrtuous")) {
+            if (!message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId())) {
                 return;
             }
         }
