@@ -643,9 +643,11 @@ public class ToolHandler {
             .collect(Collectors.joining(" "));
 
 
+        String fullCommand = "gtimeout 120s " + commandLine;
+
         CommandLine cmd = new CommandLine("/bin/zsh");
         cmd.addArgument("-c", false);
-        cmd.addArgument(commandLine, false);
+        cmd.addArgument(fullCommand, false);
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream);
