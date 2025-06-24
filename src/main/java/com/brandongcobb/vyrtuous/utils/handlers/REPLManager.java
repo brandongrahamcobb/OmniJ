@@ -182,7 +182,7 @@ public class REPLManager {
                                     Optional<String> jsonContent =  Optional.of(matcher.group(1).trim());
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, jsonContent.toString());
-                                    rootNode = mapper.readTree(content);
+                                    rootNode = mapper.readTree(jsonContent.toString());
                                 }
                             } catch (JsonProcessingException e) {
                                 // Not JSON → fallback to REPL
