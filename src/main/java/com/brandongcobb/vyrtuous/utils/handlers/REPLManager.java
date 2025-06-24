@@ -79,7 +79,7 @@ public class REPLManager {
         originalDirective = userInput;
         contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userInput = null;
-        return completeRStep(scanner, true)
+        return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->
                 completeEStep(resp, scanner, true)
                     .thenCompose(eDone ->
@@ -185,6 +185,7 @@ public class REPLManager {
                                 contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                                 System.out.print("> ");
                                 String newInput = scanner.nextLine();
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                             }
                             // blocking
                             return lastAIResponseContainer;
@@ -243,6 +244,8 @@ public class REPLManager {
                         contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                         System.out.print("> ");
                         String newInput = scanner.nextLine(); // blocking
+                        
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                         return startREPL(scanner, newInput);
                     }
                 }
