@@ -171,7 +171,27 @@ public class Shell implements Tool<ShellInput, ShellStatus> {
                 ShellStatus.CommandResult result = new ShellStatus.CommandResult();
                 result.label = command.label;
                 result.exitCode = exitValue;
-                result.stdout = outStream.toString(StandardCharsets.UTF_8);
+                String fullOutput = outStream.toString(StandardCharsets.UTF_8);
+                String[] lines = fullOutput.split("\r?\n"); // supports both \n and \r\n
+
+                StringBuilder limitedOutput = new StringBuilder();
+                int maxLines = 1000;
+                int totalLines = lines.length;
+
+                int limit = Math.min(totalLines, maxLines);
+
+                for (int i = 0; i < limit; i++) {
+                    limitedOutput.append(lines[i]).append(System.lineSeparator());
+                }
+
+                if (totalLines > maxLines) {
+                    limitedOutput.append("... output truncated after ")
+                                 .append(maxLines)
+                                 .append(" lines")
+                                 .append(System.lineSeparator());
+                }
+
+                result.stdout = limitedOutput.toString();
                 result.stderr = errStream.toString(StandardCharsets.UTF_8);
                 result.success = exitValue == 0;
                 status.results.add(result);

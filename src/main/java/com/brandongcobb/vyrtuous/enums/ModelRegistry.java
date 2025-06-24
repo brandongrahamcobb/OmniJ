@@ -184,7 +184,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
   },
   "additionalProperties": false
 }
-To get context of stdin environment, stdout environment, file structure, file contents, etc.  (improving context) use this schema:
+To get context of stdin environment, stdout environment, file structure, file contents, etc. (improving context) use this schema.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Shell",
