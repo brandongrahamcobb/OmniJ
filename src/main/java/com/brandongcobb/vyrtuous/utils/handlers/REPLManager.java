@@ -188,7 +188,6 @@ public class REPLManager {
                                     metadataContainer.put(contentKey, jsonContent);
 
                                     rootNode = mapper.readTree(jsonContent); // throws if invalid
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, jsonContent));
                                     isJson = true;
                                 }
                             } catch (JsonProcessingException e) {
@@ -228,58 +227,55 @@ public class REPLManager {
         ObjectMapper mapper = new ObjectMapper();
         List<JsonNode> results = new ArrayList<>();
         String contentStr = new MetadataUtils(response).completeGetContent().join();
-        Pattern CODE_BLOCK_JSON_PATTERN =
-            Pattern.compile("```(?:\\w+)?\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
-        Matcher matcher = CODE_BLOCK_JSON_PATTERN.matcher(contentStr);
-        if (matcher.find()) {
-            Optional<String> jsonContent =  Optional.of(matcher.group(1).trim());
-            try {
-                JsonNode root = mapper.readTree(jsonContent.orElse(""));
-                if (root.isArray()) {
-                    for (JsonNode node : root) {
-                        if (node.has("tool")) {
-                            results.add(node);
-                        }
-                    }
-                } else if (root.has("tool")) {
-                    results.add(root);
-                }
-                for (JsonNode result : results) {
-                    try {
-                        String toolName = result.get("tool").asText();
-                        switch (toolName) {
-                            case "patch" -> {
-                                PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
-                                patchInput.setOriginalJson(result);
-                                Patch patchTool = new Patch(contextManager);
-                                PatchStatus status = patchTool.run(patchInput);
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                            }
-                            case "refresh_context" -> {
-                                RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
-                                RefreshContext tool = new RefreshContext(contextManager);
-                                RefreshContextStatus status = tool.run(input);
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                            }
-                            default -> {
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, contentStr));
-                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                                System.out.print("> ");
-                                String newInput = scanner.nextLine(); // blocking
-                                
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-                                return startREPL(scanner, newInput);
-                            }
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+
+        try {
+            JsonNode root = mapper.readTree(contentStr);
+            if (root.isArray()) {
+                for (JsonNode node : root) {
+                    if (node.has("tool")) {
+                        results.add(node);
                     }
                 }
-            } catch (JsonProcessingException e) {
+            } else if (root.has("tool")) {
+                results.add(root);
             }
+            for (JsonNode result : results) {
+                try {
+                    String toolName = result.get("tool").asText();
+                    switch (toolName) {
+                        case "patch" -> {
+                            PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
+                            patchInput.setOriginalJson(result);
+                            Patch patchTool = new Patch(contextManager);
+                            PatchStatus status = patchTool.run(patchInput);
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                            System.out.println("debug");
+                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                        }
+                        case "refresh_context" -> {
+                            RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
+                            RefreshContext tool = new RefreshContext(contextManager);
+                            RefreshContextStatus status = tool.run(input);
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                        }
+                        default -> {
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, contentStr));
+                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                            System.out.print("> ");
+                            String newInput = scanner.nextLine(); // blocking
+                            
+                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+                            return startREPL(scanner, newInput);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JsonProcessingException e) {
         }
+        
         return CompletableFuture.completedFuture(null);
     }
 
