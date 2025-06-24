@@ -188,8 +188,9 @@ public class REPLManager {
                                     metadataContainer.put(contentKey, jsonContent);
 
                                     rootNode = mapper.readTree(jsonContent); // throws if invalid
-                                    if (content.startsWith("```json")) {  // TODO: this in general is not a good checkk
-                                        isJson = true;
+                                    isJson = true;
+                                    if (!content.startsWith("```json")) {
+                                        metadataContainer.put(contentKey, content.substring(0, matcher.start()));
                                     }
                                 }
                             } catch (JsonProcessingException e) {
