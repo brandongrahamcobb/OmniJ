@@ -44,8 +44,8 @@ public class ContextManager {
     
     public void printNewEntries(boolean includeUserMessages,
                                 boolean includeAIResponses,
-                                boolean includeCommands,
-                                boolean includeCommandOutputs,
+                                boolean includeToolCalls,
+                                boolean includeToolOutputs,
                                 boolean includeTokens,
                                 boolean includeSystemNotes,
                                 boolean includeProgressiveSummary,
@@ -59,8 +59,8 @@ public class ContextManager {
             boolean shouldPrint =
                 (type == ContextEntry.Type.USER_MESSAGE     && includeUserMessages)   ||
                 (type == ContextEntry.Type.AI_RESPONSE      && includeAIResponses)    ||
-                (type == ContextEntry.Type.COMMAND          && includeCommands)       ||
-                (type == ContextEntry.Type.COMMAND_OUTPUT   && includeCommandOutputs) ||
+                (type == ContextEntry.Type.TOOL         && includeToolCalls)       ||
+                (type == ContextEntry.Type.TOOL_OUTPUT   && includeToolOutputs) ||
                 (type == ContextEntry.Type.TOKENS           && includeTokens)         ||
                 (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
                 (type == ContextEntry.Type.PROGRESSIVE_SUMMARY && includeProgressiveSummary) ||
@@ -71,8 +71,8 @@ public class ContextManager {
                 switch (type) {
                     case USER_MESSAGE:   color = Vyrtuous.BRIGHT_BLUE; break;
                     case AI_RESPONSE:    color = Vyrtuous.TEAL;        break;
-                    case COMMAND:        color = Vyrtuous.CYAN;        break;
-                    case COMMAND_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
+                    case TOOL:        color = Vyrtuous.CYAN;        break;
+                    case TOOL_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
                     case TOKENS:         color = Vyrtuous.BRIGHT_CYAN; break;
                     case SYSTEM_NOTE:    color = Vyrtuous.NAVY;        break;
                     case SHELL_OUTPUT:   color = Vyrtuous.DODGER_BLUE; break;
@@ -181,8 +181,8 @@ public class ContextManager {
     
     public void printEntries(boolean includeUserMessages,
                              boolean includeAIResponses,
-                             boolean includeCommands,
-                             boolean includeCommandOutputs,
+                             boolean includeToolCalls,
+                             boolean includeToolOutputs,
                              boolean includeTokens,
                              boolean includeSystemNotes,
                              boolean includeProgressiveSummary,
@@ -194,8 +194,8 @@ public class ContextManager {
             boolean shouldPrint =
                 (type == ContextEntry.Type.USER_MESSAGE     && includeUserMessages)   ||
                 (type == ContextEntry.Type.AI_RESPONSE      && includeAIResponses)    ||
-                (type == ContextEntry.Type.COMMAND          && includeCommands)       ||
-                (type == ContextEntry.Type.COMMAND_OUTPUT   && includeCommandOutputs) ||
+                (type == ContextEntry.Type.TOOL            && includeToolCalls)       ||
+                (type == ContextEntry.Type.TOOL_OUTPUT      && includeToolOutputs) ||
                 (type == ContextEntry.Type.TOKENS           && includeTokens)         ||
                 (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
                 (type == ContextEntry.Type.PROGRESSIVE_SUMMARY  && includeProgressiveSummary) ||
@@ -206,8 +206,8 @@ public class ContextManager {
                 switch (type) {
                     case USER_MESSAGE:   color = Vyrtuous.BRIGHT_BLUE; break;
                     case AI_RESPONSE:    color = Vyrtuous.TEAL;        break;
-                    case COMMAND:        color = Vyrtuous.CYAN;        break;
-                    case COMMAND_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
+                    case TOOL:        color = Vyrtuous.CYAN;        break;
+                    case TOOL_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
                     case TOKENS:         color = Vyrtuous.BRIGHT_CYAN; break;
                     case SYSTEM_NOTE:    color = Vyrtuous.NAVY;        break;
                     case PROGRESSIVE_SUMMARY: color = Vyrtuous.NAVY;    break;

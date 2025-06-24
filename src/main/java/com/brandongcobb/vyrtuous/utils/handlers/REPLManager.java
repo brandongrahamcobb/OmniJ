@@ -23,8 +23,10 @@ package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.enums.*;
 import com.brandongcobb.vyrtuous.objects.*;
+import com.brandongcobb.vyrtuous.tools.*;
 import com.brandongcobb.vyrtuous.utils.inc.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -34,6 +36,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
+import java.util.function.Function;
+
 
 public class REPLManager {
 
@@ -46,6 +50,8 @@ public class REPLManager {
     private String originalDirective;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private ToolHandler th = new ToolHandler();
+    
+    private ObjectMapper mapper = new ObjectMapper();
     
     public void setApprovalMode(ApprovalMode mode) {
         LOGGER.fine("Setting approval mode: " + mode);
@@ -163,12 +169,12 @@ public class REPLManager {
                             }
                         }
                         return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
-                            ObjectMapper mapper = new ObjectMapper();
+                            MetadataContainer metadataContainer = new MetadataContainer();
+                            MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                            metadataContainer.put(contentKey, content);
+
                             try {
-                                String jsonContent = ToolHandler.extractJsonContent(content);
-                                LOGGER.fine("Extracted JSON: " + jsonContent);
-                                jsonContent = ToolHandler.sanitizeJsonContent(jsonContent);
-                                JsonNode rootNode = mapper.readTree(jsonContent);
+                                JsonNode rootNode = mapper.readTree(content);
                                 JsonNode actualObject = rootNode.isObject()
                                     ? rootNode
                                     : (rootNode.isArray() && rootNode.size() > 0 && rootNode.get(0).isObject())
@@ -177,22 +183,20 @@ public class REPLManager {
                                 if (actualObject == null) {
                                     throw new RuntimeException("Unexpected JSON structure");
                                 }
+
                                 Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
-                                resultMap.put("id", responseId);
-                                String entityType = (String) resultMap.get("entityType");
-                                if (entityType != null) {
-                                    if (entityType.startsWith("json_tool")) {
-                                        lastAIResponseContainer = new ToolContainer(resultMap);
-                                    } else if (entityType.startsWith("json_chat")) {
-                                        lastAIResponseContainer = new MarkdownContainer(resultMap);
-                                    }
-                                }
-                            } catch (Exception e) {
-                                LOGGER.severe("JSON parse error: " + e.getMessage());
-                                e.printStackTrace();
+                                lastAIResponseContainer = metadataContainer;
+
+                                return CompletableFuture.completedFuture(lastAIResponseContainer);
+                            } catch (JsonProcessingException e) {
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                                System.out.print("> ");
+                                String newInput = scanner.nextLine(); // blocking
+
+                                return startREPL(scanner, newInput).thenApply(v -> lastAIResponseContainer);
                             }
-                            return lastAIResponseContainer;
-                        });
+                        }).thenCompose(Function.identity()); // flatten nested CompletableFuture
                     })
                     .exceptionally(ex -> {
                         LOGGER.severe("completeRequest failed: " + ex.getMessage());
@@ -207,81 +211,60 @@ public class REPLManager {
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
-        if (response instanceof ToolContainer tool) {
-            ToolUtils tu = new ToolUtils(response);
-            return tu.completeGetText()
-                .thenCompose(lastAIResponseText -> {
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, lastAIResponseText));
-                    List<List<String>> newCmds = (List<List<String>>) tool.getResponseMap().get(th.LOCALSHELLTOOL_COMMANDS_LIST);
-                    if (newCmds == null || newCmds.isEmpty()) {
-                        LOGGER.warning("No shell commands returned from tool");
-                        return CompletableFuture.completedFuture(null);
+        ObjectMapper mapper = new ObjectMapper();
+        List<JsonNode> results = new ArrayList<>();
+        String contentStr = new MetadataUtils(response).completeGetContent().join();
+        try {
+            JsonNode root = mapper.readTree(contentStr);
+            if (root.isArray()) {
+                for (JsonNode node : root) {
+                    if (node.has("tool")) {
+                        results.add(node);
                     }
-                    for (List<String> cmdParts : newCmds) {
-                        String flat = String.join(" ", cmdParts);
-                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND, flat));
-                    }
-                    return th.executeCommands(newCmds).thenAccept(out -> {
-                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.COMMAND_OUTPUT, out));
-                    });
-                })
-                .exceptionally(ex -> {
-                    ex.printStackTrace();
-                    return null;
-                });
-
-        } else if (response instanceof MarkdownContainer markdown) {
-            MarkdownUtils markdownUtils = new MarkdownUtils(markdown);
-            CompletableFuture<Boolean> clarificationFuture = markdownUtils.completeGetClarification();
-            CompletableFuture<Boolean> summarizeFuture = markdownUtils.completeGetProgressiveSummaryFlag();
-            CompletableFuture<String> textFuture = markdownUtils.completeGetText();
-            CompletableFuture<Boolean> shellFinishedFuture = markdownUtils.completeGetLocalShellFinished();
-
-            return CompletableFuture.allOf(clarificationFuture, summarizeFuture, textFuture, shellFinishedFuture)
-                .thenCompose(voided -> {
-                    boolean needsClarification = clarificationFuture.join();
-                    boolean progressiveSummaryFlag = summarizeFuture.join();
-                    String aiResponseText = textFuture.join();
-                    boolean localShellFinished = shellFinishedFuture.join();
-
-                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, aiResponseText));
-
-                    if (needsClarification && !progressiveSummaryFlag && !localShellFinished) {
-                        return markdownUtils.completeGetText().thenCompose(summary -> {
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, summary));
-                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                            System.out.print("> ");
-                            String newInput = scanner.nextLine(); // blocking
-                            return startREPL(scanner, newInput);
-                        });
-                    }
-
-                    if (!needsClarification && progressiveSummaryFlag && !localShellFinished) {
-                        return markdownUtils.completeGetText().thenCompose(summary -> {
-                            contextManager.clearModified();
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
-                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                            return CompletableFuture.completedFuture(null);
-                        });
-                    }
-
-                    if (localShellFinished) {
-                        return markdownUtils.completeGetText().thenCompose(summary -> {
-                            contextManager.clear();
-                            System.out.print("> ");
-                            String newInput = scanner.nextLine(); // blocking
-                            return startREPL(scanner, newInput);
-                        });
-                    }
-
-                    LOGGER.warning("Unhandled markdown state: no clarification, no summary, shell not finished");
-                    return CompletableFuture.completedFuture(null);
-                });
-        } else {
-            return CompletableFuture.completedFuture(null);
+                }
+            } else if (root.has("tool")) {
+                results.add(root);
+            }
+        } catch (JsonProcessingException e) {
+            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, contentStr));
+            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+            System.out.print("> ");
+            String newInput = scanner.nextLine(); // blocking
+            return startREPL(scanner, newInput);
         }
+        for (JsonNode result : results) {
+            try {
+                String toolName = result.get("tool").asText();
+                switch (toolName) {
+                    case "patch" -> {
+                        PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
+                        patchInput.setOriginalJson(result);
+                        Patch patchTool = new Patch(contextManager);
+                        PatchStatus status = patchTool.run(patchInput);
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                        contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                    }
+                    case "refresh_context" -> {
+                        RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
+                        RefreshContext tool = new RefreshContext(contextManager);
+                        RefreshContextStatus status = tool.run(input);
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                        contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                    }
+                    default -> {
+                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, contentStr));
+                        contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                        System.out.print("> ");
+                        String newInput = scanner.nextLine(); // blocking
+                        return startREPL(scanner, newInput);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return CompletableFuture.completedFuture(null);
     }
-
 
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");

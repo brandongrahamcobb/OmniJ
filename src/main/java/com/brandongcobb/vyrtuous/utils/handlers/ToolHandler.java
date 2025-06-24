@@ -638,12 +638,28 @@ public class ToolHandler {
             return future;
         }
 
-        String commandLine = allCommands.stream()
-            .flatMap(List::stream)       // flatten inner lists into stream of tokens
-            .collect(Collectors.joining(" "));
+        StringBuilder fullOutput = new StringBuilder();
 
+        executeNextCommand(allCommands, 0, fullOutput, future);
+        return future;
+    }
 
-        String fullCommand = "gtimeout 120s " + commandLine;
+    private static void executeNextCommand(List<List<String>> commands, int index,
+                                           StringBuilder fullOutput,
+                                           CompletableFuture<String> future) {
+        if (index >= commands.size()) {
+            future.complete(fullOutput.toString());
+            return;
+        }
+
+        List<String> tokens = commands.get(index);
+
+        // Join command tokens into a single shell string
+        String joinedCommand = tokens.stream()
+                .map(s -> s.contains(" ") ? "'" + s + "'" : s)  // quote args with spaces
+                .collect(Collectors.joining(" "));
+
+        String fullCommand = "gtimeout 120s " + joinedCommand;
 
         CommandLine cmd = new CommandLine("/bin/zsh");
         cmd.addArgument("-c", false);
@@ -660,27 +676,23 @@ public class ToolHandler {
         DefaultExecuteResultHandler handler = new DefaultExecuteResultHandler() {
             @Override
             public void onProcessComplete(int exitValue) {
-                // always complete with output, even if exit code is nonzero
-                future.complete(outputStream.toString(StandardCharsets.UTF_8));
+                fullOutput.append(outputStream.toString(StandardCharsets.UTF_8));
+                executeNextCommand(commands, index + 1, fullOutput, future);
             }
 
             @Override
             public void onProcessFailed(ExecuteException e) {
-                // still return captured output, even on failure
-                future.complete(outputStream.toString(StandardCharsets.UTF_8));
+                fullOutput.append(outputStream.toString(StandardCharsets.UTF_8));
+                executeNextCommand(commands, index + 1, fullOutput, future);
             }
         };
 
         try {
             executor.execute(cmd, handler);
         } catch (IOException e) {
-            // I/O failure – complete with exception
             future.completeExceptionally(e);
         }
-
-        return future;
     }
-
 }
     
 //    public static List<String> executeFileSearch(OpenAIContainer responseObject, String query) {

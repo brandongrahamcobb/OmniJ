@@ -252,7 +252,7 @@ public class ToolContainer extends MainContainer {
                     if (operationObj instanceof Map<?, ?> operation) {
                         
                         String stdinBase64 = (String) operation.get("commands_base64");
-                        Object commandsObj = operation.get("commands");
+                        Object commandsObj = operation.get("command");
                         
                         if (commandsObj instanceof List<?> outerList && !outerList.isEmpty()) {
                             Object first = outerList.get(0);

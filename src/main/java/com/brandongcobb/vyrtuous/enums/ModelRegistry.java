@@ -121,7 +121,7 @@ Do not use `tree`.
 INSIDE JSON_CHAT:
 You can have a conversation with the user by using json_chat.
 If progressive_summary is true you MUST include a summary of the context history detailed enough to be included with the original directive for further processing in `messageText`.
-Create a progressive summary before your token count becomes 32768.
+Create a progressive summary before your token count exceeds your context limit.
 localShellCommandSequenceFinished should be only be true if needsClarification is false and the task is complete.
 You may also provide a progresive_summary with the localShellCommandSequenceFinished as true to summarize the finalization of the task.
 Here are your two schemas filled with dummy info:
@@ -131,7 +131,7 @@ Here are your two schemas filled with dummy info:
       "timestamp": 1717085200,
       "resultStatus": "success",
       "modelVersion": "gemma-3",
-      "multipleCallsAllowed": true,
+      "multipleCallsAllowed": false,
       "persistResult": false,
       "samplingTemperature": 0.7,
       "probabilityCutoff": 0.9,
@@ -164,7 +164,7 @@ Here are your two schemas filled with dummy info:
           "agentRole": "assistant",
           "callIdentifier": "tool_call_abc123",
           "operation": {
-            "commands": ["echo 'this is an example command'"],
+            "command": ["echo 'this is an example command'"],
           },
           "messages": [
             {
