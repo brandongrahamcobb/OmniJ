@@ -191,7 +191,7 @@ public class REPLManager {
                                     rootNode = mapper.readTree(jsonContent); // throws if invalid
                                     isJson = true;
                                     if (!content.startsWith("```json")) {
-                                        metadataContainer.put(contentKey, content.substring(0, matcher.start()));
+                                        metadataContainer.put(contentKey, content.substring(0, matcher.start()).replaceAll("[\\r\\n]+$", ""));
                                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content.substring(0, matcher.start())));
                                         contextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                     }
