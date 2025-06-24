@@ -179,45 +179,41 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
   },
   "additionalProperties": false
 }
-To get context of stdin environment, stdout environment, file structure, file contents, etc. (improving context) use this schema.
-Do not use `tree`.
+Here is a schema for reading a file.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Shell",
+  "title": "ReadFileInput",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["path"],
   "properties": {
-    "tool": {
+    "path": {
       "type": "string",
-      "enum": ["shell"],
-      "description": "The name of the tool to execute. For shell commands, use 'shell'."
-    },
-    "input": {
-      "type": "object",
-      "required": ["commands"],
-      "properties": {
-        "commands": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["cmd"],
-            "properties": {
-              "cmd": { "type": "string" },
-              "label": { "type": "string" },
-              "workingDirectory": { "type": "string" },
-              "captureOutput": { "type": "boolean", "default": true },
-              "timeoutSeconds": { "type": "integer", "default": 30 },
-              "continueOnFailure": { "type": "boolean", "default": false }
-            }
-          }
-        },
-        "explanation": {
-          "type": "string"
-        }
-      }
+      "description": "The path to the file to be read."
     }
   },
   "additionalProperties": false
+}
+Here is a schema for creating a file.
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CreateFile",
+  "type": "object",
+  "required": ["path", "content"],
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "The file path where content should be written."
+    },
+    "content": {
+      "type": "string",
+      "description": "The content to write into the file."
+    },
+    "overwrite": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, allows overwriting an existing file."
+    }
+  }
 }
 To shorten your context window with a progressive summary (should execute earlier than the token limit), send a completed JSON response of this schema:
 {
@@ -245,6 +241,8 @@ To shorten your context window with a progressive summary (should execute earlie
   "additionalProperties": false
 }
 Use these tools in tandem to recursively accomplish a task specified by the user.
+If you happen to find a pitfall where a tool is required but it does not exist, engage in a conversation with the user about how to create the tool and encourage them to deploy it within the codebase.
+You may request the user to make manual changes where it is ideal.
     """),
     LLAMA_TEXT_INSTRUCTIONS_DISCORD(""),
     LLAMA_TEXT_INSTRUCTIONS_TWITCH(""),
@@ -305,3 +303,44 @@ Use these tools in tandem to recursively accomplish a task specified by the user
         return clazz.cast(value);
     }
 }
+
+//use this schema which executes zshell commands.
+//Do not use `tree`.
+//{
+// "$schema": "http://json-schema.org/draft-07/schema#",
+// "title": "Shell",
+// "type": "object",
+// "required": ["tool", "input"],
+// "properties": {
+//   "tool": {
+//     "type": "string",
+//     "enum": ["shell"],
+//     "description": "The name of the tool to execute. For shell commands, use 'shell'."
+//   },
+//   "input": {
+//     "type": "object",
+//     "required": ["commands"],
+//     "properties": {
+//       "commands": {
+//         "type": "array",
+//         "items": {
+//           "type": "object",
+//           "required": ["cmd"],
+//           "properties": {
+//             "cmd": { "type": "string" },
+//             "label": { "type": "string" },
+//             "workingDirectory": { "type": "string" },
+//             "captureOutput": { "type": "boolean", "default": true },
+//             "timeoutSeconds": { "type": "integer", "default": 30 },
+//             "continueOnFailure": { "type": "boolean", "default": false }
+//           }
+//         }
+//       },
+//       "explanation": {
+//         "type": "string"
+//       }
+//     }
+//   }
+// },
+// "additionalProperties": false
+//}

@@ -191,8 +191,14 @@ public class REPLManager {
                                     rootNode = mapper.readTree(jsonContent); // throws if invalid
                                     isJson = true;
                                     if (!content.startsWith("```json")) {
-                                        metadataContainer.put(contentKey, content.substring(0, matcher.start()).replaceAll("[\\r\\n]+$", ""));
-                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content.substring(0, matcher.start())));
+                                        String before = content.substring(0, matcher.start())
+                                            .replaceAll("[\\n]+$", "");  // remove trailing newlines
+                                        String after = content.substring(matcher.end())
+                                            .replaceAll("^[\\n]+", "");  // remove leading newlines
+
+                                        String cleanedText = before + after;
+                                        metadataContainer.put(contentKey, cleanedText);
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                         contextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                     }
                                 }
