@@ -15,6 +15,7 @@ import java.util.List;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 public class Patch implements Tool<PatchInput, PatchStatus> {
 
@@ -30,27 +31,29 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
     }
 
     @Override
-    public PatchStatus run(PatchInput input) {
-        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
-
-        String targetFile = input.getTargetFile();
-        List<PatchOperation> operations = input.getPatches();
-
-        if (targetFile == null || operations == null || operations.isEmpty()) {
-            return new PatchStatus(false, "Invalid patch input.");
-        }
-
-        try {
-            Path filePath = Path.of(targetFile);
-            List<String> originalLines = Files.readAllLines(filePath);
-            List<String> patchedLines = applyOperations(originalLines, operations);
-            Files.write(filePath, patchedLines);
-            return new PatchStatus(true, "Patch applied successfully.");
-        } catch (IOException e) {
-            return new PatchStatus(false, "IO error: " + e.getMessage());
-        } catch (Exception e) {
-            return new PatchStatus(false, "Unexpected error: " + e.getMessage());
-        }
+    public CompletableFuture<PatchStatus> run(PatchInput input) {
+        return CompletableFuture.supplyAsync(() -> {
+            contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
+    
+            String targetFile = input.getTargetFile();
+            List<PatchOperation> operations = input.getPatches();
+    
+            if (targetFile == null || operations == null || operations.isEmpty()) {
+                return new PatchStatus(false, "Invalid patch input.");
+            }
+    
+            try {
+                Path filePath = Path.of(targetFile);
+                List<String> originalLines = Files.readAllLines(filePath);
+                List<String> patchedLines = applyOperations(originalLines, operations);
+                Files.write(filePath, patchedLines);
+                return new PatchStatus(true, "Patch applied successfully.");
+            } catch (IOException e) {
+                return new PatchStatus(false, "IO error: " + e.getMessage());
+            } catch (Exception e) {
+                return new PatchStatus(false, "Unexpected error: " + e.getMessage());
+            }
+        });
     }
 
     private List<String> applyOperations(List<String> original, List<PatchOperation> ops) {

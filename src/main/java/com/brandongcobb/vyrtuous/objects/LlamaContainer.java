@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 
 public class LlamaContainer extends MainContainer {
     
-    private ToolHandler th = new ToolHandler();
     
     public LlamaContainer(Map<String, Object> responseMap) {
         

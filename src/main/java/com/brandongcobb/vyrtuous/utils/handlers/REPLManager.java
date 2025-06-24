@@ -50,7 +50,6 @@ public class REPLManager {
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private String originalDirective;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
-    private ToolHandler th = new ToolHandler();
     
     private ObjectMapper mapper = new ObjectMapper();
     
@@ -227,7 +226,6 @@ public class REPLManager {
         ObjectMapper mapper = new ObjectMapper();
         List<JsonNode> results = new ArrayList<>();
         String contentStr = new MetadataUtils(response).completeGetContent().join();
-
         try {
             JsonNode root = mapper.readTree(contentStr);
             if (root.isArray()) {
@@ -242,31 +240,43 @@ public class REPLManager {
             for (JsonNode result : results) {
                 try {
                     String toolName = result.get("tool").asText();
+                    CompletableFuture<Void> toolFuture;
+
                     switch (toolName) {
                         case "patch" -> {
                             PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
                             patchInput.setOriginalJson(result);
-                            Patch patchTool = new Patch(contextManager);
-                            PatchStatus status = patchTool.run(patchInput);
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                            System.out.println("debug");
-                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                            Patch patch = new Patch(contextManager);
+
+                            toolFuture = patch.run(patchInput) // assume this returns CompletableFuture<PatchStatus>
+                                .thenAccept(status -> {
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    System.out.println("debug");
+                                    contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                                });
                         }
                         case "refresh_context" -> {
                             RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
                             RefreshContext tool = new RefreshContext(contextManager);
-                            RefreshContextStatus status = tool.run(input);
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+
+                            toolFuture = tool.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                .thenAccept(status -> {
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                                });
+                        }
+                        case "shell" -> {
+                            ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
+                            Shell shell = new Shell(contextManager);
+
+                            toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
+                                .thenAccept(status -> {
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                                });
                         }
                         default -> {
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, contentStr));
-                            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-                            System.out.print("> ");
-                            String newInput = scanner.nextLine(); // blocking
-                            
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-                            return startREPL(scanner, newInput);
+                            toolFuture = CompletableFuture.failedFuture(new IllegalArgumentException("Unknown tool: " + toolName));
                         }
                     }
                 } catch (Exception e) {

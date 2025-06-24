@@ -6,7 +6,10 @@
 //
 package com.brandongcobb.vyrtuous.tools;
 
-interface Tool<I, O> {
+import java.util.concurrent.CompletableFuture;
+
+public interface Tool<I, O> {
     String getName();
-    O run(I input) throws Exception;
+    CompletableFuture<O> run(I input) throws Exception;
 }
+

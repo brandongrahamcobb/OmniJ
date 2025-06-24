@@ -1,7 +1,7 @@
 /* OpenAIContainer.java The purpose of this class is to interpret and
  * containerize the metadata of OpenAI's response object.
  *
- *  Copyright (th.C) 2025  github.com/brandongrahamcobb
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -44,11 +44,56 @@ import java.util.Objects;
 
 public class OpenAIContainer extends MainContainer {
     
-    private ToolHandler th = new ToolHandler();
     public static Map<String, Object> mapMap;
     
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
-
+    public static final MetadataKey<Integer> SHELL_EXIT_CODE = new MetadataKey<>("shell.exit_code", Metadata.INTEGER);
+    public static final MetadataKey<String> SHELL_STDOUT = new MetadataKey<>("shell.stdout", Metadata.STRING);
+    public static final MetadataKey<String> SHELL_STDERR = new MetadataKey<>("shell.stderr", Metadata.STRING);
+    public static final MetadataKey<String> FILESEARCHTOOL_TYPE = new MetadataKey<>("filesearchtool_type", Metadata.STRING);
+    public static final MetadataKey<List<String>> FILESEARCHTOOL_VECTOR_STORE_IDS = new MetadataKey<>("filesearchtool_vector_store_ids", Metadata.LIST_STRING);
+    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTERS = new MetadataKey<>("filesearchtool_filters", Metadata.MAP);
+    public static final MetadataKey<Integer> FILESEARCHTOOL_MAX_NUM_RESULTS = new MetadataKey<>("filesearchtool_max_num_results", Metadata.INTEGER);
+    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_RANKING_OPTIONS = new MetadataKey<>("filesearchtool_ranking_options", Metadata.MAP);
+    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTER_COMPARISON = new MetadataKey<>("filesearchtool_filter_comparison", Metadata.MAP);
+    public static final MetadataKey<Map<String, Object>> FILESEARCHTOOL_FILTER_COMPOUND = new MetadataKey<>("filesearchtool_filter_compound", Metadata.MAP);
+    public static final MetadataKey<List<Map<String, Object>>> FILESEARCHTOOL_FILTER_COMPOUND_LIST = new MetadataKey<>("filesearchtool_filter_compound_list", Metadata.LIST_MAP);
+    public static final MetadataKey<String> TOOLCHOICE_MODE = new MetadataKey<>("toolChoice_mode", Metadata.STRING);
+    public static final MetadataKey<String> TOOLCHOICE_TYPE = new MetadataKey<>("toolChoice_type", Metadata.STRING);
+    public static final MetadataKey<String> TOOLCHOICE_NAME = new MetadataKey<>("toolChoice_name", Metadata.STRING);
+    public static final MetadataKey<String> TOOLCHOICE_TOOL = new MetadataKey<>("toolChoice_tool", Metadata.STRING);
+    public static final MetadataKey<Integer> TOOLCHOICE_INDEX = new MetadataKey<>("toolChoice_index", Metadata.INTEGER);
+    public static final MetadataKey<Map<String, Object>> TOOLCHOICE_ARGUMENTS = new MetadataKey<>("toolChoice_arguments", Metadata.MAP);
+    public static final MetadataKey<String> WEBSEARCHTOOL_TYPE = new MetadataKey<>("webSearchTool_type", Metadata.STRING);
+    public static final MetadataKey<String> WEBSEARCHTOOL_CONTEXT_SIZE = new MetadataKey<>("webSearchTool_context_size", Metadata.STRING);
+    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_TYPE = new MetadataKey<>("webSearchTool_location_type", Metadata.STRING);
+    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_CITY = new MetadataKey<>("webSearchTool_location_city", Metadata.STRING);
+    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_COUNTRY = new MetadataKey<>("webSearchTool_location_country", Metadata.STRING);
+    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_REGION = new MetadataKey<>("webSearchTool_location_region", Metadata.STRING);
+    public static final MetadataKey<String> WEBSEARCHTOOL_LOCATION_TIMEZONE = new MetadataKey<>("webSearchTool_location_timezone", Metadata.STRING);
+    public static final MetadataKey<String> COMPUTERTOOL_TYPE = new MetadataKey<>("computertool_type", Metadata.STRING);
+    public static final MetadataKey<Integer> COMPUTERTOOL_DISPLAY_HEIGHT = new MetadataKey<>("computertool_display_height", Metadata.INTEGER);
+    public static final MetadataKey<Integer> COMPUTERTOOL_DISPLAY_WIDTH = new MetadataKey<>("computertool_display_width", Metadata.INTEGER);
+    public static final MetadataKey<String> COMPUTERTOOL_ENVIRONMENT = new MetadataKey<>("computertool_environment", Metadata.STRING);
+    public static final MetadataKey<String> MCPTOOL_TYPE = new MetadataKey<>("mcptool_type", Metadata.STRING);
+    public static final MetadataKey<String> MCPTOOL_SERVER_LABEL = new MetadataKey<>("mcptool_server_label", Metadata.STRING);
+    public static final MetadataKey<String> MCPTOOL_SERVER_URL = new MetadataKey<>("mcptool_server_url", Metadata.STRING);
+    public static final MetadataKey<List<String>> MCPTOOL_ALLOWED_TOOLS = new MetadataKey<>("mcptool_allowed_tools", new MetadataList<>(Metadata.STRING));
+    public static final MetadataKey<Map<String, Object>> MCPTOOL_ALLOWED_TOOLS_FILTER = new MetadataKey<>("mcptool_allowed_tools_filter", Metadata.MAP);
+    public static final MetadataKey<Map<String, Object>> MCPTOOL_HEADERS = new MetadataKey<>("mcptool_headers", Metadata.MAP);
+    public static final MetadataKey<String> MCPTOOL_REQUIRE_APPROVAL_MODE = new MetadataKey<>("mcptool_require_approval_mode", Metadata.STRING);
+    public static final MetadataKey<Map<String, Object>> MCPTOOL_REQUIRE_APPROVAL_ALWAYS = new MetadataKey<>("mcptool_require_approval_always", Metadata.MAP);
+    public static final MetadataKey<Map<String, Object>> MCPTOOL_REQUIRE_APPROVAL_NEVER = new MetadataKey<>("mcptool_require_approval_never", Metadata.MAP);
+    public static final MetadataKey<String> CODEINTERPRETERTOOL_TYPE = new MetadataKey<>("codeinterpretertool_type", Metadata.STRING);
+    public static final MetadataKey<String> CODEINTERPRETERTOOL_CONTAINER_ID = new MetadataKey<>("codeinterpretertool_container_id", Metadata.STRING);
+    public static final MetadataKey<Map<String, Object>> CODEINTERPRETERTOOL_CONTAINER_MAP = new MetadataKey<>("codeinterpretertool_container_map", Metadata.MAP);
+    public static final MetadataKey<String> LOCALSHELLTOOL_COMMAND = new MetadataKey<>("localshelltool_command", Metadata.STRING);
+    public static final MetadataKey<List<String>> LOCALSHELLTOOL_COMMANDS = new MetadataKey<>("localshelltool_commands", Metadata.LIST_STRING);
+    public static final MetadataKey<Boolean> LOCALSHELLTOOL_FINISHED = new MetadataKey<>("localshelltool_finished", Metadata.BOOLEAN);
+    public static final MetadataKey<String> LOCALSHELLTOOL_TYPE = new MetadataKey<>("localshelltool_type", Metadata.STRING);
+    public static final String LOCALSHELLTOOL_COMMANDS_LIST = "localshelltool_commands_list";
+    public static final String LOCALSHELLTOOL_CALL_IDS = "localshelltool_call_ids";
+    
     private boolean isQuoted(String s) {
         return (s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"));
     }
@@ -135,9 +180,7 @@ public class OpenAIContainer extends MainContainer {
                     put(responsesUserKey, responsesUser);
                     MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("metadata", Metadata.MAP);
                     Map<String, Object> responsesMetadata = (Map<String, Object>) responseMap.get("metadata");
-                    Boolean localShellFinished = (Boolean) responsesMetadata.get("local_shell_command_sequence_finished");
-                    put(responsesMetadataKey, responsesMetadata);
-                    put(th.LOCALSHELLTOOL_FINISHED, localShellFinished);
+                    
                     MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
                     Object outputObj = responseMap.get("output");
                     List<String> allCallIds = new ArrayList<>();
@@ -186,8 +229,8 @@ public class OpenAIContainer extends MainContainer {
                         }
                     }
                     Map<String, Object> myMap = new HashMap<>();
-                    myMap.put(th.LOCALSHELLTOOL_CALL_IDS, allCallIds);
-                    myMap.put(th.LOCALSHELLTOOL_COMMANDS_LIST, allCommands);
+                    myMap.put(LOCALSHELLTOOL_CALL_IDS, allCallIds);
+                    myMap.put(LOCALSHELLTOOL_COMMANDS_LIST, allCommands);
                     mapMap = myMap;
                     MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
                     Object toolsObj = responseMap.get("tools");
@@ -204,16 +247,16 @@ public class OpenAIContainer extends MainContainer {
                             if (!(typeObj instanceof String type)) continue;
                             switch (type) {
                                 case "file_search" -> {
-                                    put(th.FILESEARCHTOOL_TYPE, "file_search");
-                                    put(th.FILESEARCHTOOL_VECTOR_STORE_IDS, List.of("file-PLACEHOLDER"));
+                                    put(FILESEARCHTOOL_TYPE, "file_search");
+                                    put(FILESEARCHTOOL_VECTOR_STORE_IDS, List.of("file-PLACEHOLDER"));
                                     Object filtersObj = toolMap.get("filters");
                                     if (filtersObj instanceof Map<?, ?> filterMap) {
-                                        put(th.FILESEARCHTOOL_FILTERS, (Map<String, Object>) filterMap);
+                                        put(FILESEARCHTOOL_FILTERS, (Map<String, Object>) filterMap);
                                         if (filterMap.containsKey("key") && filterMap.containsKey("type") && filterMap.containsKey("value")) {
-                                            put(th.FILESEARCHTOOL_FILTER_COMPARISON, (Map<String, Object>) filterMap);
+                                            put(FILESEARCHTOOL_FILTER_COMPARISON, (Map<String, Object>) filterMap);
                                         }
                                         if ("and".equals(filterMap.get("type")) || "or".equals(filterMap.get("type"))) {
-                                            put(th.FILESEARCHTOOL_FILTER_COMPOUND, (Map<String, Object>) filterMap);
+                                            put(FILESEARCHTOOL_FILTER_COMPOUND, (Map<String, Object>) filterMap);
                                             Object subFilters = filterMap.get("filters");
                                             if (subFilters instanceof List<?> subList) {
                                                 List<Map<String, Object>> casted = new ArrayList<>();
@@ -222,79 +265,79 @@ public class OpenAIContainer extends MainContainer {
                                                         casted.add((Map<String, Object>) subFilterMap);
                                                     }
                                                 }
-                                                put(th.FILESEARCHTOOL_FILTER_COMPOUND_LIST, casted);
+                                                put(FILESEARCHTOOL_FILTER_COMPOUND_LIST, casted);
                                             }
                                         }
                                     }
                                     Object maxNumResults = toolMap.get("max_num_results");
                                     if (maxNumResults instanceof Number num) {
-                                        put(th.FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
+                                        put(FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
                                     }
                                     Object rankingOpts = toolMap.get("ranking_options");
                                     if (rankingOpts instanceof Map<?, ?> rankingMap) {
-                                        put(th.FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingMap);
+                                        put(FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingMap);
                                     }
                                 }
                                 case "web_search_preview", "web_search_preview_2025_03_11" -> {
-                                    put(th.WEBSEARCHTOOL_TYPE, type);
+                                    put(WEBSEARCHTOOL_TYPE, type);
                                     Object searchContextSize = toolMap.get("search_context_size");
                                     if (searchContextSize instanceof String size) {
-                                        put(th.WEBSEARCHTOOL_CONTEXT_SIZE, size);
+                                        put(WEBSEARCHTOOL_CONTEXT_SIZE, size);
                                     }
                                     Object userLocObj = toolMap.get("user_location");
                                     if (userLocObj instanceof Map<?, ?> loc) {
-                                        if (loc.get("type") instanceof String locType) put(th.WEBSEARCHTOOL_LOCATION_TYPE, locType);
-                                        if (loc.get("city") instanceof String city) put(th.WEBSEARCHTOOL_LOCATION_CITY, city);
-                                        if (loc.get("country") instanceof String country) put(th.WEBSEARCHTOOL_LOCATION_COUNTRY, country);
-                                        if (loc.get("region") instanceof String region) put(th.WEBSEARCHTOOL_LOCATION_REGION, region);
-                                        if (loc.get("timezone") instanceof String tz) put(th.WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
+                                        if (loc.get("type") instanceof String locType) put(WEBSEARCHTOOL_LOCATION_TYPE, locType);
+                                        if (loc.get("city") instanceof String city) put(WEBSEARCHTOOL_LOCATION_CITY, city);
+                                        if (loc.get("country") instanceof String country) put(WEBSEARCHTOOL_LOCATION_COUNTRY, country);
+                                        if (loc.get("region") instanceof String region) put(WEBSEARCHTOOL_LOCATION_REGION, region);
+                                        if (loc.get("timezone") instanceof String tz) put(WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
                                     }
                                 }
                                 case "computer_use_preview" -> {
-                                    put(th.COMPUTERTOOL_TYPE, type);
-                                    if (toolMap.get("display_height") instanceof Number height) put(th.COMPUTERTOOL_DISPLAY_HEIGHT, height.intValue());
-                                    if (toolMap.get("display_width") instanceof Number width) put(th.COMPUTERTOOL_DISPLAY_WIDTH, width.intValue());
-                                    if (toolMap.get("environment") instanceof String env) put(th.COMPUTERTOOL_ENVIRONMENT, env);
+                                    put(COMPUTERTOOL_TYPE, type);
+                                    if (toolMap.get("display_height") instanceof Number height) put(COMPUTERTOOL_DISPLAY_HEIGHT, height.intValue());
+                                    if (toolMap.get("display_width") instanceof Number width) put(COMPUTERTOOL_DISPLAY_WIDTH, width.intValue());
+                                    if (toolMap.get("environment") instanceof String env) put(COMPUTERTOOL_ENVIRONMENT, env);
                                 }
                                 case "mcp" -> {
-                                    put(th.MCPTOOL_TYPE, type);
-                                    if (toolMap.get("server_label") instanceof String serverLabel) put(th.MCPTOOL_SERVER_LABEL, serverLabel);
-                                    if (toolMap.get("server_url") instanceof String serverUrl) put(th.MCPTOOL_SERVER_URL, serverUrl);
+                                    put(MCPTOOL_TYPE, type);
+                                    if (toolMap.get("server_label") instanceof String serverLabel) put(MCPTOOL_SERVER_LABEL, serverLabel);
+                                    if (toolMap.get("server_url") instanceof String serverUrl) put(MCPTOOL_SERVER_URL, serverUrl);
                                     Object allowedToolsObj = toolMap.get("allowed_tools");
                                     if (allowedToolsObj instanceof List<?> allowedToolList) {
-                                        put(th.MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
+                                        put(MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
                                     } else if (allowedToolsObj instanceof Map<?, ?> allowedToolMap) {
-                                        put(th.MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
+                                        put(MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
                                     }
                                     if (toolMap.get("headers") instanceof Map<?, ?> headersMap) {
-                                        put(th.MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
+                                        put(MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
                                     }
                                     Object approvalObj = toolMap.get("require_approval");
                                     if (approvalObj instanceof String approvalSetting) {
-                                        put(th.MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
+                                        put(MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
                                     } else if (approvalObj instanceof Map<?, ?> approvalMap) {
                                         Object always = approvalMap.get("always");
                                         Object never = approvalMap.get("never");
     
                                         if (always instanceof Map<?, ?> alwaysMap) {
-                                            put(th.MCPTOOL_REQUIRE_APPROVAL_ALWAYS, (Map<String, Object>) alwaysMap);
+                                            put(MCPTOOL_REQUIRE_APPROVAL_ALWAYS, (Map<String, Object>) alwaysMap);
                                         }
                                         if (never instanceof Map<?, ?> neverMap) {
-                                            put(th.MCPTOOL_REQUIRE_APPROVAL_NEVER, (Map<String, Object>) neverMap);
+                                            put(MCPTOOL_REQUIRE_APPROVAL_NEVER, (Map<String, Object>) neverMap);
                                         }
                                     }
                                 }
                                 case "code_interpreter" -> {
-                                    put(th.CODEINTERPRETERTOOL_TYPE, type);
+                                    put(CODEINTERPRETERTOOL_TYPE, type);
                                     Object containerObj = toolMap.get("container");
                                     if (containerObj instanceof String containerId) {
-                                        put(th.CODEINTERPRETERTOOL_CONTAINER_ID, containerId);
+                                        put(CODEINTERPRETERTOOL_CONTAINER_ID, containerId);
                                     } else if (containerObj instanceof Map<?, ?> containerMap) {
-                                        put(th.CODEINTERPRETERTOOL_CONTAINER_MAP, (Map<String, Object>) containerMap);
+                                        put(CODEINTERPRETERTOOL_CONTAINER_MAP, (Map<String, Object>) containerMap);
                                     }
                                 }
                                 case "local_shell" -> {
-                                    put(th.LOCALSHELLTOOL_TYPE, type);
+                                    put(LOCALSHELLTOOL_TYPE, type);
                                     if (outputObj instanceof List<?> outputList) {
                                         for (Object outputItemObj : outputList) {
                                             if (!(outputItemObj instanceof Map<?, ?> outputItem)) continue;
@@ -304,12 +347,12 @@ public class OpenAIContainer extends MainContainer {
                                                 if (cmdObj instanceof List<?> cmdList) {
                                                     List<String> commands = cmdList.stream()
                                                         .map(Object::toString)
-                                                        .toList(); // Java 16+, otherwise use .collect(th.Collectors.toList())
-                                                    put(th.LOCALSHELLTOOL_COMMANDS, commands);
+                                                        .toList(); // Java 16+, otherwise use .collect(Collectors.toList())
+                                                    put(LOCALSHELLTOOL_COMMANDS, commands);
                                                 } else if (cmdObj instanceof String singleCommand) {
-                                                    put(th.LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
+                                                    put(LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
                                                 } else if (cmdObj != null) {
-                                                    put(th.LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
+                                                    put(LOCALSHELLTOOL_COMMANDS, List.of(cmdObj.toString()));
                                                 }
                                             }
                     
@@ -326,19 +369,19 @@ public class OpenAIContainer extends MainContainer {
                     if (toolChoiceObj instanceof Map<?, ?> toolChoice) {
                         Object modeObj = toolChoice.get("mode");
                         if (modeObj instanceof String mode) {
-                            put(th.TOOLCHOICE_MODE, mode);
+                            put(TOOLCHOICE_MODE, mode);
                         }
                         Object toolObj = toolChoice.get("tool");
                         if (toolObj instanceof String tool) {
-                            put(th.TOOLCHOICE_TOOL, tool);
+                            put(TOOLCHOICE_TOOL, tool);
                         }
                         Object indexObj = toolChoice.get("index");
                         if (indexObj instanceof Number idx) {
-                            put(th.TOOLCHOICE_INDEX, idx.intValue());
+                            put(TOOLCHOICE_INDEX, idx.intValue());
                         }
                         Object argumentsObj = toolChoice.get("arguments");
                         if (argumentsObj instanceof Map<?, ?> argsMap) {
-                            put(th.TOOLCHOICE_ARGUMENTS, (Map<String, Object>) argsMap);
+                            put(TOOLCHOICE_ARGUMENTS, (Map<String, Object>) argsMap);
                         }
                     }
                 }
@@ -497,7 +540,7 @@ public class OpenAIContainer extends MainContainer {
                 put(responsesMetadataKey, responsesMetadata);
             }
             if (localShellFinished != null) {
-                put(th.LOCALSHELLTOOL_FINISHED, localShellFinished);
+                put(LOCALSHELLTOOL_FINISHED, localShellFinished);
             }
 
             MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
@@ -540,21 +583,21 @@ public class OpenAIContainer extends MainContainer {
             
                     switch (type) {
                         case "file_search" -> {
-                            put(th.FILESEARCHTOOL_TYPE, "file_search");
-                            put(th.FILESEARCHTOOL_VECTOR_STORE_IDS, List.of("file-PLACEHOLDER"));
+                            put(FILESEARCHTOOL_TYPE, "file_search");
+                            put(FILESEARCHTOOL_VECTOR_STORE_IDS, List.of("file-PLACEHOLDER"));
             
                             Object filtersObj = toolMap.get("filters");
                             if (filtersObj instanceof Map<?, ?> filterMap) {
                                 Map<String, Object> filterMapCasted = (Map<String, Object>) filterMap;
-                                put(th.FILESEARCHTOOL_FILTERS, filterMapCasted);
+                                put(FILESEARCHTOOL_FILTERS, filterMapCasted);
             
                                 if (filterMapCasted.containsKey("key") && filterMapCasted.containsKey("type") && filterMapCasted.containsKey("value")) {
-                                    put(th.FILESEARCHTOOL_FILTER_COMPARISON, filterMapCasted);
+                                    put(FILESEARCHTOOL_FILTER_COMPARISON, filterMapCasted);
                                 }
             
                                 Object filterType = filterMapCasted.get("type");
                                 if ("and".equals(filterType) || "or".equals(filterType)) {
-                                    put(th.FILESEARCHTOOL_FILTER_COMPOUND, filterMapCasted);
+                                    put(FILESEARCHTOOL_FILTER_COMPOUND, filterMapCasted);
             
                                     Object subFilters = filterMapCasted.get("filters");
                                     if (subFilters instanceof List<?> subList) {
@@ -564,104 +607,104 @@ public class OpenAIContainer extends MainContainer {
                                                 casted.add((Map<String, Object>) subFilterMap);
                                             }
                                         }
-                                        put(th.FILESEARCHTOOL_FILTER_COMPOUND_LIST, casted);
+                                        put(FILESEARCHTOOL_FILTER_COMPOUND_LIST, casted);
                                     }
                                 }
                             }
             
                             Object maxNumResults = toolMap.get("max_num_results");
                             if (maxNumResults instanceof Number num) {
-                                put(th.FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
+                                put(FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
                             }
             
                             Object rankingOpts = toolMap.get("ranking_options");
                             if (rankingOpts instanceof Map<?, ?> rankingMap) {
-                                put(th.FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingMap);
+                                put(FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingMap);
                             }
                         }
             
                         case "web_search_preview", "web_search_preview_2025_03_11" -> {
-                            put(th.WEBSEARCHTOOL_TYPE, type);
+                            put(WEBSEARCHTOOL_TYPE, type);
             
                             Object searchContextSize = toolMap.get("search_context_size");
                             if (searchContextSize instanceof String size) {
-                                put(th.WEBSEARCHTOOL_CONTEXT_SIZE, size);
+                                put(WEBSEARCHTOOL_CONTEXT_SIZE, size);
                             }
             
                             Object userLocObj = toolMap.get("user_location");
                             if (userLocObj instanceof Map<?, ?> loc) {
                                 Map<String, Object> locMap = (Map<String, Object>) loc;
                                 Object locTypeObj = locMap.get("type");
-                                if (locTypeObj instanceof String locType) put(th.WEBSEARCHTOOL_LOCATION_TYPE, locType);
+                                if (locTypeObj instanceof String locType) put(WEBSEARCHTOOL_LOCATION_TYPE, locType);
                                 Object cityObj = locMap.get("city");
-                                if (cityObj instanceof String city) put(th.WEBSEARCHTOOL_LOCATION_CITY, city);
+                                if (cityObj instanceof String city) put(WEBSEARCHTOOL_LOCATION_CITY, city);
                                 Object countryObj = locMap.get("country");
-                                if (countryObj instanceof String country) put(th.WEBSEARCHTOOL_LOCATION_COUNTRY, country);
+                                if (countryObj instanceof String country) put(WEBSEARCHTOOL_LOCATION_COUNTRY, country);
                                 Object regionObj = locMap.get("region");
-                                if (regionObj instanceof String region) put(th.WEBSEARCHTOOL_LOCATION_REGION, region);
+                                if (regionObj instanceof String region) put(WEBSEARCHTOOL_LOCATION_REGION, region);
                                 Object timezoneObj = locMap.get("timezone");
-                                if (timezoneObj instanceof String tz) put(th.WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
+                                if (timezoneObj instanceof String tz) put(WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
                             }
                         }
             
                         case "computer_use_preview" -> {
-                            put(th.COMPUTERTOOL_TYPE, type);
+                            put(COMPUTERTOOL_TYPE, type);
                             Object heightObj = toolMap.get("display_height");
-                            if (heightObj instanceof Number height) put(th.COMPUTERTOOL_DISPLAY_HEIGHT, height.intValue());
+                            if (heightObj instanceof Number height) put(COMPUTERTOOL_DISPLAY_HEIGHT, height.intValue());
                             Object widthObj = toolMap.get("display_width");
-                            if (widthObj instanceof Number width) put(th.COMPUTERTOOL_DISPLAY_WIDTH, width.intValue());
+                            if (widthObj instanceof Number width) put(COMPUTERTOOL_DISPLAY_WIDTH, width.intValue());
                             Object envObj = toolMap.get("environment");
-                            if (envObj instanceof String env) put(th.COMPUTERTOOL_ENVIRONMENT, env);
+                            if (envObj instanceof String env) put(COMPUTERTOOL_ENVIRONMENT, env);
                         }
             
                         case "mcp" -> {
-                            put(th.MCPTOOL_TYPE, type);
+                            put(MCPTOOL_TYPE, type);
                             Object serverLabelObj = toolMap.get("server_label");
-                            if (serverLabelObj instanceof String serverLabel) put(th.MCPTOOL_SERVER_LABEL, serverLabel);
+                            if (serverLabelObj instanceof String serverLabel) put(MCPTOOL_SERVER_LABEL, serverLabel);
                             Object serverUrlObj = toolMap.get("server_url");
-                            if (serverUrlObj instanceof String serverUrl) put(th.MCPTOOL_SERVER_URL, serverUrl);
+                            if (serverUrlObj instanceof String serverUrl) put(MCPTOOL_SERVER_URL, serverUrl);
             
                             Object allowedToolsObj = toolMap.get("allowed_tools");
                             if (allowedToolsObj instanceof List<?> allowedToolList) {
-                                put(th.MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
+                                put(MCPTOOL_ALLOWED_TOOLS, (List<String>) allowedToolList);
                             } else if (allowedToolsObj instanceof Map<?, ?> allowedToolMap) {
-                                put(th.MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
+                                put(MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
                             }
             
                             Object headersObj = toolMap.get("headers");
                             if (headersObj instanceof Map<?, ?> headersMap) {
-                                put(th.MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
+                                put(MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
                             }
             
                             Object approvalObj = toolMap.get("require_approval");
                             if (approvalObj instanceof String approvalSetting) {
-                                put(th.MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
+                                put(MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
                             } else if (approvalObj instanceof Map<?, ?> approvalMap) {
                                 Map<String, Object> approvalMapCasted = (Map<String, Object>) approvalMap;
                                 Object always = approvalMapCasted.get("always");
                                 Object never = approvalMapCasted.get("never");
             
                                 if (always instanceof Map<?, ?> alwaysMap) {
-                                    put(th.MCPTOOL_REQUIRE_APPROVAL_ALWAYS, (Map<String, Object>) alwaysMap);
+                                    put(MCPTOOL_REQUIRE_APPROVAL_ALWAYS, (Map<String, Object>) alwaysMap);
                                 }
                                 if (never instanceof Map<?, ?> neverMap) {
-                                    put(th.MCPTOOL_REQUIRE_APPROVAL_NEVER, (Map<String, Object>) neverMap);
+                                    put(MCPTOOL_REQUIRE_APPROVAL_NEVER, (Map<String, Object>) neverMap);
                                 }
                             }
                         }
             
                         case "code_interpreter" -> {
-                            put(th.CODEINTERPRETERTOOL_TYPE, type);
+                            put(CODEINTERPRETERTOOL_TYPE, type);
                             Object containerObj = toolMap.get("container");
                             if (containerObj instanceof String containerId) {
-                                put(th.CODEINTERPRETERTOOL_CONTAINER_ID, containerId);
+                                put(CODEINTERPRETERTOOL_CONTAINER_ID, containerId);
                             } else if (containerObj instanceof Map<?, ?> containerMap) {
-                                put(th.CODEINTERPRETERTOOL_CONTAINER_MAP, (Map<String, Object>) containerMap);
+                                put(CODEINTERPRETERTOOL_CONTAINER_MAP, (Map<String, Object>) containerMap);
                             }
                         }
             
                         case "local_shell" -> {
-                            put(th.LOCALSHELLTOOL_TYPE, type);
+                            put(LOCALSHELLTOOL_TYPE, type);
             
                             if (outputObj instanceof List<?> outputList) {
                                 for (Object outputItemObj : outputList) {
@@ -689,7 +732,7 @@ public class OpenAIContainer extends MainContainer {
                                                 .toList();
                                         }
             
-                                        put(th.LOCALSHELLTOOL_COMMANDS, commands);
+                                        put(LOCALSHELLTOOL_COMMANDS, commands);
                                     }
                                 }
                             }
@@ -706,19 +749,19 @@ public class OpenAIContainer extends MainContainer {
             if (toolChoiceObj instanceof Map<?, ?> toolChoice) {
                 Object modeObj = toolChoice.get("mode");
                 if (modeObj instanceof String mode) {
-                    put(th.TOOLCHOICE_MODE, mode);
+                    put(TOOLCHOICE_MODE, mode);
                 }
                 Object toolObj = toolChoice.get("tool");
                 if (toolObj instanceof String tool) {
-                    put(th.TOOLCHOICE_TOOL, tool);
+                    put(TOOLCHOICE_TOOL, tool);
                 }
                 Object indexObj = toolChoice.get("index");
                 if (indexObj instanceof Number idx) {
-                    put(th.TOOLCHOICE_INDEX, idx.intValue());
+                    put(TOOLCHOICE_INDEX, idx.intValue());
                 }
                 Object argumentsObj = toolChoice.get("arguments");
                 if (argumentsObj instanceof Map<?, ?> argsMap) {
-                    put(th.TOOLCHOICE_ARGUMENTS, (Map<String, Object>) argsMap);
+                    put(TOOLCHOICE_ARGUMENTS, (Map<String, Object>) argsMap);
                 }
             }
         } else if (requestId.contains("modr")) {
@@ -821,6 +864,7 @@ public class OpenAIContainer extends MainContainer {
             }
         }
     }
+    
     
     
     public Map<String, Object> getResponseMap() {
