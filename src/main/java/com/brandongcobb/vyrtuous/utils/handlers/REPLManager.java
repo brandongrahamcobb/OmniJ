@@ -184,10 +184,12 @@ public class REPLManager {
                                 if (matcher.find()) {
                                     String jsonContent = matcher.group(1).trim();
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    metadataContainer.put(contentKey, jsonContent);
+                                    metadataContainer.put(contentKey, content);
 
                                     rootNode = mapper.readTree(jsonContent); // throws if invalid
-                                    isJson = true;
+                                    if (content.startsWith("```json")) {  // TODO: this in general is not a good checkk
+                                        isJson = true;
+                                    }
                                 }
                             } catch (JsonProcessingException e) {
                                 // fall through to REPL below
@@ -251,8 +253,6 @@ public class REPLManager {
                             toolFuture = patch.run(patchInput) // assume this returns CompletableFuture<PatchStatus>
                                 .thenAccept(status -> {
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                    System.out.println("debug");
-                                    contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                                 });
                         }
                         case "refresh_context" -> {
@@ -262,7 +262,6 @@ public class REPLManager {
                             toolFuture = tool.run(input) // returns CompletableFuture<RefreshContextStatus>
                                 .thenAccept(status -> {
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                    contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                                 });
                         }
                         case "shell" -> {
@@ -272,7 +271,6 @@ public class REPLManager {
                             toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
                                 .thenAccept(status -> {
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                    contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                                 });
                         }
                         default -> {
