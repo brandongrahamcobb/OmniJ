@@ -40,6 +40,7 @@ import java.util.function.Function;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 public class REPLManager {
 
     private AIManager aim = new AIManager();
