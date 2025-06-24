@@ -181,8 +181,8 @@ public class REPLManager {
                                 if (matcher.find()) {
                                     Optional<String> jsonContent =  Optional.of(matcher.group(1).trim());
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    metadataContainer.put(contentKey, jsonContent.toString());
-                                    rootNode = mapper.readTree(jsonContent.toString());
+                                    metadataContainer.put(contentKey, jsonContent.orElse(""));
+                                    rootNode = mapper.readTree(jsonContent.orElse(""));
                                 }
                             } catch (JsonProcessingException e) {
                                 // Not JSON → fallback to REPL
