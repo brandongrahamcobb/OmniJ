@@ -171,31 +171,32 @@ public class REPLManager {
                         }
                         return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
                             MetadataContainer metadataContainer = new MetadataContainer();
-                            Pattern CODE_BLOCK_JSON_PATTERN =
-                                Pattern.compile("```(?:\\w+)?\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
-                            Matcher matcher = CODE_BLOCK_JSON_PATTERN.matcher(content);
-                            if (matcher.find()) {
-                                Optional<String> jsonContent =  Optional.of(matcher.group(1).trim());
-                                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                metadataContainer.put(contentKey, jsonContent.toString());
-                            }
-
-                            lastAIResponseContainer = metadataContainer;
 
                             // Try to check if it's valid JSON
                             JsonNode rootNode;
                             try {
-                                rootNode = mapper.readTree(content);
+                                Pattern CODE_BLOCK_JSON_PATTERN =
+                                    Pattern.compile("```(?:\\w+)?\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
+                                Matcher matcher = CODE_BLOCK_JSON_PATTERN.matcher(content);
+                                if (matcher.find()) {
+                                    Optional<String> jsonContent =  Optional.of(matcher.group(1).trim());
+                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                    metadataContainer.put(contentKey, jsonContent.toString());
+                                    rootNode = mapper.readTree(content);
+                                }
                             } catch (JsonProcessingException e) {
                                 // Not JSON → fallback to REPL
                                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                metadataContainer.put(contentKey, content);
                                 contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                                 System.out.print("> ");
                                 String newInput = scanner.nextLine();
                                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                             }
+                            
                             // blocking
-                            return lastAIResponseContainer;
+                            return metadataContainer;
                         }); // flatten nested CompletableFuture
                     })
                     .exceptionally(ex -> {
@@ -214,6 +215,7 @@ public class REPLManager {
         ObjectMapper mapper = new ObjectMapper();
         List<JsonNode> results = new ArrayList<>();
         String contentStr = new MetadataUtils(response).completeGetContent().join();
+        
         try {
             JsonNode root = mapper.readTree(contentStr);
             if (root.isArray()) {
