@@ -59,9 +59,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
     }
@@ -184,7 +184,7 @@ public class REPLManager {
                                 if (matcher.find()) {
                                     String jsonContent = matcher.group(1).trim();
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    metadataContainer.put(contentKey, content);
+                                    metadataContainer.put(contentKey, jsonContent);
 
                                     rootNode = mapper.readTree(jsonContent); // throws if invalid
                                     if (content.startsWith("```json")) {  // TODO: this in general is not a good checkk
@@ -200,7 +200,7 @@ public class REPLManager {
                                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                 MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                 metadataContainer.put(contentKey, content);
-                                contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+                                contextManager.printNewEntries(false, true, true, true, true, true, true, true);
 
                                 System.out.print("> ");
                                 String newInput = scanner.nextLine();
@@ -246,6 +246,7 @@ public class REPLManager {
 
                     switch (toolName) {
                         case "patch" -> {
+                            LOGGER.fine("Starting patch evaluation...");
                             PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
                             patchInput.setOriginalJson(result);
                             Patch patch = new Patch(contextManager);
@@ -256,6 +257,7 @@ public class REPLManager {
                                 });
                         }
                         case "refresh_context" -> {
+                            LOGGER.fine("Starting refresh evaluation...");
                             RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
                             RefreshContext tool = new RefreshContext(contextManager);
 
@@ -265,6 +267,7 @@ public class REPLManager {
                                 });
                         }
                         case "shell" -> {
+                            LOGGER.fine("Starting shell evaluation...");
                             ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
                             Shell shell = new Shell(contextManager);
 
@@ -289,7 +292,7 @@ public class REPLManager {
 
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
-        contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+        contextManager.printNewEntries(false, true, true, true, true, true, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
