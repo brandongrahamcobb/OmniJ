@@ -186,12 +186,14 @@ public class REPLManager {
                                     String jsonContent = matcher.group(1).trim();
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, jsonContent);
+                                    
 
                                     rootNode = mapper.readTree(jsonContent); // throws if invalid
                                     isJson = true;
                                     if (!content.startsWith("```json")) {
                                         metadataContainer.put(contentKey, content.substring(0, matcher.start()));
-                                        isJson = false;
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content.substring(0, matcher.start())));
+                                        contextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                     }
                                 }
                             } catch (JsonProcessingException e) {
