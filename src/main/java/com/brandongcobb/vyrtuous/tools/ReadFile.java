@@ -35,8 +35,7 @@ public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
                 String content = Files.readString(filePath, StandardCharsets.UTF_8);
 
                 contextManager.addEntry(new ContextEntry(
-                    ContextEntry.Type.TOOL_OUTPUT,
-                    "Read file: " + filePath
+                    ContextEntry.Type.TOOL_OUTPUT, content
                 ));
 
                 return new ReadFileStatus(true, "File read successfully.", content);

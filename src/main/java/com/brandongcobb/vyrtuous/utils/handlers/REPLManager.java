@@ -256,6 +256,16 @@ public class REPLManager {
                     CompletableFuture<Void> toolFuture;
 
                     switch (toolName) {
+                        case "create_file" -> {
+                             LOGGER.fine("Starting create file evaluation...");
+                             CreateFileInput input = mapper.treeToValue(result.get("input"), CreateFileInput.class);
+                             CreateFile createFile = new CreateFile(contextManager);
+                        
+                             toolFuture = createFile.run(input) // returns CompletableFuture<ShellStatus>
+                                 .thenAccept(status -> {
+                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                 });
+                        }
                         case "patch" -> {
                             LOGGER.fine("Starting patch evaluation...");
                             PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
@@ -267,6 +277,16 @@ public class REPLManager {
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                 });
                         }
+                        case "read_file" -> {
+                             LOGGER.fine("Starting read file evaluation...");
+                             ReadFileInput input = mapper.treeToValue(result.get("input"), ReadFileInput.class);
+                             ReadFile readFile = new ReadFile(contextManager);
+                        
+                             toolFuture = readFile.run(input) // returns CompletableFuture<ShellStatus>
+                                 .thenAccept(status -> {
+                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                 });
+                        }
                         case "refresh_context" -> {
                             LOGGER.fine("Starting refresh evaluation...");
                             RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
@@ -277,16 +297,16 @@ public class REPLManager {
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                 });
                         }
-                        case "shell" -> {
-                            LOGGER.fine("Starting shell evaluation...");
-                            ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
-                            Shell shell = new Shell(contextManager);
-
-                            toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
-                                .thenAccept(status -> {
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                });
-                        }
+//                        case "shell" -> {
+//                            LOGGER.fine("Starting shell evaluation...");
+//                            ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
+//                            Shell shell = new Shell(contextManager);
+//
+//                            toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
+//                                .thenAccept(status -> {
+//                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+//                                });
+//                        }
                         default -> {
                             toolFuture = CompletableFuture.failedFuture(new IllegalArgumentException("Unknown tool: " + toolName));
                         }
