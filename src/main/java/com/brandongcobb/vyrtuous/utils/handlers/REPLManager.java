@@ -191,6 +191,7 @@ public class REPLManager {
                                     isJson = true;
                                     if (!content.startsWith("```json")) {
                                         metadataContainer.put(contentKey, content.substring(0, matcher.start()));
+                                        isJson = false;
                                     }
                                 }
                             } catch (JsonProcessingException e) {
