@@ -9,6 +9,7 @@ package com.brandongcobb.vyrtuous.tools;
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.objects.*;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
@@ -16,37 +17,33 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class Patch implements Tool<PatchInput, PatchStatus> {
-    
-    ContextManager contextManager;
-    
-    @Override
-    public String getName() {
-        return "patch";
-    }
-    
+
+    private final ContextManager contextManager;
+
     public Patch(ContextManager contextManager) {
         this.contextManager = contextManager;
     }
 
     @Override
+    public String getName() {
+        return "patch";
+    }
+
+    @Override
     public PatchStatus run(PatchInput input) {
-        
-        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().asText()));
-        String path = input.getPath();
-        String patch = input.getPatch();
-        String mode = input.getMode() != null ? input.getMode() : "replace";
+        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
+
+        String targetFile = input.getTargetFile();
+        List<PatchOperation> operations = input.getPatches();
+
+        if (targetFile == null || operations == null || operations.isEmpty()) {
+            return new PatchStatus(false, "Invalid patch input.");
+        }
 
         try {
-            Path filePath = Path.of(path);
+            Path filePath = Path.of(targetFile);
             List<String> originalLines = Files.readAllLines(filePath);
-            List<String> patchedLines;
-
-            if ("replace".equalsIgnoreCase(mode)) {
-                patchedLines = applyLineReplacePatch(originalLines, patch);
-            } else {
-                return new PatchStatus(false, "Unsupported patch mode: " + mode);
-            }
-
+            List<String> patchedLines = applyOperations(originalLines, operations);
             Files.write(filePath, patchedLines);
             return new PatchStatus(true, "Patch applied successfully.");
         } catch (IOException e) {
@@ -56,22 +53,51 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
         }
     }
 
-    private List<String> applyLineReplacePatch(List<String> original, String patchText) {
+    private List<String> applyOperations(List<String> original, List<PatchOperation> ops) {
         List<String> result = new ArrayList<>(original);
-        String[] lines = patchText.strip().split("\n");
-        for (String line : lines) {
-            String[] parts = line.split(":", 2);
-            if (parts.length != 2)
-                throw new IllegalArgumentException("Invalid patch line: " + line);
-
-            int lineNum = Integer.parseInt(parts[0].strip()) - 1;
-            String newText = parts[1].strip();
-
-            if (lineNum < 0 || lineNum >= result.size()) {
-                throw new IndexOutOfBoundsException("Line number out of range: " + (lineNum + 1));
+        for (PatchOperation op : ops) {
+            String type = op.getType();
+            String match = op.getMatch();
+            switch (type) {
+                case "replace" -> {
+                    String replacement = op.getReplacement();
+                    for (int i = 0; i < result.size(); i++) {
+                        if (result.get(i).contains(match)) {
+                            result.set(i, result.get(i).replace(match, replacement));
+                        }
+                    }
+                }
+                case "delete" -> {
+                    result.removeIf(line -> line.contains(match));
+                }
+                case "insertAfter" -> {
+                    String code = op.getCode();
+                    for (int i = 0; i < result.size(); i++) {
+                        if (result.get(i).contains(match)) {
+                            result.add(i + 1, code);
+                            i++;
+                        }
+                    }
+                }
+                case "insertBefore" -> {
+                    String code = op.getCode();
+                    for (int i = 0; i < result.size(); i++) {
+                        if (result.get(i).contains(match)) {
+                            result.add(i, code);
+                            i++;
+                        }
+                    }
+                }
+                case "append" -> {
+                    String code = op.getCode();
+                    for (int i = 0; i < result.size(); i++) {
+                        if (result.get(i).contains(match)) {
+                            result.set(i, result.get(i) + "\n" + code);
+                        }
+                    }
+                }
+                default -> throw new UnsupportedOperationException("Unsupported patch type: " + type);
             }
-
-            result.set(lineNum, newText);
         }
         return result;
     }
