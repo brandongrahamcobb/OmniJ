@@ -173,30 +173,22 @@ public class REPLManager {
                             MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                             metadataContainer.put(contentKey, content);
 
+                            lastAIResponseContainer = metadataContainer;
+
+                            // Try to check if it's valid JSON
+                            JsonNode rootNode;
                             try {
-                                JsonNode rootNode = mapper.readTree(content);
-                                JsonNode actualObject = rootNode.isObject()
-                                    ? rootNode
-                                    : (rootNode.isArray() && rootNode.size() > 0 && rootNode.get(0).isObject())
-                                        ? rootNode.get(0)
-                                        : null;
-                                if (actualObject == null) {
-                                    throw new RuntimeException("Unexpected JSON structure");
-                                }
-
-                                Map<String, Object> resultMap = mapper.convertValue(actualObject, new TypeReference<>() {});
-                                lastAIResponseContainer = metadataContainer;
-
-                                return CompletableFuture.completedFuture(lastAIResponseContainer);
+                                rootNode = mapper.readTree(content);
                             } catch (JsonProcessingException e) {
+                                // Not JSON → fallback to REPL
                                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                 contextManager.printNewEntries(true, true, true, true, true, true, true, true);
                                 System.out.print("> ");
-                                String newInput = scanner.nextLine(); // blocking
-
-                                return startREPL(scanner, newInput).thenApply(v -> lastAIResponseContainer);
+                                String newInput = scanner.nextLine();
                             }
-                        }).thenCompose(Function.identity()); // flatten nested CompletableFuture
+                            // blocking
+                            return lastAIResponseContainer;
+                        }); // flatten nested CompletableFuture
                     })
                     .exceptionally(ex -> {
                         LOGGER.severe("completeRequest failed: " + ex.getMessage());
@@ -226,11 +218,6 @@ public class REPLManager {
                 results.add(root);
             }
         } catch (JsonProcessingException e) {
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, contentStr));
-            contextManager.printNewEntries(true, true, true, true, true, true, true, true);
-            System.out.print("> ");
-            String newInput = scanner.nextLine(); // blocking
-            return startREPL(scanner, newInput);
         }
         for (JsonNode result : results) {
             try {
