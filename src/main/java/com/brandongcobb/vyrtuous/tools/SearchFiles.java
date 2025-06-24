@@ -66,7 +66,17 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                         results.add(new SearchFilesStatus.Result(path.toString(), snippet));
                     });
 
-                String summary = String.format("Found %d matching file(s).", results.size());
+                String summary;
+                if (results.isEmpty()) {
+                    summary = "No matching files found.";
+                } else {
+                    StringBuilder sb = new StringBuilder("Found ")
+                        .append(results.size())
+                        .append(" file(s):\n");
+                    results.forEach(r -> sb.append("• ").append(r.path).append("\n"));
+                    summary = sb.toString().trim();
+                }
+
                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, summary));
                 return new SearchFilesStatus(true, summary, results);
             } catch (IOException e) {
@@ -74,5 +84,6 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
             }
         });
     }
+    
 }
 
