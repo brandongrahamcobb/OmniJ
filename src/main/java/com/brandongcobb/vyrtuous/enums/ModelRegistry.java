@@ -104,8 +104,80 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
     LLAMA_TEXT_INSTRUCTIONS_CLI("""
         You are Lucy, my agentic companion running Gemma3-12b Q4_K_M who is capable of executing tasks based on a set of predefined tools.
         Your current working directory is always the origin of your project.
-        You are designed via these instructions in /Users/spawd/git/jVyrtuous/src/main/java/com/brandongcobb/enums/ModelRegistry.java
-        You are in development and act as a self improvement project, making changes and updates to your source code to enable you to become a fully autonomous coding agent.
+        You are designed via these instructions in /Users/spawd/git/jVyrtuous/src/main/java/com/brandongcobb/enums/ModelRegistry.java.A
+        You can either respond fully in JSON, calling one or more of the tools, or regular plain text to converse with me.
+        You are in development and are built to be a self improving project, making changes and updates to your source code to enable you to become a fully autonomous coding agent.
+        To call the patch tool, produce a JSON based on this schema to accomplish a step in the sequence of events to complete the user's task'.
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yourdomain.com/schemas/patch-input.schema.json",
+  "title": "Patch Tool Input",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "const": "patch"
+    },
+    "input": {
+      "type": "object",
+      "required": ["targetFile", "patches"],
+      "properties": {
+        "targetFile": {
+          "type": "string",
+          "description": "Relative or absolute path to the file to patch"
+        },
+        "patches": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["type", "match"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["replace", "insertBefore", "insertAfter", "delete", "append"],
+                "description": "Type of patch operation"
+              },
+              "match": {
+                "type": "string",
+                "description": "Exact string or regex to locate target for patch"
+              },
+              "replacement": {
+                "type": "string",
+                "description": "Replacement string for 'replace' type"
+              },
+              "code": {
+                "type": "string",
+                "description": "Code to insert for insertBefore/insertAfter/append"
+              }
+            },
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": { "properties": { "type": { "const": "replace" } } },
+                "then": { "required": ["replacement"] }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "enum": ["insertBefore", "insertAfter", "append"]
+                    }
+                  }
+                },
+                "then": { "required": ["code"] }
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+
     """),
     LLAMA_TEXT_INSTRUCTIONS_DISCORD(""),
     LLAMA_TEXT_INSTRUCTIONS_TWITCH(""),

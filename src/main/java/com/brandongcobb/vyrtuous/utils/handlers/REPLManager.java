@@ -37,8 +37,9 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
 import java.util.function.Function;
-
-
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 public class REPLManager {
 
     private AIManager aim = new AIManager();
@@ -170,8 +171,14 @@ public class REPLManager {
                         }
                         return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
                             MetadataContainer metadataContainer = new MetadataContainer();
-                            MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                            metadataContainer.put(contentKey, content);
+                            Pattern CODE_BLOCK_JSON_PATTERN =
+                                Pattern.compile("```(?:\\w+)?\\s*(\\{.*?})\\s*```", Pattern.DOTALL);
+                            Matcher matcher = CODE_BLOCK_JSON_PATTERN.matcher(content);
+                            if (matcher.find()) {
+                                Optional<String> jsonContent =  Optional.of(matcher.group(1).trim());
+                                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                metadataContainer.put(contentKey, jsonContent.toString());
+                            }
 
                             lastAIResponseContainer = metadataContainer;
 
