@@ -1,0 +1,59 @@
+//
+//  Untitled.swift
+//  
+//
+//  Created by Brandon Cobb on 6/24/25.
+//
+package com.brandongcobb.vyrtuous.domain;
+
+import java.util.List;
+
+public class SearchFilesInput {
+
+    private String rootDirectory;
+    private List<String> fileExtensions; // optional filter like .java, .kt
+    private String fileNameContains;     // optional substring filter
+    private String grepContains;         // optional text content filter
+    private int maxResults = 100;
+
+    public String getRootDirectory() {
+        return rootDirectory;
+    }
+
+    public List<String> getFileExtensions() {
+        return fileExtensions;
+    }
+
+    public String getFileNameContains() {
+        return fileNameContains;
+    }
+
+    public String getGrepContains() {
+        return grepContains;
+    }
+
+    public int getMaxResults() {
+        return maxResults;
+    }
+
+    public void setRootDirectory(String rootDirectory) {
+        this.rootDirectory = rootDirectory;
+    }
+
+    public void setFileExtensions(List<String> fileExtensions) {
+        this.fileExtensions = fileExtensions;
+    }
+
+    public void setFileNameContains(String fileNameContains) {
+        this.fileNameContains = fileNameContains;
+    }
+
+    public void setGrepContains(String grepContains) {
+        this.grepContains = grepContains;
+    }
+
+    public void setMaxResults(int maxResults) {
+        this.maxResults = maxResults;
+    }
+}
+

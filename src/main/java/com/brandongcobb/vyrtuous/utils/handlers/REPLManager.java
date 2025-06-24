@@ -290,9 +290,19 @@ public class REPLManager {
                         case "refresh_context" -> {
                             LOGGER.fine("Starting refresh evaluation...");
                             RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
-                            RefreshContext tool = new RefreshContext(contextManager);
+                            RefreshContext refreshContext = new RefreshContext(contextManager);
 
-                            toolFuture = tool.run(input) // returns CompletableFuture<RefreshContextStatus>
+                            toolFuture = refreshContext.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                .thenAccept(status -> {
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                });
+                        }
+                        case "search_files" -> {
+                            LOGGER.fine("Starting searching files evaluation...");
+                            SearchFilesInput input = mapper.treeToValue(result.get("input"), SearchFilesInput.class);
+                            SearchFiles searchFiles = new SearchFiles(contextManager);
+
+                            toolFuture = searchFiles.run(input) // returns CompletableFuture<RefreshContextStatus>
                                 .thenAccept(status -> {
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                 });

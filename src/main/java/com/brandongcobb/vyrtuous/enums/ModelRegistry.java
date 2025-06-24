@@ -205,6 +205,50 @@ Here is a schema for reading a file.
   },
   "additionalProperties": false
 }
+Here is a schema for searching through files.
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchFilesToolRequest",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["search_files"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["rootDirectory"],
+      "properties": {
+        "rootDirectory": {
+          "type": "string",
+          "description": "Directory to search from (recursively)."
+        },
+        "fileExtensions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional file extensions to filter by (e.g. ['.java', '.kt'])."
+        },
+        "fileNameContains": {
+          "type": "string",
+          "description": "Optional substring that must appear in file name."
+        },
+        "grepContains": {
+          "type": "string",
+          "description": "Optional text that must appear in file contents."
+        },
+        "maxResults": {
+          "type": "integer",
+          "default": 100,
+          "description": "Maximum number of files to return."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
 
 Here is a schema for creating a file.
 {
