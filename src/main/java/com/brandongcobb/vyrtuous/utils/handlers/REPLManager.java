@@ -61,9 +61,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
     }
@@ -159,7 +159,9 @@ public class REPLManager {
                                 contentFuture = llamaUtils.completeGetContent();
                                 responseIdFuture = llamaUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                if (!firstRun) {
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                }
                             }
                             case "openai" -> {
                                 OpenAIUtils openaiUtils = new OpenAIUtils(resp);
