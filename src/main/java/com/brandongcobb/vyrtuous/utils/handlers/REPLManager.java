@@ -69,6 +69,7 @@ public class REPLManager {
     }
 
     public CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
+        System.out.println("Thinking...");
         if (scanner == null) {
             CompletableFuture<Void> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalArgumentException("Scanner cannot be null"));
@@ -129,7 +130,6 @@ public class REPLManager {
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
-        System.out.println("Thinking...");
         String prompt = firstRun ? originalDirective : contextManager.buildPromptContext();
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
