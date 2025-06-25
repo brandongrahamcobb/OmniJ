@@ -174,11 +174,13 @@ Here is a schema for searching through files.
           "description": "Optional file extensions to filter by (e.g. ['.java', '.kt'])."
         },
         "fileNameContains": {
-          "type": "string",
+          "type": "array",
+          "items": { "type": "string" },
           "description": "Optional substring that must appear in file name."
         },
         "grepContains": {
-          "type": "string",
+          "type": "array",
+          "items": { "type": "string" },
           "description": "Optional text that must appear in file contents."
         },
         "maxResults": {
