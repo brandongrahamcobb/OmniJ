@@ -207,7 +207,6 @@ public class REPLManager {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, content);
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                    contextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                     System.out.print("> ");
                                     String newInput = scanner.nextLine();
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
