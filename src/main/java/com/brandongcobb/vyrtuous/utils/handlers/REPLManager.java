@@ -191,10 +191,11 @@ public class REPLManager {
                                 contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                 MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                 contextManager.printNewEntries(false, true, true, true, true, true, true, true);
-
-                                System.out.print("> ");
-                                String newInput = scanner.nextLine();
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+                                if (!content.startsWith("```json")) {
+                                    System.out.print("> ");
+                                    String newInput = scanner.nextLine();
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+                                }
                             } catch (Exception e) {
                                 // fall through to REPL below
                             }
