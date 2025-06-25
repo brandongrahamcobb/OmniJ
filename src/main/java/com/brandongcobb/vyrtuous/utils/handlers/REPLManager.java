@@ -210,6 +210,17 @@ public class REPLManager {
                                     System.out.print("> ");
                                     String newInput = scanner.nextLine();
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+                                } else {
+                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");  // remove trailing newlines
+                                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");  // remove leading newlines
+                                    String cleanedText = before + after;
+                                    if (cleanedText.equals("")) {
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                        metadataContainer.put(contentKey, content);
+                                    }
+                                    metadataContainer.put(contentKey, cleanedText);
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                 }
                             } catch (Exception e) {
                                 // fall through to REPL below
