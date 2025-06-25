@@ -173,13 +173,31 @@ public class REPLManager {
                         lastAIResponseContainer = resp;
                         return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
                             MetadataContainer metadataContainer = new MetadataContainer();
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                            MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                            metadataContainer.put(contentKey, content);
-                            contextManager.printNewEntries(false, true, true, true, true, true, true, true);
-                            System.out.print("> ");
-                            String newInput = scanner.nextLine();
-                            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+
+                            // Try to check if it's valid JSON
+                            boolean isJson = false;
+                            JsonNode rootNode;
+                            try {
+                                Pattern CODE_BLOCK_JSON_PATTERN =
+                                    Pattern.compile("```(?:\\w+)?\\s*([\\[{].*?[\\]}])\\s*```", Pattern.DOTALL);
+                                Matcher matcher = CODE_BLOCK_JSON_PATTERN.matcher(content);
+
+                                if (matcher.find()) {
+                                    String jsonContent = matcher.group(1).trim();
+                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                    metadataContainer.put(contentKey, jsonContent);
+                                }
+                                
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                contextManager.printNewEntries(false, true, true, true, true, true, true, true);
+
+                                System.out.print("> ");
+                                String newInput = scanner.nextLine();
+                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+                            } catch (Exception e) {
+                                // fall through to REPL below
+                            }
                             return metadataContainer;
                         }); // flatten nested CompletableFuture
                     })
