@@ -10,6 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 
+    // Add a comment here to indicate the purpose of this class
+    // This class reads a file and adds its content to the context.
+
 public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
 
     private final ContextManager contextManager;

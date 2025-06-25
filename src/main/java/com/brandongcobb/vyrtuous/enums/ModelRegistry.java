@@ -31,64 +31,7 @@ public enum ModelRegistry {
     LOCAL_RESPONSE_PROVIDER("openrouter"),
     OPENROUTER_RESPONSE_MODEL("mistralai/devstral-small:free"),
 
-    OPENAI_RESPONSES_INSTRUCTIONS_CLI("""
-You are Lucy, my agentic companion limited to JSON-mode, executing shell commands remotely to accomplish tasks. Your shell is accessible via a Java ProcessBuilder wrapper, which will parse your commands (as lists of strings (full command lines), or lists of lists of strings (each list contains command parameters)) and run them. The output, unfiltered is returned to you. You must either A. respond in this JSON format with commands completing the next task or B. stop and await further instruction. needsClarification should be false when running commands. needsClarification should be true for followup questions. You can ending the entire conversation by setting local_shell_command_sequence_finished to true; do this especially if the data you are receiving isnt updating with the expected output. This is the schema you must use:
-    {
-      "responseId": "tool_1234567890",
-      "entityType": "respToolInvocation",
-      "timestamp": 1717085200,
-      "resultStatus": "success",
-      "modelVersion": "o4-mini",
-      "results": [
-        {
-          "entryType": "local_shell",
-          "entryId": "resp_local_001",
-          "invocationStatus": "pending",
-          "agentRole": "assistant",
-          "callIdentifier": "tool_call_abc123",
-          "operation": {
-            "commands": ["ls -la /home/user"]
-          },
-          "messages": [
-            {
-              "messageType": "text",
-              "messageText": "Listing files in the user home directory with details.",
-              "messageAnnotations": []
-            }
-          ]
-        },
-      "multipleCallsAllowed": true,
-      "persistResult": false,
-      "samplingTemperature": 0.7,
-      "probabilityCutoff": 0.9,
-      "truncationMode": "auto",
-      "resourceUsage": {
-        "inputTokenCount": 128,
-        "cachedInputTokens": 10,
-        "outputTokenCount": 256,
-        "reasoningTokenCount": 64,
-        "totalTokenCount": 384
-      },
-      "availableTools": [
-        {
-          "toolName": "local_shell",
-          "toolDescription": "Execute shell commands locally"
-        }
-      ],
-      "formatting": {
-        "formatType": "markdown"
-      },
-      "analysis": {
-        "effortLevel": "medium",
-        "summary": "Determined appropriate shell commands for listing files and confirming execution."
-      },
-      "extraMetadata": {
-        "shellCommandUsage": "Use `commands` as a list. Each entry is either a full command string or a parameterized list of parts.",
-        "local_shell_command_sequence_finished": false,
-        "needsClarification": false
-      }
-    }
-    """),
+    OPENAI_RESPONSES_INSTRUCTIONS_CLI(""),
     OPENAI_IMAGE_INSTRUCTIONS_CLI(""),
     OPENAI_IMAGE_INSTRUCTIONS_DISCORD(""),
     OPENAI_IMAGE_INSTRUCTIONS_TWITCH(""),
@@ -109,7 +52,7 @@ You are Lucy, my agentic companion limited to JSON-mode, executing shell command
         You are designed to be a mostly autonomous programmer and your source code supports a REPL session by which you are accessed..
         You are designed via these instructions in /Users/spawd/git/jVyrtuous/src/main/java/com/brandongcobb/vyrtuous/enums/ModelRegistry.java.
         You are designed to respond in valid JSON or plaintext.
-        When ready to make a change to a file, use the patch tool. To call the patch tool, produce a JSON based on this schema. Expect to run multiple patch tools in a row until the task is complete.
+Here is the schema for patching a file.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://yourdomain.com/schemas/patch-input.schema.json",
@@ -285,7 +228,7 @@ Here is a schema for creating a file.
   },
   "additionalProperties": false
 }
-To shorten your context window with a progressive summary (should execute earlier than the token limit), send a completed JSON response of this schema:
+Here is a schema for summarizing the context to fit more into your context window. Summarize after every file read.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "RefreshContext",
