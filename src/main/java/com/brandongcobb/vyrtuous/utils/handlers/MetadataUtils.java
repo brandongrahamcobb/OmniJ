@@ -50,6 +50,11 @@ public class MetadataUtils {
         return CompletableFuture.completedFuture(this.container.get(outputKey));
     }
     
+    public CompletableFuture<String> completeGetJSONContent() {
+        MetadataKey<String> jsonContentKey = new MetadataKey<>("json_response", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(jsonContentKey));
+    }
+    
 
     public CompletableFuture<MetadataContainer> completeGetContainer() {
         MetadataKey<MetadataContainer> containerKey = new MetadataKey<>("container", Metadata.METADATA);

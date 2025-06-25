@@ -51,6 +51,7 @@ public class REPLManager {
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private String originalDirective;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
+    private List<JsonNode> lastResults;
     
     private ObjectMapper mapper = new ObjectMapper();
     
@@ -175,23 +176,38 @@ public class REPLManager {
                             MetadataContainer metadataContainer = new MetadataContainer();
 
                             // Try to check if it's valid JSON
-                            boolean isJson = false;
+                            boolean validJson = false;
                             JsonNode rootNode;
                             try {
-                                Pattern CODE_BLOCK_JSON_PATTERN =
-                                    Pattern.compile("```(?:\\w+)?\\s*([\\[{].*?[\\]}])\\s*```", Pattern.DOTALL);
-                                Matcher matcher = CODE_BLOCK_JSON_PATTERN.matcher(content);
-
-                                if (matcher.find()) {
-                                    String jsonContent = matcher.group(1).trim();
-                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    metadataContainer.put(contentKey, jsonContent);
+                                List<JsonNode> results = new ArrayList<>();
+                                Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
+                                Matcher matcher = pattern.matcher(content);
+ 
+                                while (matcher.find()) {
+                                    String jsonText = matcher.group(1).trim();
+                                    try {
+                                        JsonNode node = mapper.readTree(jsonText);
+                                        if (node.isArray()) {
+                                            for (JsonNode element : node) {
+                                                if (element.has("tool")) {
+                                                    results.add(element);
+                                                    validJson  = true;
+                                                }
+                                            }
+                                        } else if (node.has("tool")) {
+                                            results.add(node);
+                                            validJson = true;
+                                        }
+                                    } catch (Exception e) {
+                                        System.err.println("Skipping invalid JSON block: " + e.getMessage());
+                                    }
+                                    lastResults = results;
                                 }
-                                
-                                contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                contextManager.printNewEntries(false, true, true, true, true, true, true, true);
-                                if (!content.startsWith("```json")) {
+                                if (!validJson) {
+                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                    metadataContainer.put(contentKey, content);
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                    contextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                     System.out.print("> ");
                                     String newInput = scanner.nextLine();
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
@@ -218,113 +234,111 @@ public class REPLManager {
         ObjectMapper mapper = new ObjectMapper();
         List<JsonNode> results = new ArrayList<>();
         String contentStr = new MetadataUtils(response).completeGetContent().join();
-        try {
-            JsonNode root = mapper.readTree(contentStr);
-            if (root.isArray()) {
-                for (JsonNode node : root) {
-                    if (node.has("tool")) {
-                        results.add(node);
+        if (contentStr == null) {
+            try {
+                for (JsonNode result : results) {
+                    try {
+                        String toolName = result.get("tool").asText();
+                        CompletableFuture<Void> toolFuture;
+
+                        switch (toolName) {
+                            case "create_file" -> {
+                                 LOGGER.fine("Starting create file evaluation...");
+                                 CreateFileInput input = mapper.treeToValue(result.get("input"), CreateFileInput.class);
+                                 CreateFile createFile = new CreateFile(contextManager);
+                            
+                                 toolFuture = createFile.run(input) // returns CompletableFuture<ShellStatus>
+                                     .thenAccept(status -> {
+                                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                     });
+                            }
+                            case "load_context" -> {
+                                 LOGGER.fine("Starting load evaluation...");
+                                 LoadContextInput input = mapper.treeToValue(result.get("input"), LoadContextInput.class);
+                                 LoadContext loadContext = new LoadContext(contextManager);
+                            
+                                 toolFuture = loadContext.run(input) // returns CompletableFuture<ShellStatus>
+                                     .thenAccept(status -> {
+                                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                     });
+                            }
+                            case "patch" -> {
+                                LOGGER.fine("Starting patch evaluation...");
+                                PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
+                                patchInput.setOriginalJson(result);
+                                Patch patch = new Patch(contextManager);
+
+                                toolFuture = patch.run(patchInput) // assume this returns CompletableFuture<PatchStatus>
+                                    .thenAccept(status -> {
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    });
+                            }
+                            case "read_file" -> {
+                                 LOGGER.fine("Starting read file evaluation...");
+                                 ReadFileInput input = mapper.treeToValue(result.get("input"), ReadFileInput.class);
+                                 ReadFile readFile = new ReadFile(contextManager);
+                            
+                                 toolFuture = readFile.run(input) // returns CompletableFuture<ShellStatus>
+                                     .thenAccept(status -> {
+                                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                     });
+                            }
+                            case "refresh_context" -> {
+                                LOGGER.fine("Starting refresh evaluation...");
+                                RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
+                                RefreshContext refreshContext = new RefreshContext(contextManager);
+
+                                toolFuture = refreshContext.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                    .thenAccept(status -> {
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    });
+                            }
+                            case "save_context" -> {
+                                LOGGER.fine("Starting saving evaluation...");
+                                SaveContextInput input = mapper.treeToValue(result.get("input"), SaveContextInput.class);
+                                SaveContext saveContext = new SaveContext(contextManager);
+
+                                toolFuture = saveContext.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                    .thenAccept(status -> {
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    });
+                            }
+                            case "search_files" -> {
+                                LOGGER.fine("Starting searching files evaluation...");
+                                SearchFilesInput input = mapper.treeToValue(result.get("input"), SearchFilesInput.class);
+                                SearchFiles searchFiles = new SearchFiles(contextManager);
+
+                                toolFuture = searchFiles.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                    .thenAccept(status -> {
+                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    });
+                            }
+    //                        case "shell" -> {
+    //                            LOGGER.fine("Starting shell evaluation...");
+    //                            ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
+    //                            Shell shell = new Shell(contextManager);
+    //
+    //                            toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
+    //                                .thenAccept(status -> {
+    //                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+    //                                });
+    //                        }
+                            default -> {
+                                toolFuture = CompletableFuture.failedFuture(new IllegalArgumentException("Unknown tool: " + toolName));
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
-            } else if (root.has("tool")) {
-                results.add(root);
+            } catch (Exception e) {
             }
-            for (JsonNode result : results) {
-                try {
-                    String toolName = result.get("tool").asText();
-                    CompletableFuture<Void> toolFuture;
-
-                    switch (toolName) {
-                        case "create_file" -> {
-                             LOGGER.fine("Starting create file evaluation...");
-                             CreateFileInput input = mapper.treeToValue(result.get("input"), CreateFileInput.class);
-                             CreateFile createFile = new CreateFile(contextManager);
-                        
-                             toolFuture = createFile.run(input) // returns CompletableFuture<ShellStatus>
-                                 .thenAccept(status -> {
-                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                 });
-                        }
-                        case "load_context" -> {
-                             LOGGER.fine("Starting load evaluation...");
-                             LoadContextInput input = mapper.treeToValue(result.get("input"), LoadContextInput.class);
-                             LoadContext loadContext = new LoadContext(contextManager);
-                        
-                             toolFuture = loadContext.run(input) // returns CompletableFuture<ShellStatus>
-                                 .thenAccept(status -> {
-                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                 });
-                        }
-                        case "patch" -> {
-                            LOGGER.fine("Starting patch evaluation...");
-                            PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
-                            patchInput.setOriginalJson(result);
-                            Patch patch = new Patch(contextManager);
-
-                            toolFuture = patch.run(patchInput) // assume this returns CompletableFuture<PatchStatus>
-                                .thenAccept(status -> {
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                });
-                        }
-                        case "read_file" -> {
-                             LOGGER.fine("Starting read file evaluation...");
-                             ReadFileInput input = mapper.treeToValue(result.get("input"), ReadFileInput.class);
-                             ReadFile readFile = new ReadFile(contextManager);
-                        
-                             toolFuture = readFile.run(input) // returns CompletableFuture<ShellStatus>
-                                 .thenAccept(status -> {
-                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                 });
-                        }
-                        case "refresh_context" -> {
-                            LOGGER.fine("Starting refresh evaluation...");
-                            RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
-                            RefreshContext refreshContext = new RefreshContext(contextManager);
-
-                            toolFuture = refreshContext.run(input) // returns CompletableFuture<RefreshContextStatus>
-                                .thenAccept(status -> {
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                });
-                        }
-                        case "save_context" -> {
-                            LOGGER.fine("Starting saving evaluation...");
-                            SaveContextInput input = mapper.treeToValue(result.get("input"), SaveContextInput.class);
-                            SaveContext saveContext = new SaveContext(contextManager);
-
-                            toolFuture = saveContext.run(input) // returns CompletableFuture<RefreshContextStatus>
-                                .thenAccept(status -> {
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                });
-                        }
-                        case "search_files" -> {
-                            LOGGER.fine("Starting searching files evaluation...");
-                            SearchFilesInput input = mapper.treeToValue(result.get("input"), SearchFilesInput.class);
-                            SearchFiles searchFiles = new SearchFiles(contextManager);
-
-                            toolFuture = searchFiles.run(input) // returns CompletableFuture<RefreshContextStatus>
-                                .thenAccept(status -> {
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                });
-                        }
-//                        case "shell" -> {
-//                            LOGGER.fine("Starting shell evaluation...");
-//                            ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
-//                            Shell shell = new Shell(contextManager);
-//
-//                            toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
-//                                .thenAccept(status -> {
-//                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                });
-//                        }
-                        default -> {
-                            toolFuture = CompletableFuture.failedFuture(new IllegalArgumentException("Unknown tool: " + toolName));
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        } catch (JsonProcessingException e) {
+            
+        }
+        else {
+            lastResults = null;
+            LOGGER.fine("No such JSON tool avalabile in evaluation, resorting plaintext...");
+            return CompletableFuture.completedFuture(null);
         }
         
         return CompletableFuture.completedFuture(null);
