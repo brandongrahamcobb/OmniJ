@@ -44,20 +44,28 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                                 .anyMatch(ext -> path.toString().endsWith(ext));
                             if (!match) return false;
                         }
-                        if (input.getFileNameContains() != null &&
-                            !path.getFileName().toString().contains(input.getFileNameContains())) {
-                            return false;
+                        if (input.getFileNameContains() != null && !input.getFileNameContains().isEmpty()) {
+                            boolean match = input.getFileNameContains().stream()
+                                .anyMatch(sub -> path.getFileName().toString().contains(sub));
+                            if (!match) return false;
                         }
                         return true;
                     })
+
                     .limit(input.getMaxResults())
                     .forEach(path -> {
                         String snippet = null;
-                        if (input.getGrepContains() != null) {
+                        if (input.getGrepContains() != null && !input.getGrepContains().isEmpty()) {
                             try {
                                 String content = Files.readString(path, StandardCharsets.UTF_8);
-                                if (!content.contains(input.getGrepContains())) return;
-                                int index = content.indexOf(input.getGrepContains());
+                                boolean found = input.getGrepContains().stream().anyMatch(content::contains);
+                                if (!found) return;
+                                // Get first match index for snippet
+                                String match = input.getGrepContains().stream()
+                                    .filter(content::contains)
+                                    .findFirst()
+                                    .orElse(null);
+                                int index = content.indexOf(match);
                                 int start = Math.max(0, index - 20);
                                 int end = Math.min(content.length(), index + 80);
                                 snippet = content.substring(start, end).replaceAll("\\s+", " ");

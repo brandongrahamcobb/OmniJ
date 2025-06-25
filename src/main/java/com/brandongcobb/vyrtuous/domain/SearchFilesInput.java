@@ -12,8 +12,8 @@ public class SearchFilesInput {
 
     private String rootDirectory;
     private List<String> fileExtensions; // optional filter like .java, .kt
-    private String fileNameContains;     // optional substring filter
-    private String grepContains;         // optional text content filter
+    private List<String> fileNameContains;     // optional substring filter
+    private List<String> grepContains;         // optional text content filter
     private int maxResults = 100;
 
     public String getRootDirectory() {
@@ -24,11 +24,11 @@ public class SearchFilesInput {
         return fileExtensions;
     }
 
-    public String getFileNameContains() {
+    public List<String> getFileNameContains() {
         return fileNameContains;
     }
 
-    public String getGrepContains() {
+    public List<String> getGrepContains() {
         return grepContains;
     }
 
@@ -44,11 +44,11 @@ public class SearchFilesInput {
         this.fileExtensions = fileExtensions;
     }
 
-    public void setFileNameContains(String fileNameContains) {
+    public void setFileNameContains(List<String> fileNameContains) {
         this.fileNameContains = fileNameContains;
     }
 
-    public void setGrepContains(String grepContains) {
+    public void setGrepContains(List<String> grepContains) {
         this.grepContains = grepContains;
     }
 
