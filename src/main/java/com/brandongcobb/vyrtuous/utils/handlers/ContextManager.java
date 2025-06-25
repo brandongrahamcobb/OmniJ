@@ -26,6 +26,12 @@ import com.knuddels.jtokkit.api.EncodingRegistry;
 import com.knuddels.jtokkit.Encodings;
 import java.util.List;
 import java.util.ArrayList;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import com.brandongcobb.vyrtuous.utils.secure.*;
 
 public class ContextManager {
 
@@ -42,6 +48,18 @@ public class ContextManager {
         return entries;
     }
     
+    public List<String> listSnapshots() {
+        File dir = new File("snapshots");
+        if (!dir.exists()) return List.of();
+
+        String[] files = dir.list((d, name) -> name.endsWith(".json"));
+        if (files == null) return List.of();
+
+        return Arrays.stream(files)
+            .map(name -> name.replaceFirst("\\.json$", ""))
+            .toList();
+    }
+
     public void printNewEntries(boolean includeUserMessages,
                                 boolean includeAIResponses,
                                 boolean includeToolCalls,
@@ -253,5 +271,54 @@ public class ContextManager {
             entries.remove(0);
         }
         entries.add(0, new ContextEntry(ContextEntry.Type.SYSTEM_NOTE, "[Summary of earlier context]: " + summary)); // Commented out
+    }
+    
+    public synchronized void saveSnapshot(String name, String description) {
+        String passwordEnv = System.getenv("PASSWORD");
+        char[] password = passwordEnv.toCharArray();
+        ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+        File dir = new File("snapshots");
+        if (!dir.exists()) dir.mkdirs();
+
+        File file = new File(dir, name + ".enc");
+
+        Snapshot snapshot = new Snapshot();
+        snapshot.description = description;
+        snapshot.entries = new ArrayList<>(this.entries);
+
+        try {
+            byte[] jsonBytes = mapper.writeValueAsBytes(snapshot);
+            Encryption.encryptToFile(jsonBytes, file, password);
+            Arrays.fill(password, '\0');
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save encrypted snapshot: " + e.getMessage(), e);
+        }
+    }
+
+    public synchronized void loadSnapshot(String name) {
+        String passwordEnv = System.getenv("PASSWORD");
+        char[] password = passwordEnv.toCharArray();
+        ObjectMapper mapper = new ObjectMapper();
+        File file = new File("snapshots", name + ".enc");
+
+        if (!file.exists()) {
+            throw new IllegalArgumentException("Snapshot '" + name + "' not found.");
+        }
+
+        try {
+            byte[] jsonBytes = Encryption.decryptFromFile(file, password);
+            Arrays.fill(password, '\0');
+            Snapshot snapshot = mapper.readValue(jsonBytes, Snapshot.class);
+            this.entries.clear();
+            this.entries.addAll(snapshot.entries);
+            this.lastBuildIndex = entries.size();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load encrypted snapshot: " + e.getMessage(), e);
+        }
+    }
+
+    private static class Snapshot {
+        public String description;
+        public List<ContextEntry> entries;
     }
 }

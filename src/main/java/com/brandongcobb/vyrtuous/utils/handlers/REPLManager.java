@@ -244,6 +244,16 @@ public class REPLManager {
                                      contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                  });
                         }
+                        case "load_context" -> {
+                             LOGGER.fine("Starting load evaluation...");
+                             LoadContextInput input = mapper.treeToValue(result.get("input"), LoadContextInput.class);
+                             LoadContext loadContext = new LoadContext(contextManager);
+                        
+                             toolFuture = loadContext.run(input) // returns CompletableFuture<ShellStatus>
+                                 .thenAccept(status -> {
+                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                 });
+                        }
                         case "patch" -> {
                             LOGGER.fine("Starting patch evaluation...");
                             PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
@@ -271,6 +281,16 @@ public class REPLManager {
                             RefreshContext refreshContext = new RefreshContext(contextManager);
 
                             toolFuture = refreshContext.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                .thenAccept(status -> {
+                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                });
+                        }
+                        case "save_context" -> {
+                            LOGGER.fine("Starting saving evaluation...");
+                            SaveContextInput input = mapper.treeToValue(result.get("input"), SaveContextInput.class);
+                            SaveContext saveContext = new SaveContext(contextManager);
+
+                            toolFuture = saveContext.run(input) // returns CompletableFuture<RefreshContextStatus>
                                 .thenAccept(status -> {
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                 });

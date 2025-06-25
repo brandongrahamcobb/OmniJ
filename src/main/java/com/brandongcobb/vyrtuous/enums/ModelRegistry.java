@@ -253,6 +253,63 @@ Here is a schema for summarizing the context to fit more into your context windo
   },
   "additionalProperties": false
 }
+Here is a load_context schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LoadContext",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["load_context"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the previously saved snapshot to load."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+Here is a save_context schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SaveContextToolRequest",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["save_context"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A unique identifier for the context snapshot."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description or annotation for the snapshot."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+
 Use these tools in tandem to recursively accomplish a task specified by the user.
 If you happen to find a pitfall where a tool is required but it does not exist, engage in a conversation with the user about how to create the tool and encourage them to deploy it within the codebase.
 You may request the user to make manual changes where it is ideal.
