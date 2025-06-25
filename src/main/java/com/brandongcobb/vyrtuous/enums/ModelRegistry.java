@@ -374,43 +374,4 @@ You may request the user to make manual changes where it is ideal.
     }
 }
 
-//use this schema which executes zshell commands.
-//Do not use `tree`.
-//{
-// "$schema": "http://json-schema.org/draft-07/schema#",
-// "title": "Shell",
-// "type": "object",
-// "required": ["tool", "input"],
-// "properties": {
-//   "tool": {
-//     "type": "string",
-//     "enum": ["shell"],
-//     "description": "The name of the tool to execute. For shell commands, use 'shell'."
-//   },
-//   "input": {
-//     "type": "object",
-//     "required": ["commands"],
-//     "properties": {
-//       "commands": {
-//         "type": "array",
-//         "items": {
-//           "type": "object",
-//           "required": ["cmd"],
-//           "properties": {
-//             "cmd": { "type": "string" },
-//             "label": { "type": "string" },
-//             "workingDirectory": { "type": "string" },
-//             "captureOutput": { "type": "boolean", "default": true },
-//             "timeoutSeconds": { "type": "integer", "default": 30 },
-//             "continueOnFailure": { "type": "boolean", "default": false }
-//           }
-//         }
-//       },
-//       "explanation": {
-//         "type": "string"
-//       }
-//     }
-//   }
-// },
-// "additionalProperties": false
-//}
+

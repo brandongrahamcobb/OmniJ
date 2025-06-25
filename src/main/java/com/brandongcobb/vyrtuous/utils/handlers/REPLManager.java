@@ -201,8 +201,8 @@ public class REPLManager {
                                     } catch (Exception e) {
                                         System.err.println("Skipping invalid JSON block: " + e.getMessage());
                                     }
-                                    lastResults = results;
                                 }
+                                lastResults = results;
                                 if (!validJson) {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, content);
@@ -232,11 +232,10 @@ public class REPLManager {
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
         ObjectMapper mapper = new ObjectMapper();
-        List<JsonNode> results = new ArrayList<>();
         String contentStr = new MetadataUtils(response).completeGetContent().join();
         if (contentStr == null) {
             try {
-                for (JsonNode result : results) {
+                for (JsonNode result : lastResults) {
                     try {
                         String toolName = result.get("tool").asText();
                         CompletableFuture<Void> toolFuture;
