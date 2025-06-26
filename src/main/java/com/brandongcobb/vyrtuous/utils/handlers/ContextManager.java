@@ -37,7 +37,7 @@ public class ContextManager {
 
     private final List<ContextEntry> entries = new ArrayList<>();
     private final int maxEntries;
-    private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry(); // Commented out as token counting is disabled
+    private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private int lastBuildIndex = 0;
 
     public ContextManager(int maxEntries) {
@@ -111,12 +111,6 @@ public class ContextManager {
     }
 
     
-    /**
-     * Adds a new context entry.
-     * The core logic for adding and managing entries is commented out as per user request
-     * to disable context accumulation for the current REPL flow.
-     * @param entry The ContextEntry to add.
-     */
     public synchronized void addEntry(ContextEntry entry) {
         entries.add(entry);
         if (entries.size() > maxEntries) { // TODO: Measure by token size not entry size.
@@ -131,11 +125,8 @@ public class ContextManager {
             .findFirst()
             .orElse("No user message found.");
     }
-    /**
-     * Builds the prompt context from accumulated entries.
-     * Returns an empty string as context building is currently disabled.
-     * @return An empty string, as context building is disabled.
-     */
+
+    
     public synchronized String buildPromptContext() {
         StringBuilder sb = new StringBuilder();
         sb.append("The user originally asked:\n").append(extractOriginalGoal()).append("\n\n");
@@ -145,11 +136,6 @@ public class ContextManager {
         return sb.toString();
     }
 
-
-    /**
-     * Clears all context entries.
-     * The core logic is commented out as context management is disabled.
-     */
     public synchronized void clear() {
         entries.clear(); // Commented out
     }
@@ -170,23 +156,11 @@ public class ContextManager {
         lastBuildIndex = entries.size(); // Keep index in sync
     }
 
-
-    /**
-     * Calculates the token count of the current prompt context.
-     * Returns 0L as token counting is currently disabled.
-     * @return 0L, as token counting is disabled.
-     */
     public synchronized long getContextTokenCount() {
         String prompt = buildPromptContext();
         return getTokenCount(prompt);
     }
 
-    /**
-     * Calculates the token count for a given prompt string.
-     * Returns 0L as token counting is currently disabled.
-     * @param prompt The prompt string to count tokens for.
-     * @return 0L, as token counting is disabled.
-     */
     public long getTokenCount(String prompt) {
         try {
             Encoding encoding = registry.getEncoding("cl100k_base")
@@ -242,13 +216,6 @@ public class ContextManager {
        return entries.size();
    }
     
-    
-    /**
-     * Summarizes old context entries.
-     * The core logic is commented out as context management is disabled.
-     * @param entriesToSummarize The list of entries to summarize.
-     * @return An empty string, as summarization is disabled.
-     */
     public String summarizeEntries(List<ContextEntry> entriesToSummarize) {
         StringBuilder sb = new StringBuilder();
         for (ContextEntry e : entriesToSummarize) {
@@ -259,10 +226,6 @@ public class ContextManager {
         return sb.toString().trim();
     }
 
-    /**
-     * Summarizes and removes old entries when the context exceeds maxEntries.
-     * The core logic is commented out as context management is disabled.
-     */
     public synchronized void summarizeOldEntries() {
         int removeCount = entries.size() / 2;
         List<ContextEntry> toSummarize = new ArrayList<>(entries.subList(0, removeCount));

@@ -210,9 +210,7 @@ public class REPLManager {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, content);
                                     contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                    System.out.print("> ");
-                                    String newInput = scanner.nextLine();
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+                                    contextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");  // remove trailing newlines
@@ -350,6 +348,9 @@ public class REPLManager {
         else {
             lastResults = null;
             LOGGER.fine("No such JSON tool avalabile in evaluation, resorting plaintext...");
+            System.out.print("> ");
+            String newInput = scanner.nextLine();
+            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
             return CompletableFuture.completedFuture(null);
         }
         
