@@ -39,6 +39,8 @@ public class ContextManager {
     private final int maxEntries;
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private int lastBuildIndex = 0;
+    private int lastBuildModelIndex = 0;
+
 
     public ContextManager(int maxEntries) {
         this.maxEntries = maxEntries;
@@ -69,7 +71,7 @@ public class ContextManager {
                                 boolean includeProgressiveSummary,
                                 boolean includeShellOutput) {
 
-        List<ContextEntry> newEntries = getNewEntriesSinceLastCall();
+        List<ContextEntry> newEntries = getNewModelEntriesSinceLastCall();
 
         for (ContextEntry entry : newEntries) {
             ContextEntry.Type type = entry.getType();
@@ -149,6 +151,15 @@ public class ContextManager {
         }
         List<ContextEntry> newEntries = new ArrayList<>(entries.subList(lastBuildIndex, entries.size()));
         lastBuildIndex = entries.size();
+        return newEntries;
+    }
+    
+    public synchronized List<ContextEntry> getNewModelEntriesSinceLastCall() {
+        if (lastBuildModelIndex >= entries.size()) {
+            return new ArrayList<>();
+        }
+        List<ContextEntry> newEntries = new ArrayList<>(entries.subList(lastBuildIndex, entries.size()));
+        lastBuildModelIndex = entries.size();
         return newEntries;
     }
 
