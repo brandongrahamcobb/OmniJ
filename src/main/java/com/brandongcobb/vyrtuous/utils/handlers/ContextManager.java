@@ -59,6 +59,48 @@ public class ContextManager {
             .map(name -> name.replaceFirst("\\.json$", ""))
             .toList();
     }
+    
+    public String generateNewEntry(boolean includeUserMessages,
+                                boolean includeAIResponses,
+                                boolean includeToolCalls,
+                                boolean includeToolOutputs,
+                                boolean includeTokens,
+                                boolean includeSystemNotes,
+                                boolean includeProgressiveSummary,
+                                boolean includeShellOutput) {
+
+        List<ContextEntry> newEntries = getNewEntriesSinceLastCall();
+
+        for (ContextEntry entry : newEntries) {
+            ContextEntry.Type type = entry.getType();
+
+            boolean shouldPrint =
+                (type == ContextEntry.Type.USER_MESSAGE     && includeUserMessages)   ||
+                (type == ContextEntry.Type.AI_RESPONSE      && includeAIResponses)    ||
+                (type == ContextEntry.Type.TOOL         && includeToolCalls)       ||
+                (type == ContextEntry.Type.TOOL_OUTPUT   && includeToolOutputs) ||
+                (type == ContextEntry.Type.TOKENS           && includeTokens)         ||
+                (type == ContextEntry.Type.SYSTEM_NOTE      && includeSystemNotes)    ||
+                (type == ContextEntry.Type.PROGRESSIVE_SUMMARY && includeProgressiveSummary) ||
+                (type == ContextEntry.Type.SHELL_OUTPUT     && includeShellOutput);
+
+            if (shouldPrint) {
+                String color;
+                switch (type) {
+                    case USER_MESSAGE:   color = Vyrtuous.BRIGHT_BLUE; break;
+                    case AI_RESPONSE:    color = Vyrtuous.TEAL;        break;
+                    case TOOL:        color = Vyrtuous.CYAN;        break;
+                    case TOOL_OUTPUT: color = Vyrtuous.SKY_BLUE;    break;
+                    case TOKENS:         color = Vyrtuous.BRIGHT_CYAN; break;
+                    case SYSTEM_NOTE:    color = Vyrtuous.NAVY;        break;
+                    case SHELL_OUTPUT:   color = Vyrtuous.DODGER_BLUE; break;
+                    default:             color = Vyrtuous.RESET;       break;
+                }
+                return color + entry.formatForPrompt() + Vyrtuous.RESET;
+            }
+        }
+        return null;
+    }
 
     public void printNewEntries(boolean includeUserMessages,
                                 boolean includeAIResponses,

@@ -69,5 +69,9 @@ public class DiscordBot {
     public DiscordBot completeGetBot() {
         return this.bot;
     }
+    
+    public JDA getJDA() {
+        return this.api;
+    }
 
 }

@@ -47,7 +47,9 @@ import java.util.regex.Matcher;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -118,7 +120,6 @@ public class MessageManager {
                     } else {
                         results.add("Skipped non-image or non-text attachment: " + fileName);
                     }
-
                 } catch (Exception e) {
                     e.printStackTrace();
                     results.add("Failed to process: " + attachment.getFileName());
@@ -176,6 +177,27 @@ public class MessageManager {
         return chunks;
     }
     
+    private List<CompletableFuture<Message>> sendInChunks(GuildChannel channel, String text) {
+        List<CompletableFuture<Message>> chunks = new ArrayList<>();
+        int maxLength = 2000;
+        int index = 0;
+        while (index < text.length()) {
+            int end = Math.min(index + maxLength, text.length());
+            if (end < text.length()) {
+                int lastNewline = text.lastIndexOf("\n", end);
+                int lastSpace = text.lastIndexOf(" ", end);
+                if (lastNewline > index) end = lastNewline;
+                else if (lastSpace > index) end = lastSpace;
+            }
+            String chunk = text.substring(index, end).trim();
+            if (!chunk.isEmpty()) {
+                chunks.add(completeSendDiscordMessage(channel, chunk));
+            }
+            index = end;
+        }
+        return chunks;
+    }
+    
     public CompletableFuture<Void> completeSendResponse(Message message, String response) {
         List<CompletableFuture<Message>> futures = new ArrayList<>();
         Pattern codeBlockPattern = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```");
@@ -210,6 +232,45 @@ public class MessageManager {
             String remaining = response.substring(lastEnd).trim();
             if (!remaining.isEmpty()) {
                 futures.addAll(sendInChunks(message, remaining));
+            }
+        }
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+    
+    public CompletableFuture<Void> completeSendResponse(GuildChannel channel, String response) {
+        List<CompletableFuture<Message>> futures = new ArrayList<>();
+        Pattern codeBlockPattern = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```");
+        Matcher matcher = codeBlockPattern.matcher(response);
+        int fileIndex = 0;
+        int lastEnd = 0;
+        while (matcher.find()) {
+            if (matcher.start() > lastEnd) {
+                String beforeCode = response.substring(lastEnd, matcher.start()).trim();
+                if (!beforeCode.isEmpty()) {
+                    futures.addAll(sendInChunks(channel, beforeCode));
+                }
+            }
+            String fileType = matcher.group(1) != null ? matcher.group(1) : "txt";
+            String codeContent = matcher.group(2);
+            if (codeContent.length() < 1900) {
+                String codeMessage = "```" + fileType + "\n" + codeContent + "\n```";
+                futures.add(completeSendDiscordMessage(channel, codeMessage));
+            } else {
+                File file = new File(tempDirectory, "response_" + (fileIndex++) + "." + fileType);
+                try {
+                    Files.writeString(file.toPath(), codeContent, StandardCharsets.UTF_8);
+                    futures.add(completeSendDiscordMessage(channel, "📄 Long code block attached:", file));
+                } catch (IOException e) {
+                    String error = "❌ Error writing code block to file: " + e.getMessage();
+                    futures.add(completeSendDiscordMessage(channel, error));
+                }
+            }
+            lastEnd = matcher.end();
+        }
+        if (lastEnd < response.length()) {
+            String remaining = response.substring(lastEnd).trim();
+            if (!remaining.isEmpty()) {
+                futures.addAll(sendInChunks(channel, remaining));
             }
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
@@ -343,6 +404,28 @@ public class MessageManager {
             .sendMessage(content)
             .addEmbeds(embed)
             .submit();
+    }
+    
+    public CompletableFuture<Message> completeSendDiscordMessage(GuildChannel channel, String content) {
+        if (channel instanceof TextChannel textChannel) {
+            return textChannel.sendMessage(content).submit();
+        } else {
+            CompletableFuture<Message> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IllegalArgumentException("Channel is not a TextChannel: " + channel.getType()));
+            return failed;
+        }
+    }
+
+    public CompletableFuture<Message> completeSendDiscordMessage(GuildChannel channel, String content, File file) {
+        if (channel instanceof TextChannel textChannel) {
+            return textChannel.sendMessage(content)
+                              .addFiles(FileUpload.fromData(file))
+                              .submit();
+        } else {
+            CompletableFuture<Message> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IllegalArgumentException("Channel is not a TextChannel: " + channel.getType()));
+            return failed;
+        }
     }
 
     public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content) {

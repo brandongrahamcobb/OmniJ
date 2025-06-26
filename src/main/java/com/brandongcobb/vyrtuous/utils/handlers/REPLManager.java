@@ -23,6 +23,7 @@ package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.metadata.*;
 import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.bots.*;
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.enums.*;
 import com.brandongcobb.vyrtuous.objects.*;
@@ -55,11 +56,24 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 
 public class REPLManager {
 
     private AIManager aim = new AIManager();
-    private ApprovalMode approvalMode;;
+    private JDA api;
+    private MessageManager mem;
+    private ApprovalMode approvalMode;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
     private List<JsonNode> lastResults;
@@ -75,13 +89,17 @@ public class REPLManager {
         LOGGER.fine("Setting approval mode: " + mode);
         this.approvalMode = mode;
     }
+    
+    
 
-    public REPLManager(ApprovalMode mode, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
-        LOGGER.setLevel(Level.OFF);
+    public REPLManager(ApprovalMode mode, DiscordBot discordBot, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
+        this.api = discordBot.getJDA();
+        this.mem = new MessageManager(this.api);
         this.mcpServer = server;
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
@@ -101,6 +119,8 @@ public class REPLManager {
         originalDirective = userInput;
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
+        GuildChannel rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
+        mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->

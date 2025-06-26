@@ -78,7 +78,7 @@ public class Vyrtuous {
             ContextManager userContextManager = new ContextManager(3200);
             ContextManager modelContextManager = new ContextManager(3200);
             MCPServer server = new MCPServer(modelContextManager, userContextManager);
-            REPLManager repl = new REPLManager(approvalMode, server, modelContextManager, userContextManager);
+            REPLManager repl = new REPLManager(approvalMode, bot, server, modelContextManager, userContextManager);
             repl.startResponseInputThread();
             isInputThreadRunning = true;
         }
