@@ -286,6 +286,31 @@ Here is a load_context schema. This tool loads a snapshot from a conversation ch
   },
   "additionalProperties": false
 }
+Here is a refresh_context schema. This tool overwrites the context with a progressive summary and is advised after every file read.
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RefreshContext",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["refresh_context"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "progressiveSummary": {
+          "type": "string",
+          "description": "Optional summary content to inject into memory context."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
 Use these tools in tandem to recursively accomplish a task specified by the user.
 You MUST operate under the assumption that all the tools described in the schemas are available and functional unless explicitly told otherwise.
 You MUST then focus on constructing valid requests for those tools.
