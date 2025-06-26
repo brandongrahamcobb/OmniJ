@@ -111,6 +111,8 @@ public class REPLManager {
                     .orTimeout(timeout, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
                         if (err != null || resp == null) {
+                            userContextManager.clearModified();
+                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
                             if (retries <= maxRetries) {
                                 LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
                                 replExecutor.submit(this);

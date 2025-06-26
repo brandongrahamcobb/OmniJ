@@ -145,7 +145,7 @@ public class ContextManager {
 
         for (ContextEntry entry : entries) {
             ContextEntry.Type type = entry.getType();
-            if (type == ContextEntry.Type.USER_MESSAGE || type == ContextEntry.Type.PROGRESSIVE_SUMMARY) {
+            if (type == ContextEntry.Type.USER_MESSAGE || type == ContextEntry.Type.PROGRESSIVE_SUMMARY || type == ContextEntry.Type.TOOL) {
                 preserved.add(entry);
             }
             // All other types are excluded
