@@ -230,7 +230,7 @@ Here is a schema for creating a file.
   },
   "additionalProperties": false
 }
-Here is a save_context schema. This tool allows you to save a checkpoint of the conversation for later recall using LoadContext:
+Here is a save_context schema. This tool allows you to save a checkpoint of the conversation for later recall using load_context. 
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SaveContext",
