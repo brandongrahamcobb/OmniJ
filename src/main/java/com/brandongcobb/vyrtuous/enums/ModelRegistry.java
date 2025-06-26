@@ -125,7 +125,7 @@ Here is the schema for patching a file.
 Here is a schema for reading a file.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "ReadFileToolRequest",
+  "title": "ReadFile",
   "type": "object",
   "required": ["tool", "input"],
   "properties": {
@@ -151,7 +151,7 @@ Here is a schema for reading a file.
 Here is a schema for searching through files.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SearchFilesToolRequest",
+  "title": "SearchFiles",
   "type": "object",
   "required": ["tool", "input"],
   "properties": {
@@ -198,7 +198,7 @@ Here is a schema for searching through files.
 Here is a schema for creating a file.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CreateFileToolRequest",
+  "title": "CreateFile",
   "type": "object",
   "required": ["tool", "input"],
   "properties": {
@@ -230,36 +230,10 @@ Here is a schema for creating a file.
   },
   "additionalProperties": false
 }
-Here is a load_context schema:
+Here is a save_context schema. This tool allows you to save a checkpoint of the conversation for later recall using LoadContext:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "LoadContext",
-  "type": "object",
-  "required": ["tool", "input"],
-  "properties": {
-    "tool": {
-      "type": "string",
-      "enum": ["load_context"],
-      "description": "The name of the tool to invoke."
-    },
-    "input": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "The name of the previously saved snapshot to load."
-        }
-      },
-      "additionalProperties": false
-    }
-  },
-  "additionalProperties": false
-}
-Here is a save_context schema:
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SaveContextToolRequest",
+  "title": "SaveContext",
   "type": "object",
   "required": ["tool", "input"],
   "properties": {
@@ -286,7 +260,32 @@ Here is a save_context schema:
   },
   "additionalProperties": false
 }
-
+Here is a load_context schema. This tool loads a snapshot from a conversation checkpoint created previously by save_context.
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LoadContext",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["load_context"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the previously saved snapshot to load."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
 Use these tools in tandem to recursively accomplish a task specified by the user.
 You MUST operate under the assumption that all the tools described in the schemas are available and functional unless explicitly told otherwise.
 You MUST then focus on constructing valid requests for those tools.

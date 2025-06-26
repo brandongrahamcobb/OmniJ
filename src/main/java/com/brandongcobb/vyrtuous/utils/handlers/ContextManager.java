@@ -155,6 +155,22 @@ public class ContextManager {
         entries.addAll(preserved);
         lastBuildIndex = entries.size(); // Keep index in sync
     }
+    
+    public synchronized void clearBetweenSaves() {
+        List<ContextEntry> preserved = new ArrayList<>();
+
+        for (ContextEntry entry : entries) {
+            ContextEntry.Type type = entry.getType();
+            if (type == ContextEntry.Type.USER_MESSAGE || type == ContextEntry.Type.TOOL || type == ContextEntry.Type.TOOL_OUTPUT) {
+                preserved.add(entry);
+            }
+            // All other types are excluded
+        }
+
+        entries.clear();
+        entries.addAll(preserved);
+        lastBuildIndex = entries.size(); // Keep index in sync
+    }
 
     public synchronized long getContextTokenCount() {
         String prompt = buildPromptContext();

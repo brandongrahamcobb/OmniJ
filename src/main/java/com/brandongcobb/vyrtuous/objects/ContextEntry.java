@@ -17,6 +17,8 @@
  */
 package com.brandongcobb.vyrtuous.objects;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class ContextEntry {
     
     public enum Type { USER_MESSAGE, AI_RESPONSE, TOOL, TOOL_OUTPUT, TOKENS, SYSTEM_NOTE, PROGRESSIVE_SUMMARY, SHELL_OUTPUT }
@@ -24,15 +26,17 @@ public class ContextEntry {
     private final Type type;
     private final String content;
     
-    public ContextEntry(Type type, String content) {
+    public ContextEntry(@JsonProperty("type") Type type, @JsonProperty("content") String content) {
         this.type = type;
         this.content = content;
     }
     
+    @JsonProperty("type")
     public Type getType() {
         return type;
     }
 
+    @JsonProperty("content")
     public String getContent() {
         return content;
     }

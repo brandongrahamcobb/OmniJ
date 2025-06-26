@@ -92,6 +92,17 @@ public class MCPServer {
                 return loadContext.run(loadContextInput).thenApply(result -> result);
             }
         ));
+        tools.put("refresh_context", new ToolWrapper(
+            "refresh_context",
+            "Summarize the context",
+            createRefreshContextSchema(),
+            (input) -> {
+                RefreshContextInput refreshContextInput = mapper.treeToValue(input, RefreshContextInput.class);
+                RefreshContext refreshContext = new RefreshContext(modelContextManager, userContextManager);
+                refreshContextInput.setOriginalJson(input);
+                return refreshContext.run(refreshContextInput).thenApply(result -> result);
+            }
+        ));
         tools.put("save_context", new ToolWrapper(
             "save_context",
             "Save current context",
@@ -450,6 +461,27 @@ public class MCPServer {
             return mapper.readTree(schemaJson);
         } catch (Exception e) {
             LOGGER.severe("Failed to create search_files schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+    }
+
+    private JsonNode createRefreshContextSchema() {
+        try {
+            String schemaJson = """
+            {
+                "type": "object",
+                "properties": {
+                    "progressiveSummary": {
+                        "type": "string",
+                        "description": "Optional summary content to inject into memory context."
+                    }
+                },
+                "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create refresh context schema: " + e.getMessage());
             return mapper.createObjectNode();
         }
     }

@@ -36,13 +36,12 @@ public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
         this.userContextManager = userContextManager;
     }
 
-
     /*
      *  Getters
      */
     @Override
     public String getDescription() {
-        return "Saves the current state under a given name.";
+        return "Saves the current state under a given name for later recall using load_context.";
     }
 
     @Override
