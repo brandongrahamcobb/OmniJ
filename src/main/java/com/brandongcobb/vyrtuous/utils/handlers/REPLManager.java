@@ -324,8 +324,7 @@ public class REPLManager {
                     latch.await(2, TimeUnit.SECONDS); // Adjust timeout as needed
 
                     String responseStr = outBuffer.toString().trim();
-                    System.out.println("Tool response: " + responseStr);
-
+                    System.out.println(responseStr);
                     JsonNode responseJson = mapper.readTree(responseStr);
 
                     CompletableFuture<JsonNode> toolResponseFuture = CompletableFuture.completedFuture(responseJson);
@@ -333,16 +332,22 @@ public class REPLManager {
                     CompletableFuture<Void> individualToolFuture = toolResponseFuture.thenAccept(toolResult -> {
                         // Process the result from the tool call
                         
-                        if (toolResult.has("error")) {
-                            LOGGER.severe("Tool '" + toolName + "' execution failed: " + toolResult.get("error").get("message").asText());
-                            // You might want to add this error to context or handle it specifically
-                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + toolResult.get("error").get("message").asText()));
-                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + toolResult.get("error").get("message").asText()));
-                        } else {
-                            String outputMessage = toolResult.get("content").get(0).get("text").asText(); // Extract the message from the "content" array
+                        JsonNode resultNode = toolResult.get("result");
+                        if (resultNode == null) {
+                            LOGGER.severe("Tool '" + toolName + "' response missing 'result'");
+                            // handle this error, maybe add to context as well
+                        } else if (resultNode.has("error")) {
+                            String errorMessage = resultNode.get("error").get("message").asText();
+                            LOGGER.severe("Tool '" + toolName + "' execution failed: " + errorMessage);
+                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + errorMessage));
+                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + errorMessage));
+                        } else if (resultNode.has("content") && resultNode.get("content").isArray() && resultNode.get("content").size() > 0) {
+                            String outputMessage = resultNode.get("content").get(0).get("text").asText();
                             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, outputMessage));
                             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, outputMessage));
                             LOGGER.fine("Tool '" + toolName + "' executed successfully. Output: " + outputMessage);
+                        } else {
+                            LOGGER.warning("Tool '" + toolName + "' response does not contain expected content");
                         }
                     }).exceptionally(ex -> {
                         LOGGER.severe("Exception during tool '" + toolName + "' execution: " + ex.getMessage());
