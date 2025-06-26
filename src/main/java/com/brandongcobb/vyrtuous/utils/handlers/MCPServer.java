@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class MCPServer {
+    
     private static final Logger LOGGER = Logger.getLogger(MCPServer.class.getName());
     private final ObjectMapper mapper = new ObjectMapper();
     private final Map<String, ToolWrapper> tools = new ConcurrentHashMap<>();
@@ -121,8 +122,9 @@ public class MCPServer {
         }
     }
 
-    private void handleRequest(String requestLine, PrintWriter writer) {
+    public void handleRequest(String requestLine, PrintWriter writer) {
         try {
+            
             JsonNode request = mapper.readTree(requestLine);
             String method = request.get("method").asText();
             String id = request.has("id") ? request.get("id").asText() : null;
@@ -208,6 +210,7 @@ public class MCPServer {
         }
 
         try {
+            
             String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
             
@@ -483,13 +486,13 @@ public class MCPServer {
         public String getDescription() { return description; }
         public JsonNode getInputSchema() { return inputSchema; }
         
-        public CompletableFuture<Object> execute(JsonNode input) {
+        public CompletableFuture<ToolStatus> execute(JsonNode input) {
             try {
                 return executor.execute(input);
             } catch (Exception e) {
                 e.printStackTrace();
                 // Return a completed exceptionally future to propagate the error asynchronously
-                CompletableFuture<Object> failedFuture = new CompletableFuture<>();
+                CompletableFuture<ToolStatus> failedFuture = new CompletableFuture<>();
                 failedFuture.completeExceptionally(e);
                 return failedFuture;
             }
@@ -498,7 +501,7 @@ public class MCPServer {
 
     @FunctionalInterface
     private interface ToolExecutor {
-        CompletableFuture<Object> execute(JsonNode input) throws Exception;
+        CompletableFuture<ToolStatus> execute(JsonNode input) throws Exception;
     }
 
     public static void main(String[] args) {

@@ -66,7 +66,7 @@ public class Vyrtuous {
     public static final String NAVY = "\u001B[38;5;18m";
     public static final String SKY_BLUE = "\u001B[38;5;117m";
     public static final String DODGER_BLUE = "\u001B[38;5;33m";
-    public static final String TEAL = "\u001B[38;5;30m";
+    public static final String TEAL = "\u001B[38;5;30m"; // or whatever
     
     public static void main(String[] args) {
         app = new Vyrtuous();
@@ -74,8 +74,10 @@ public class Vyrtuous {
         boolean isInputThreadRunning = false;
         if (!isInputThreadRunning) {
             ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_ALL;
-            
-            REPLManager repl = new REPLManager(approvalMode);
+            ContextManager userContextManager = new ContextManager(3200);
+            ContextManager modelContextManager = new ContextManager(3200);
+            MCPServer server = new MCPServer(modelContextManager, userContextManager);
+            REPLManager repl = new REPLManager(approvalMode, server, modelContextManager, userContextManager);
             repl.startResponseInputThread();
             isInputThreadRunning = true;
         }
