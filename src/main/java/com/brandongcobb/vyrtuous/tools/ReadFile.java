@@ -15,10 +15,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
 
-    private final ContextManager contextManager;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
 
-    public ReadFile(ContextManager contextManager) {
-        this.contextManager = contextManager;
+    public ReadFile(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     @Override
@@ -37,10 +39,7 @@ public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
 
                 String content = Files.readString(filePath, StandardCharsets.UTF_8);
 
-                contextManager.addEntry(new ContextEntry(
-                    ContextEntry.Type.TOOL_OUTPUT, content
-                ));
-
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new ReadFileStatus(true, "File read successfully.", content);
             } catch (IOException e) {
                 return new ReadFileStatus(false, "IO error: " + e.getMessage(), null);

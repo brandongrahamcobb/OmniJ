@@ -15,10 +15,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
 
-    private final ContextManager contextManager;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
 
-    public SaveContext(ContextManager contextManager) {
-        this.contextManager = contextManager;
+    public SaveContext(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     @Override
@@ -30,9 +32,9 @@ public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
     public CompletableFuture<SaveContextStatus> run(SaveContextInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                contextManager.saveSnapshot(input.getName(), input.getDescription());
+                modelContextManager.saveSnapshot(input.getName(), input.getDescription());
                 String msg = "Context snapshot '" + input.getName() + "' saved successfully.";
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, msg));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new SaveContextStatus(true, msg);
             } catch (Exception e) {
                 return new SaveContextStatus(false, "Failed to save context: " + e.getMessage());

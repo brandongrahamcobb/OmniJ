@@ -12,10 +12,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
 
-    private final ContextManager contextManager;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
 
-    public CreateFile(ContextManager contextManager) {
-        this.contextManager = contextManager;
+    public CreateFile(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     @Override
@@ -44,10 +46,7 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
                     StandardOpenOption.TRUNCATE_EXISTING
                 );
 
-                contextManager.addEntry(new ContextEntry(
-                    ContextEntry.Type.TOOL_OUTPUT,
-                    "Created file: " + filePath.toString()
-                ));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
 
                 return new CreateFileStatus(true, "File created successfully: " + filePath.toString());
             } catch (FileAlreadyExistsException e) {

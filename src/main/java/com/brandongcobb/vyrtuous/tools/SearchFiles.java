@@ -20,12 +20,14 @@ import java.util.stream.Stream;
 
 public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
 
-    private final ContextManager contextManager;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
 
-    public SearchFiles(ContextManager contextManager) {
-        this.contextManager = contextManager;
+    public SearchFiles(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
-
+    
     @Override
     public String getName() {
         return "search_files";
@@ -84,8 +86,8 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                     results.forEach(r -> sb.append("• ").append(r.path).append("\n"));
                     summary = sb.toString().trim();
                 }
-
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, summary));
+                
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new SearchFilesStatus(true, summary, results);
             } catch (IOException e) {
                 return new SearchFilesStatus(false, "IO error: " + e.getMessage(), null);

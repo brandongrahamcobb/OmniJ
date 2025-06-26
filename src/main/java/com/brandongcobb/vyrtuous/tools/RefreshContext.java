@@ -14,10 +14,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class RefreshContext implements Tool<RefreshContextInput, RefreshContextStatus> {
 
-    private final ContextManager contextManager;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
 
-    public RefreshContext(ContextManager contextManager) {
-        this.contextManager = contextManager;
+    public RefreshContext(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     @Override
@@ -30,9 +32,10 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
         return CompletableFuture.supplyAsync(() -> {
            try {
                String summary = input.getProgressiveSummary();
-               contextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
-               contextManager.clearModified();
-               contextManager.printNewEntries(true, true, true, true, true, true, true, true);
+               modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
+               userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
+               userContextManager.clearModified();
+               userContextManager.printNewEntries(true, true, true, true, true, true, true, true);
                return new RefreshContextStatus(true, "Memory has been summarized and execution can continue.");
            } catch (Exception e) {
                return new RefreshContextStatus(false, "Failed to refresh context: " + e.getMessage());

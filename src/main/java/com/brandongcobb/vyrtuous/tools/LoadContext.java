@@ -16,10 +16,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
 
-    private final ContextManager contextManager;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
 
-    public LoadContext(ContextManager contextManager) {
-        this.contextManager = contextManager;
+    public LoadContext(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     @Override
@@ -31,9 +33,9 @@ public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
     public CompletableFuture<LoadContextStatus> run(LoadContextInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                contextManager.loadSnapshot(input.getName());
+                modelContextManager.loadSnapshot(input.getName());
                 String msg = "Context snapshot '" + input.getName() + "' loaded successfully.";
-                contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, msg));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new LoadContextStatus(true, msg);
             } catch (Exception e) {
                 return new LoadContextStatus(false, "Failed to load context: " + e.getMessage());

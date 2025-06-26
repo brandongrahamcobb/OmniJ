@@ -19,10 +19,12 @@ import java.util.concurrent.CompletableFuture;
 
 public class Patch implements Tool<PatchInput, PatchStatus> {
 
-    private final ContextManager contextManager;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
 
-    public Patch(ContextManager contextManager) {
-        this.contextManager = contextManager;
+    public Patch(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     @Override
@@ -33,7 +35,7 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
     @Override
     public CompletableFuture<PatchStatus> run(PatchInput input) {
         return CompletableFuture.supplyAsync(() -> {
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
+            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
     
             String targetFile = input.getTargetFile();
             List<PatchOperation> operations = input.getPatches();

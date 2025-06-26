@@ -6,6 +6,7 @@
 //
 package com.brandongcobb.vyrtuous.domain;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 
 public class SearchFilesInput {
@@ -15,7 +16,14 @@ public class SearchFilesInput {
     private List<String> fileNameContains;     // optional substring filter
     private List<String> grepContains;         // optional text content filter
     private int maxResults = 100;
+    private transient JsonNode originalJson;
+    public JsonNode getOriginalJson() {
+        return originalJson;
+    }
 
+    public void setOriginalJson(JsonNode originalJson) {
+        this.originalJson = originalJson;
+    }
     public String getRootDirectory() {
         return rootDirectory;
     }

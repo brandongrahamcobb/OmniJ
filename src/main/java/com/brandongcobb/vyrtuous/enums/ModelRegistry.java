@@ -230,31 +230,6 @@ Here is a schema for creating a file.
   },
   "additionalProperties": false
 }
-Here is a schema for summarizing the context to fit more into your context window. Summarize after every file read.
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "RefreshContext",
-  "type": "object",
-  "required": ["tool", "input"],
-  "properties": {
-    "tool": {
-      "type": "string",
-      "enum": ["refresh_context"],
-      "description": "The name of the tool to invoke."
-    },
-    "input": {
-      "type": "object",
-      "properties": {
-        "progressiveSummary": {
-          "type": "string",
-          "description": "Optional summary content to inject into memory context."
-        }
-      },
-      "additionalProperties": false
-    }
-  },
-  "additionalProperties": false
-}
 Here is a load_context schema:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",

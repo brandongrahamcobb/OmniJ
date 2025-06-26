@@ -45,7 +45,8 @@ public class REPLManager {
 
     private AIManager aim = new AIManager();
     private ApprovalMode approvalMode;
-    private final ContextManager contextManager = new ContextManager(3200);
+    private final ContextManager userContextManager = new ContextManager(3200);
+    private final ContextManager modelContextManager = new ContextManager(3200); // or whatever size you want
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
@@ -61,9 +62,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
     }
@@ -78,9 +79,9 @@ public class REPLManager {
         if (userInput == null || userInput.isBlank()) {
             return CompletableFuture.completedFuture(null);
         }
-        contextManager.clear();
+        userContextManager.clear();
         originalDirective = userInput;
-        contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
+        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->
@@ -130,7 +131,7 @@ public class REPLManager {
 
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
-        String prompt = firstRun ? originalDirective : contextManager.buildPromptContext();
+        String prompt = firstRun ? originalDirective : modelContextManager.buildPromptContext();
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
@@ -161,7 +162,7 @@ public class REPLManager {
                                 responseIdFuture = llamaUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
                                 if (!firstRun) {
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
                                 }
                             }
                             case "openai" -> {
@@ -209,19 +210,19 @@ public class REPLManager {
                                 if (!validJson) {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, content);
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                    contextManager.printNewEntries(false, true, true, true, true, true, true, true);
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                    userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");  // remove trailing newlines
                                     String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");  // remove leading newlines
                                     String cleanedText = before + after;
                                     if (cleanedText.equals("")) {
-                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                         metadataContainer.put(contentKey, content);
                                     }
                                     metadataContainer.put(contentKey, cleanedText);
-                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                 }
                             } catch (Exception e) {
                                 // fall through to REPL below
@@ -253,84 +254,93 @@ public class REPLManager {
 
                         switch (toolName) {
                             case "create_file" -> {
-                                 LOGGER.fine("Starting create file evaluation...");
-                                 CreateFileInput input = mapper.treeToValue(result.get("input"), CreateFileInput.class);
-                                 CreateFile createFile = new CreateFile(contextManager);
-                            
-                                 toolFuture = createFile.run(input) // returns CompletableFuture<ShellStatus>
-                                     .thenAccept(status -> {
-                                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                     });
+                                LOGGER.fine("Starting create file evaluation...");
+                                CreateFileInput createFileInput = mapper.treeToValue(result.get("input"), CreateFileInput.class);
+                                CreateFile createFile = new CreateFile(modelContextManager, userContextManager);
+                                createFileInput.setOriginalJson(result);
+                                toolFuture = createFile.run(createFileInput) // returns CompletableFuture<ShellStatus>
+                                    .thenAccept(status -> {
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    });
                             }
                             case "load_context" -> {
-                                 LOGGER.fine("Starting load evaluation...");
-                                 LoadContextInput input = mapper.treeToValue(result.get("input"), LoadContextInput.class);
-                                 LoadContext loadContext = new LoadContext(contextManager);
+                                LOGGER.fine("Starting load evaluation...");
+                                LoadContextInput loadContextInput = mapper.treeToValue(result.get("input"), LoadContextInput.class);
+                                loadContextInput.setOriginalJson(result);
+                                LoadContext loadContext = new LoadContext(modelContextManager, userContextManager);
                             
-                                 toolFuture = loadContext.run(input) // returns CompletableFuture<ShellStatus>
-                                     .thenAccept(status -> {
-                                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                     });
+                                toolFuture = loadContext.run(loadContextInput) // returns CompletableFuture<ShellStatus>
+                                    .thenAccept(status -> {
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                    });
                             }
                             case "patch" -> {
                                 LOGGER.fine("Starting patch evaluation...");
                                 PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
                                 patchInput.setOriginalJson(result);
-                                Patch patch = new Patch(contextManager);
+                                Patch patch = new Patch(modelContextManager, userContextManager);
 
                                 toolFuture = patch.run(patchInput) // assume this returns CompletableFuture<PatchStatus>
                                     .thenAccept(status -> {
-                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                     });
                             }
                             case "read_file" -> {
-                                 LOGGER.fine("Starting read file evaluation...");
-                                 ReadFileInput input = mapper.treeToValue(result.get("input"), ReadFileInput.class);
-                                 ReadFile readFile = new ReadFile(contextManager);
-                            
-                                 toolFuture = readFile.run(input) // returns CompletableFuture<ShellStatus>
-                                     .thenAccept(status -> {
-                                         contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-                                     });
-                            }
-                            case "refresh_context" -> {
-                                LOGGER.fine("Starting refresh evaluation...");
-                                RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
-                                RefreshContext refreshContext = new RefreshContext(contextManager);
-
-                                toolFuture = refreshContext.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                LOGGER.fine("Starting read file evaluation...");
+                                ReadFileInput readFileInput = mapper.treeToValue(result.get("input"), ReadFileInput.class);
+                                ReadFile readFile = new ReadFile(modelContextManager, userContextManager);
+                                readFileInput.setOriginalJson(result);
+                                
+                                toolFuture = readFile.run(readFileInput) // returns CompletableFuture<ShellStatus>
                                     .thenAccept(status -> {
-                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                     });
                             }
+//                            case "" -> {
+//                                LOGGER.fine("Starting refresh evaluation...");
+//                                RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
+//                                RefreshContext refreshContext = new RefreshContext(modelContextManager);
+//
+//                                toolFuture = refreshContext.run(input) // returns CompletableFuture<RefreshContextStatus>
+//                                    .thenAccept(status -> {
+//                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+//                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+//                                    });
+//                            }
                             case "save_context" -> {
                                 LOGGER.fine("Starting saving evaluation...");
-                                SaveContextInput input = mapper.treeToValue(result.get("input"), SaveContextInput.class);
-                                SaveContext saveContext = new SaveContext(contextManager);
-
-                                toolFuture = saveContext.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                SaveContextInput saveContextInput = mapper.treeToValue(result.get("input"), SaveContextInput.class);
+                                SaveContext saveContext = new SaveContext(modelContextManager, userContextManager);
+                                saveContextInput.setOriginalJson(result);
+                                toolFuture = saveContext.run(saveContextInput) // returns CompletableFuture<RefreshContextStatus>
                                     .thenAccept(status -> {
-                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                     });
                             }
                             case "search_files" -> {
                                 LOGGER.fine("Starting searching files evaluation...");
-                                SearchFilesInput input = mapper.treeToValue(result.get("input"), SearchFilesInput.class);
-                                SearchFiles searchFiles = new SearchFiles(contextManager);
-
-                                toolFuture = searchFiles.run(input) // returns CompletableFuture<RefreshContextStatus>
+                                SearchFilesInput searchFilesInput = mapper.treeToValue(result.get("input"), SearchFilesInput.class);
+                                SearchFiles searchFiles = new SearchFiles(modelContextManager, userContextManager);
+                                searchFilesInput.setOriginalJson(result);
+                                toolFuture = searchFiles.run(searchFilesInput) // returns CompletableFuture<RefreshContextStatus>
                                     .thenAccept(status -> {
-                                        contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
                                     });
                             }
     //                        case "shell" -> {
     //                            LOGGER.fine("Starting shell evaluation...");
     //                            ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
-    //                            Shell shell = new Shell(contextManager);
+    //                            Shell shell = new Shell(modelContextManager);
     //
     //                            toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
     //                                .thenAccept(status -> {
-    //                                    contextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
+    //                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
     //                                });
     //                        }
                             default -> {
@@ -350,7 +360,7 @@ public class REPLManager {
             LOGGER.fine("No such JSON tool avalabile in evaluation, resorting plaintext...");
             System.out.print("> ");
             String newInput = scanner.nextLine();
-            contextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
             return CompletableFuture.completedFuture(null);
         }
         
@@ -359,7 +369,7 @@ public class REPLManager {
 
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");
-        contextManager.printNewEntries(false, true, true, true, true, true, true, true);
+        userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
