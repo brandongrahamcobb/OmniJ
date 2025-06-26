@@ -96,7 +96,7 @@ public class ContextManager {
                     case SHELL_OUTPUT:   color = Vyrtuous.DODGER_BLUE; break;
                     default:             color = Vyrtuous.RESET;       break;
                 }
-                return color + entry.formatForPrompt() + Vyrtuous.RESET;
+                return entry.formatForPrompt();
             }
         }
         return null;
