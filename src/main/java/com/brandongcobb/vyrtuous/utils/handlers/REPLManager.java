@@ -106,7 +106,7 @@ public class REPLManager {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
         
-        this.rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
+        rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
     }
 
     public CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
@@ -123,7 +123,7 @@ public class REPLManager {
         originalDirective = userInput;
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+        mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->
@@ -204,7 +204,7 @@ public class REPLManager {
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
                                 if (!firstRun) {
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
-                                    mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                 }
                             }
                             case "openai" -> {
@@ -249,7 +249,7 @@ public class REPLManager {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, content);
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                    mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                     userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
@@ -258,12 +258,12 @@ public class REPLManager {
                                     String cleanedText = before + after;
                                     if (cleanedText.equals("")) {
                                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                        mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                        mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                         metadataContainer.put(contentKey, content);
                                     }
                                     metadataContainer.put(contentKey, cleanedText);
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-                                    mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                 }
                             } catch (Exception e) {
                             }
@@ -339,7 +339,7 @@ public class REPLManager {
                             LOGGER.severe("Tool '" + toolName + "' execution failed: " + errorMessage);
                             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + errorMessage));
                             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + errorMessage));
-                            mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                            mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                         } else if (resultNode.has("content") && resultNode.get("content").isArray() && resultNode.get("content").size() > 0) {
                             String outputMessage = resultNode.get("content").get(0).get("text").asText();
                             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, outputMessage));
@@ -352,7 +352,7 @@ public class REPLManager {
                         LOGGER.severe("Exception during tool '" + toolName + "' execution: " + ex.getMessage());
                         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Exception during tool " + toolName + ": " + ex.getMessage()));
                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Exception during tool " + toolName + ": " + ex.getMessage()));
-                        mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                        mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                         return null;
                     });
                     toolExecutionFutures.add(individualToolFuture);
@@ -374,7 +374,7 @@ public class REPLManager {
             String newInput = scanner.nextLine();
             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-            mem.completeSendResponse(this.rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+            mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
             return CompletableFuture.completedFuture(null);
         }
     }
