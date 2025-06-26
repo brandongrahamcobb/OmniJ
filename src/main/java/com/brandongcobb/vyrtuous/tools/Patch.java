@@ -1,9 +1,21 @@
-//
-//  Patch.java
-//  
-//
-//  Created by Brandon Cobb on 6/24/25.
-//
+/*  Patch.java The primary purpose of this class is to act as a tool
+ *  for patching (editing) files.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,12 +42,10 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
     }
-
-    @Override
-    public String getName() {
-        return "patch";
-    }
     
+    /*
+     *  Getters
+     */
     @Override
     public String getDescription() {
         return "Applies a patch to a file using match and replace/insert rules.";
@@ -106,29 +116,30 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
         }
     }
 
-
+    @Override
+    public String getName() {
+        return "patch";
+    }
+    
     @Override
     public CompletableFuture<PatchStatus> run(PatchInput input) {
         return CompletableFuture.supplyAsync(() -> {
             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
-    
             String targetFile = input.getTargetFile();
             List<PatchOperation> operations = input.getPatches();
-    
             if (targetFile == null || operations == null || operations.isEmpty()) {
-                return new PatchStatus(false, "Invalid patch input.");
+                return new PatchStatus("Invalid patch input.", false);
             }
-    
             try {
                 Path filePath = Path.of(targetFile);
                 List<String> originalLines = Files.readAllLines(filePath);
                 List<String> patchedLines = applyOperations(originalLines, operations);
                 Files.write(filePath, patchedLines);
-                return new PatchStatus(true, "Patch applied successfully.");
+                return new PatchStatus("Patch applied successfully.", true);
             } catch (IOException e) {
-                return new PatchStatus(false, "IO error: " + e.getMessage());
+                return new PatchStatus("IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new PatchStatus(false, "Unexpected error: " + e.getMessage());
+                return new PatchStatus("Unexpected error: " + e.getMessage(), false);
             }
         });
     }

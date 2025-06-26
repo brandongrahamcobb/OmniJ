@@ -1,5 +1,5 @@
-/*  LoadContextInput.java The primary purpose of this class is to
- *  provide input information about the LoadContext.java tool call.
+/*  ToolStatus.java The primary purpose of this interface is to serve
+ *  as the template for status classes for tools.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -20,30 +20,10 @@ package com.brandongcobb.vyrtuous.domain;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class LoadContextInput {
-
-    private String name;
-    private transient JsonNode originalJson;
+public interface ToolInput {
     
-    /*
-     *  Getters
-     */
-    public String getName() {
-        return name;
-    }
+    JsonNode getOriginalJson();
     
-    public JsonNode getOriginalJson() {
-        return originalJson;
-    }
-    
-    /*
-     *  Setters
-     */
-    public void setOriginalJson(JsonNode originalJson) {
-        this.originalJson = originalJson;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
+    void setOriginalJson(JsonNode originalJson);
 }
+

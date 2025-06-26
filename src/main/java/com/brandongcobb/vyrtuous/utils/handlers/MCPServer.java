@@ -1,22 +1,31 @@
-//
-//  MCPServer.java
-//  
-//
-//  Created by Brandon Cobb on 6/26/25.
-//
+/*  MCPServer.java The primary purpose of this class is to serve as
+ * the Model Context Protocol server for the Vyrtuous spring boot application.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.enums.*;
-
+import com.brandongcobb.vyrtuous.tools.*;
+import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.brandongcobb.vyrtuous.tools.*;
-import com.brandongcobb.vyrtuous.domain.*;
-import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-
-
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -39,7 +48,6 @@ public class MCPServer {
     }
 
     private void registerTools() {
-        // Register your existing tools with their schemas
         tools.put("create_file", new ToolWrapper(
             "create_file",
             "Create a new file with specified content",
@@ -51,7 +59,6 @@ public class MCPServer {
                 return createFile.run(createFileInput).thenApply(result -> result);
             }
         ));
-
         tools.put("read_file", new ToolWrapper(
             "read_file",
             "Read the contents of a file",
@@ -63,7 +70,6 @@ public class MCPServer {
                 return readFile.run(readFileInput).thenApply(result -> result);
             }
         ));
-
         tools.put("patch", new ToolWrapper(
             "patch",
             "Apply patches to files",
@@ -75,7 +81,6 @@ public class MCPServer {
                 return patch.run(patchInput).thenApply(result -> result);
             }
         ));
-
         tools.put("load_context", new ToolWrapper(
             "load_context",
             "Load context from a source",
@@ -87,7 +92,6 @@ public class MCPServer {
                 return loadContext.run(loadContextInput).thenApply(result -> result);
             }
         ));
-
         tools.put("save_context", new ToolWrapper(
             "save_context",
             "Save current context",
@@ -99,7 +103,6 @@ public class MCPServer {
                 return saveContext.run(saveContextInput).thenApply(result -> result);
             }
         ));
-
         tools.put("search_files", new ToolWrapper(
             "search_files",
             "Search for files matching criteria",
@@ -115,10 +118,8 @@ public class MCPServer {
 
     public void start() {
         LOGGER.info("Starting MCP Server");
-        
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
              PrintWriter writer = new PrintWriter(System.out, true)) {
-            
             String line;
             while ((line = reader.readLine()) != null) {
                 handleRequest(line, writer);
@@ -130,26 +131,22 @@ public class MCPServer {
 
     public void handleRequest(String requestLine, PrintWriter writer) {
         try {
-            
             JsonNode request = mapper.readTree(requestLine);
             String method = request.get("method").asText();
             String id = request.has("id") ? request.get("id").asText() : null;
             JsonNode params = request.get("params");
-
             CompletableFuture<JsonNode> responseFuture = switch (method) {
                 case "initialize" -> handleInitialize(params);
                 case "tools/list" -> handleToolsList();
                 case "tools/call" -> handleToolCall(params);
                 default -> CompletableFuture.completedFuture(createError(-32601, "Method not found"));
             };
-
             responseFuture.thenAccept(result -> {
                 ObjectNode response = mapper.createObjectNode();
                 response.put("jsonrpc", "2.0");
                 if (id != null) {
                     response.put("id", id);
                 }
-                
                 if (result.has("error")) {
                     response.set("error", result);
                 } else {
@@ -163,7 +160,6 @@ public class MCPServer {
                 writer.flush();
                 return null;
             });
-
         } catch (Exception e) {
             ObjectNode errorResponse = createErrorResponse(null, -32700, "Parse error");
             writer.println(errorResponse.toString());
@@ -175,16 +171,13 @@ public class MCPServer {
         initialized = true;
         ObjectNode result = mapper.createObjectNode();
         result.put("protocolVersion", "2024-11-05");
-        
         ObjectNode capabilities = mapper.createObjectNode();
         capabilities.put("tools", true);
         result.set("capabilities", capabilities);
-        
         ObjectNode serverInfo = mapper.createObjectNode();
         serverInfo.put("name", "Vyrtuous Tool Server");
         serverInfo.put("version", "1.0.0");
         result.set("serverInfo", serverInfo);
-        
         return CompletableFuture.completedFuture(result);
     }
 
@@ -192,11 +185,8 @@ public class MCPServer {
         if (!initialized) {
             return CompletableFuture.completedFuture(createError(-32002, "Server not initialized"));
         }
-
         ObjectNode result = mapper.createObjectNode();
         ArrayNode toolsArray = mapper.createArrayNode();
-
-        
         for (ToolWrapper tool : tools.values()) {
             ObjectNode toolDef = mapper.createObjectNode();
             toolDef.put("name", tool.getName());
@@ -204,7 +194,6 @@ public class MCPServer {
             toolDef.set("inputSchema", tool.getInputSchema());
             ((com.fasterxml.jackson.databind.node.ArrayNode) toolsArray).add(toolDef);
         }
-        
         result.set("tools", toolsArray);
         return CompletableFuture.completedFuture(result);
     }
@@ -213,7 +202,6 @@ public class MCPServer {
         if (!initialized) {
             return CompletableFuture.completedFuture(createError(-32002, "Server not initialized"));
         }
-
         try {
             String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
@@ -221,7 +209,6 @@ public class MCPServer {
             if (tool == null) {
                 return CompletableFuture.completedFuture(createError(-32602, "Tool not found: " + toolName));
             }
-
             return tool.execute(arguments).thenApply(status -> {
                 ObjectNode result = mapper.createObjectNode();
                 ObjectNode content = mapper.createObjectNode();
@@ -230,13 +217,11 @@ public class MCPServer {
                 ArrayNode contentArray = mapper.createArrayNode();
                 ((com.fasterxml.jackson.databind.node.ArrayNode) contentArray).add(content);
                 result.set("content", contentArray);
-                
                 return (JsonNode) result;
             }).exceptionally(ex -> {
                 LOGGER.severe("Tool execution failed: " + ex.getMessage());
                 return createError(-32603, "Tool execution failed: " + ex.getMessage());
             });
-
         } catch (Exception e) {
             return CompletableFuture.completedFuture(createError(-32602, "Invalid parameters"));
         }
@@ -469,8 +454,8 @@ public class MCPServer {
         }
     }
 
-    // Inner class to wrap your existing tools
     private static class ToolWrapper {
+        
         private final String name;
         private final String description;
         private final JsonNode inputSchema;
@@ -485,7 +470,9 @@ public class MCPServer {
         }
 
         public String getName() { return name; }
+        
         public String getDescription() { return description; }
+        
         public JsonNode getInputSchema() { return inputSchema; }
         
         public CompletableFuture<ToolStatus> execute(JsonNode input) {
@@ -493,7 +480,6 @@ public class MCPServer {
                 return executor.execute(input);
             } catch (Exception e) {
                 e.printStackTrace();
-                // Return a completed exceptionally future to propagate the error asynchronously
                 CompletableFuture<ToolStatus> failedFuture = new CompletableFuture<>();
                 failedFuture.completeExceptionally(e);
                 return failedFuture;
@@ -504,15 +490,6 @@ public class MCPServer {
     @FunctionalInterface
     private interface ToolExecutor {
         CompletableFuture<ToolStatus> execute(JsonNode input) throws Exception;
-    }
-
-    public static void main(String[] args) {
-        // You'll need to initialize your context managers
-        ContextManager modelContextManager = new ContextManager(3200); // Initialize as needed
-        ContextManager userContextManager = new ContextManager(3200); // Initialize as needed
-        
-        MCPServer server = new MCPServer(modelContextManager, userContextManager);
-        server.start();
     }
 }
 

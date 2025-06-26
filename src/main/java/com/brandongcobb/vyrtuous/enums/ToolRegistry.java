@@ -1,38 +1,36 @@
-//
-//  ToolRegistry.java
-//  
-//
-//  Created by Brandon Cobb on 6/26/25.
-//
+/*  ToolRegistry.java The primary purpose of this class is to act include
+ *  call, convert and list tools.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.enums;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
+
+import com.brandongcobb.vyrtuous.tools.*;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.concurrent.CompletableFuture;
-import com.brandongcobb.vyrtuous.tools.*;
-
 public class ToolRegistry {
+    
+    private final ObjectMapper mapper = new ObjectMapper();
     private final Map<String, Tool> tools = new HashMap<>();
-    private static final ObjectMapper mapper = new ObjectMapper();
-    
-    // Convert your existing tools to MCP format
-    public List<ToolDefinition> listTools() {
-        return tools.values().stream()
-            .map(this::convertToMCPFormat)
-            .collect(Collectors.toList());
-    }
-    
-    private ToolDefinition convertToMCPFormat(Tool tool) {
-        return ToolDefinition.builder()
-            .name(tool.getName())
-            .description(tool.getDescription())
-            .inputSchema(tool.getJsonSchema()) // Your existing JSON schema
-            .build();
-    }
     
     public CompletableFuture<JsonNode> callTool(String name, JsonNode arguments) {
         Tool<?, ?> tool = tools.get(name);
@@ -41,7 +39,6 @@ public class ToolRegistry {
             failed.completeExceptionally(new IllegalArgumentException("Tool not found: " + name));
             return failed;
         }
-
         try {
             return ((Tool<JsonNode, ?>) tool)
                 .run(arguments)
@@ -52,6 +49,18 @@ public class ToolRegistry {
             return failed;
         }
     }
-
-
+    
+    private ToolDefinition convertToMCPFormat(Tool tool) {
+        return ToolDefinition.builder()
+            .name(tool.getName())
+            .description(tool.getDescription())
+            .inputSchema(tool.getJsonSchema())
+            .build();
+    }
+    
+    public List<ToolDefinition> listTools() {
+        return tools.values().stream()
+            .map(this::convertToMCPFormat)
+            .collect(Collectors.toList());
+    }
 }

@@ -1,28 +1,40 @@
-//
-//  PatchStatus.java
-//  
-//
-//  Created by Brandon Cobb on 6/24/25.
-//
+/*  PatchStatus.java The primary purpose of this class is to
+ *  provide status information about the Patch.java tool call.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.domain;
 
 public class PatchStatus implements ToolStatus {
     
-    private final boolean success;
     private final String message;
+    private final boolean success;
 
-    public PatchStatus(boolean success, String message) {
-        this.success = success;
+    public PatchStatus(String message, boolean success) {
         this.message = message;
-    }
-
-    @Override
-    public boolean isSuccess() {
-        return success;
+        this.success = success;
     }
 
     @Override
     public String getMessage() {
         return message;
+    }
+    
+    @Override
+    public boolean getSuccess() {
+        return success;
     }
 }

@@ -1,13 +1,28 @@
+/*  CreateFile.java The primary purpose of this class is to act as a tool
+ *  for creating files.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.objects.ContextEntry;
-import com.brandongcobb.vyrtuous.utils.handlers.ContextManager;
-
-import com.fasterxml.jackson.databind.JsonNode;
 import com.brandongcobb.vyrtuous.domain.*;
-
+import com.brandongcobb.vyrtuous.objects.*;
+import com.brandongcobb.vyrtuous.utils.handlers.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -24,11 +39,9 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
         this.userContextManager = userContextManager;
     }
 
-    @Override
-    public String getName() {
-        return "create_file";
-    }
-    
+    /*
+     *  Getters
+     */
     @Override
     public String getDescription() {
         return "Creates a file with specified content, optionally overwriting.";
@@ -64,6 +77,11 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
             throw new RuntimeException("Failed to build create_file schema", e);
         }
     }
+    
+    @Override
+    public String getName() {
+        return "create_file";
+    }
 
     @Override
     public CompletableFuture<CreateFileStatus> run(CreateFileInput input) {
@@ -71,30 +89,25 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
             try {
                 Path filePath = Paths.get(input.getPath());
                 boolean fileExists = Files.exists(filePath);
-
-                if (fileExists && !input.isOverwrite()) {
-                    return new CreateFileStatus(false, "File already exists and overwrite is false.");
+                if (fileExists && !input.getOverwrite()) {
+                    return new CreateFileStatus("File already exists and overwrite is false.", false);
                 }
-
                 Files.createDirectories(filePath.getParent());
-
                 Files.writeString(
                     filePath,
                     input.getContent(),
                     StandardCharsets.UTF_8,
-                    input.isOverwrite() ? StandardOpenOption.CREATE : StandardOpenOption.CREATE_NEW,
+                    input.getOverwrite() ? StandardOpenOption.CREATE : StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.TRUNCATE_EXISTING
                 );
-
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
-
-                return new CreateFileStatus(true, "File created successfully: " + filePath.toString());
+                return new CreateFileStatus("File created successfully: " + filePath.toString(), true);
             } catch (FileAlreadyExistsException e) {
-                return new CreateFileStatus(false, "File already exists and overwrite not allowed.");
+                return new CreateFileStatus("File already exists and overwrite not allowed.", false);
             } catch (IOException e) {
-                return new CreateFileStatus(false, "IO error: " + e.getMessage());
+                return new CreateFileStatus("IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new CreateFileStatus(false, "Unexpected error: " + e.getMessage());
+                return new CreateFileStatus("Unexpected error: " + e.getMessage(), false);
             }
         });
     }

@@ -1,9 +1,22 @@
-//
-//  SearchFiles.java
-//  
-//
-//  Created by Brandon Cobb on 6/24/25.
-//
+/*  SearchFiles.java The primary purpose of this class is to act as a tool
+ *  for making searching files. This is a crude method which will be
+ *  replaced with a VectorStore.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.tools;
 
 import com.brandongcobb.vyrtuous.domain.*;
@@ -32,11 +45,10 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
         this.userContextManager = userContextManager;
     }
     
-    @Override
-    public String getName() {
-        return "search_files";
-    }
 
+    /*
+     *  Getters
+     */
     @Override
     public String getDescription() {
         return "Searches files recursively from a root directory.";
@@ -84,6 +96,11 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
     }
     
     @Override
+    public String getName() {
+        return "search_files";
+    }
+    
+    @Override
     public CompletableFuture<SearchFilesStatus> run(SearchFilesInput input) {
         return CompletableFuture.supplyAsync(() -> {
             List<SearchFilesStatus.Result> results = new ArrayList<>();
@@ -103,7 +120,6 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                         }
                         return true;
                     })
-
                     .limit(input.getMaxResults())
                     .forEach(path -> {
                         String snippet = null;
@@ -125,7 +141,6 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                         }
                         results.add(new SearchFilesStatus.Result(path.toString(), snippet));
                     });
-
                 String summary;
                 if (results.isEmpty()) {
                     summary = "No matching files found.";
@@ -136,14 +151,11 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                     results.forEach(r -> sb.append("• ").append(r.path).append("\n"));
                     summary = sb.toString().trim();
                 }
-                
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
-                return new SearchFilesStatus(true, summary, results);
+                return new SearchFilesStatus(summary, results, true);
             } catch (IOException e) {
-                return new SearchFilesStatus(false, "IO error: " + e.getMessage(), null);
+                return new SearchFilesStatus("IO error: " + e.getMessage(), null, false);
             }
         });
     }
-    
 }
-

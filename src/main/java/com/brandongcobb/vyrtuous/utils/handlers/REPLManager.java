@@ -32,44 +32,45 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.Supplier;
-import java.util.logging.*;
-import java.util.function.Function;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Scanner;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.logging.*;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class REPLManager {
 
     private AIManager aim = new AIManager();
-    private ApprovalMode approvalMode;
-    private final ContextManager userContextManager;
-    private final ContextManager modelContextManager; // or whatever size you want
+    private ApprovalMode approvalMode;;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
-    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
-    private String originalDirective;
-    private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private List<JsonNode> lastResults;
-    
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private ObjectMapper mapper = new ObjectMapper();
     private MCPServer mcpServer;
-    
+    private final ContextManager modelContextManager;
+    private String originalDirective;
+    private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
+    private final ContextManager userContextManager;
+
     public void setApprovalMode(ApprovalMode mode) {
         LOGGER.fine("Setting approval mode: " + mode);
         this.approvalMode = mode;
@@ -112,15 +113,12 @@ public class REPLManager {
             );
     }
 
-
     private CompletableFuture<MetadataContainer> completeRStepWithTimeout(Scanner scanner, boolean firstRun) {
         final int maxRetries = 2;
         final long timeout = 600_000;
         CompletableFuture<MetadataContainer> result = new CompletableFuture<>();
-
         Runnable attempt = new Runnable() {
             int retries = 0;
-
             @Override
             public void run() {
                 retries++;
@@ -143,7 +141,6 @@ public class REPLManager {
                     });
             }
         };
-
         replExecutor.submit(attempt);
         return result;
     }
@@ -156,7 +153,6 @@ public class REPLManager {
         String requestType = System.getenv("CLI_REQUEST_TYPE");
         CompletableFuture<String> endpointFuture = aim.completeGetAIEndpoint(false, provider, "cli", requestType);
         CompletableFuture<String> instructionsFuture = aim.completeGetInstructions(false, provider, "cli");
-        
         return endpointFuture.thenCombine(instructionsFuture, AbstractMap.SimpleEntry::new).thenCompose(pair -> {
             String endpoint = pair.getKey();
             String instructions = pair.getValue();
@@ -194,19 +190,15 @@ public class REPLManager {
                                 return CompletableFuture.completedFuture(new MetadataContainer());
                             }
                         }
-                        
                         lastAIResponseContainer = resp;
                         return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
                             MetadataContainer metadataContainer = new MetadataContainer();
-
-                            // Try to check if it's valid JSON
                             boolean validJson = false;
                             JsonNode rootNode;
                             try {
                                 List<JsonNode> results = new ArrayList<>();
                                 Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
                                 Matcher matcher = pattern.matcher(content);
- 
                                 while (matcher.find()) {
                                     String jsonText = matcher.group(1).trim();
                                     try {
@@ -234,8 +226,8 @@ public class REPLManager {
                                     userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");  // remove trailing newlines
-                                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");  // remove leading newlines
+                                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
+                                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
                                     String cleanedText = before + after;
                                     if (cleanedText.equals("")) {
                                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
@@ -245,10 +237,9 @@ public class REPLManager {
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                 }
                             } catch (Exception e) {
-                                // fall through to REPL below
                             }
                             return metadataContainer;
-                        }); // flatten nested CompletableFuture
+                        });
                     })
                     .exceptionally(ex -> {
                         LOGGER.severe("completeRequest failed: " + ex.getMessage());
@@ -264,16 +255,12 @@ public class REPLManager {
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
         String contentStr = new MetadataUtils(response).completeGetContent().join();
-
-        // If contentStr is null, it means there were tool calls identified in lastResults
         if (contentStr == null && lastResults != null && !lastResults.isEmpty()) {
             List<CompletableFuture<Void>> toolExecutionFutures = new ArrayList<>();
             for (JsonNode toolCallNode : lastResults) {
                 try {
                     String toolName = toolCallNode.get("tool").asText();
-                    JsonNode toolArguments = toolCallNode.get("input"); // Assuming "input" holds the arguments
-
-                    // Create a pseudo-request object for handleToolCall
+                    JsonNode toolArguments = toolCallNode.get("input");
                     ObjectNode toolCallRequest = mapper.createObjectNode();
                     toolCallRequest.put("method", "tools/call");
                     ObjectNode params = mapper.createObjectNode();
@@ -286,56 +273,39 @@ public class REPLManager {
                         initRequest.put("method", "initialize");
                         initRequest.set("params", mapper.createObjectNode());
                         initRequest.put("id", "init-001");
-
                         StringWriter initBuffer = new StringWriter();
                         PrintWriter initWriter = new PrintWriter(initBuffer, true);
                         mcpServer.handleRequest(initRequest.toString(), initWriter);
                     }
-
                     StringWriter outBuffer = new StringWriter();
                     PrintWriter writer = new PrintWriter(outBuffer, true);
-
                     CountDownLatch latch = new CountDownLatch(1);
-
-                    // Wrap the writer to latch when the response is flushed
                     PrintWriter wrappedWriter = new PrintWriter(new Writer() {
                         @Override
                         public void write(char[] cbuf, int off, int len) throws IOException {
                             outBuffer.write(cbuf, off, len);
                         }
-
                         @Override
                         public void flush() throws IOException {
                             outBuffer.flush();
-                            latch.countDown(); // Signal response is ready
+                            latch.countDown();
                         }
-
                         @Override
                         public void close() throws IOException {
                             outBuffer.close();
                         }
                     }, true);
-
-                    // Call handleRequest
                     String requestJson = toolCallRequest.toString();
                     mcpServer.handleRequest(requestJson, wrappedWriter);
-
-                    // Wait for the response
-                    latch.await(2, TimeUnit.SECONDS); // Adjust timeout as needed
-
+                    latch.await(2, TimeUnit.SECONDS);
                     String responseStr = outBuffer.toString().trim();
                     System.out.println(responseStr);
                     JsonNode responseJson = mapper.readTree(responseStr);
-
                     CompletableFuture<JsonNode> toolResponseFuture = CompletableFuture.completedFuture(responseJson);
-                    
                     CompletableFuture<Void> individualToolFuture = toolResponseFuture.thenAccept(toolResult -> {
-                        // Process the result from the tool call
-                        
                         JsonNode resultNode = toolResult.get("result");
                         if (resultNode == null) {
                             LOGGER.severe("Tool '" + toolName + "' response missing 'result'");
-                            // handle this error, maybe add to context as well
                         } else if (resultNode.has("error")) {
                             String errorMessage = resultNode.get("error").get("message").asText();
                             LOGGER.severe("Tool '" + toolName + "' execution failed: " + errorMessage);
@@ -353,25 +323,22 @@ public class REPLManager {
                         LOGGER.severe("Exception during tool '" + toolName + "' execution: " + ex.getMessage());
                         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Exception during tool " + toolName + ": " + ex.getMessage()));
                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Exception during tool " + toolName + ": " + ex.getMessage()));
-                        return null; // Return null to avoid re-throwing and stopping allOf
+                        return null;
                     });
                     toolExecutionFutures.add(individualToolFuture);
 
                 } catch (Exception e) {
                     LOGGER.severe("Error parsing or preparing tool call: " + e.getMessage());
-                    // Handle parsing errors for individual tool calls
                     toolExecutionFutures.add(CompletableFuture.failedFuture(new RuntimeException("Error preparing tool call: " + e.getMessage())));
                 }
             }
-            // Wait for all tool executions to complete
             return CompletableFuture.allOf(toolExecutionFutures.toArray(new CompletableFuture[0]))
                     .exceptionally(ex -> {
                         LOGGER.severe("One or more tool executions failed in E-step: " + ex.getMessage());
-                        return null; // Suppress the exception if any tool failed, as errors are logged individually
+                        return null;
                     });
         } else {
-            // Original logic for when no tool calls are found, or contentStr is not null (plaintext response)
-            lastResults = null; // Clear previous tool results
+            lastResults = null;
             LOGGER.fine("No JSON tool available for evaluation, resorting to plaintext...");
             System.out.print("> ");
             String newInput = scanner.nextLine();
@@ -380,133 +347,6 @@ public class REPLManager {
             return CompletableFuture.completedFuture(null);
         }
     }
-        
-//    private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
-//        LOGGER.fine("Starting E-step");
-//        ObjectMapper mapper = new ObjectMapper();
-//        String contentStr = new MetadataUtils(response).completeGetContent().join();
-//        if (contentStr == null) {
-//            try {
-//                for (JsonNode result : lastResults) {
-//                    try {
-//                        String toolName = result.get("tool").asText();
-//                        CompletableFuture<Void> toolFuture;
-//
-//                        switch (toolName) {
-//                            case "create_file" -> {
-//                                LOGGER.fine("Starting create file evaluation...");
-//                                CreateFileInput createFileInput = mapper.treeToValue(result.get("input"), CreateFileInput.class);
-//                                CreateFile createFile = new CreateFile(modelContextManager, userContextManager);
-//                                createFileInput.setOriginalJson(result);
-//                                toolFuture = createFile.run(createFileInput) // returns CompletableFuture<ShellStatus>
-//                                    .thenAccept(status -> {
-//                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                    });
-//                            }
-//                            case "load_context" -> {
-//                                LOGGER.fine("Starting load evaluation...");
-//                                LoadContextInput loadContextInput = mapper.treeToValue(result.get("input"), LoadContextInput.class);
-//                                loadContextInput.setOriginalJson(result);
-//                                LoadContext loadContext = new LoadContext(modelContextManager, userContextManager);
-//                            
-//                                toolFuture = loadContext.run(loadContextInput) // returns CompletableFuture<ShellStatus>
-//                                    .thenAccept(status -> {
-//                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                    });
-//                            }
-//                            case "patch" -> {
-//                                LOGGER.fine("Starting patch evaluation...");
-//                                PatchInput patchInput = mapper.treeToValue(result.get("input"), PatchInput.class);
-//                                patchInput.setOriginalJson(result);
-//                                Patch patch = new Patch(modelContextManager, userContextManager);
-//
-//                                toolFuture = patch.run(patchInput) // assume this returns CompletableFuture<PatchStatus>
-//                                    .thenAccept(status -> {
-//                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                    });
-//                            }
-//                            case "read_file" -> {
-//                                LOGGER.fine("Starting read file evaluation...");
-//                                ReadFileInput readFileInput = mapper.treeToValue(result.get("input"), ReadFileInput.class);
-//                                ReadFile readFile = new ReadFile(modelContextManager, userContextManager);
-//                                readFileInput.setOriginalJson(result);
-//                                
-//                                toolFuture = readFile.run(readFileInput) // returns CompletableFuture<ShellStatus>
-//                                    .thenAccept(status -> {
-//                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                    });
-//                            }
-////                            case "" -> {
-////                                LOGGER.fine("Starting refresh evaluation...");
-////                                RefreshContextInput input = mapper.treeToValue(result.get("input"), RefreshContextInput.class);
-////                                RefreshContext refreshContext = new RefreshContext(modelContextManager);
-////
-////                                toolFuture = refreshContext.run(input) // returns CompletableFuture<RefreshContextStatus>
-////                                    .thenAccept(status -> {
-////                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-////                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-////                                    });
-////                            }
-//                            case "save_context" -> {
-//                                LOGGER.fine("Starting saving evaluation...");
-//                                SaveContextInput saveContextInput = mapper.treeToValue(result.get("input"), SaveContextInput.class);
-//                                SaveContext saveContext = new SaveContext(modelContextManager, userContextManager);
-//                                saveContextInput.setOriginalJson(result);
-//                                toolFuture = saveContext.run(saveContextInput) // returns CompletableFuture<RefreshContextStatus>
-//                                    .thenAccept(status -> {
-//                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                    });
-//                            }
-//                            case "search_files" -> {
-//                                LOGGER.fine("Starting searching files evaluation...");
-//                                SearchFilesInput searchFilesInput = mapper.treeToValue(result.get("input"), SearchFilesInput.class);
-//                                SearchFiles searchFiles = new SearchFiles(modelContextManager, userContextManager);
-//                                searchFilesInput.setOriginalJson(result);
-//                                toolFuture = searchFiles.run(searchFilesInput) // returns CompletableFuture<RefreshContextStatus>
-//                                    .thenAccept(status -> {
-//                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//                                    });
-//                            }
-//    //                        case "shell" -> {
-//    //                            LOGGER.fine("Starting shell evaluation...");
-//    //                            ShellInput input = mapper.treeToValue(result.get("input"), ShellInput.class);
-//    //                            Shell shell = new Shell(modelContextManager);
-//    //
-//    //                            toolFuture = shell.run(input) // returns CompletableFuture<ShellStatus>
-//    //                                .thenAccept(status -> {
-//    //                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, status.getMessage()));
-//    //                                });
-//    //                        }
-//                            default -> {
-//                                toolFuture = CompletableFuture.failedFuture(new IllegalArgumentException("Unknown tool: " + toolName));
-//                            }
-//                        }
-//                    } catch (Exception e) {
-//                        e.printStackTrace();
-//                    }
-//                }
-//            } catch (Exception e) {
-//            }
-//            
-//        }
-//        else {
-//            lastResults = null;
-//            LOGGER.fine("No such JSON tool avalabile in evaluation, resorting plaintext...");
-//            System.out.print("> ");
-//            String newInput = scanner.nextLine();
-//            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-//            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-//            return CompletableFuture.completedFuture(null);
-//        }
-//        
-//        return CompletableFuture.completedFuture(null);
-//    }
 
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Print-step");

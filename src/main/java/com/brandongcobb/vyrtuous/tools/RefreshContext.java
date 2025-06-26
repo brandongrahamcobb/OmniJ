@@ -1,19 +1,30 @@
-//
-//  RefreshContext.java
-//  
-//
-//  Created by Brandon Cobb on 6/24/25.
-//
+/*  RefreshContext.java The primary purpose of this class is to act as a tool
+ *  for making progressive summaries to handle context limitations. This is a crude class.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.tools;
 
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.objects.*;
-
-import java.util.concurrent.CompletableFuture;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.concurrent.CompletableFuture;
+
 public class RefreshContext implements Tool<RefreshContextInput, RefreshContextStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -25,11 +36,9 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
         this.userContextManager = userContextManager;
     }
 
-    @Override
-    public String getName() {
-        return "refresh_context";
-    }
-    
+    /*
+     *  Getters
+     */
     @Override
     public String getDescription() {
         return "Deprecated.";
@@ -57,6 +66,11 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
     }
 
     @Override
+    public String getName() {
+        return "refresh_context";
+    }
+
+    @Override
     public CompletableFuture<RefreshContextStatus> run(RefreshContextInput input) {
         return CompletableFuture.supplyAsync(() -> {
            try {
@@ -65,12 +79,10 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
                userContextManager.clearModified();
                userContextManager.printNewEntries(true, true, true, true, true, true, true, true);
-               return new RefreshContextStatus(true, "Memory has been summarized and execution can continue.");
+               return new RefreshContextStatus("Memory has been summarized and execution can continue.", true);
            } catch (Exception e) {
-               return new RefreshContextStatus(false, "Failed to refresh context: " + e.getMessage());
+               return new RefreshContextStatus("Failed to refresh context: " + e.getMessage(), false);
            }
         });
     }
-
 }
-

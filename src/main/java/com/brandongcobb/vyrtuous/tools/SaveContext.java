@@ -1,20 +1,29 @@
-//
-//  SaveContext.java
-//  
-//
-//  Created by Brandon Cobb on 6/25/25.
-//
+/*  SaveContext.java The primary purpose of this class is to act as a tool
+ *  for making saving context snapshots.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.utils.handlers.ContextManager;
-
-import com.brandongcobb.vyrtuous.objects.*;
-
-import com.fasterxml.jackson.databind.JsonNode;
 import com.brandongcobb.vyrtuous.domain.*;
-import java.util.concurrent.CompletableFuture;
-
+import com.brandongcobb.vyrtuous.objects.*;
+import com.brandongcobb.vyrtuous.utils.handlers.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.concurrent.CompletableFuture;
 
 public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
 
@@ -27,11 +36,10 @@ public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
         this.userContextManager = userContextManager;
     }
 
-    @Override
-    public String getName() {
-        return "save_context";
-    }
-    
+
+    /*
+     *  Getters
+     */
     @Override
     public String getDescription() {
         return "Saves the current state under a given name.";
@@ -61,7 +69,12 @@ public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
             throw new RuntimeException("Failed to build save_context schema", e);
         }
     }
-
+    
+    @Override
+    public String getName() {
+        return "save_context";
+    }
+    
     @Override
     public CompletableFuture<SaveContextStatus> run(SaveContextInput input) {
         return CompletableFuture.supplyAsync(() -> {
@@ -69,11 +82,10 @@ public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
                 modelContextManager.saveSnapshot(input.getName(), input.getDescription());
                 String msg = "Context snapshot '" + input.getName() + "' saved successfully.";
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
-                return new SaveContextStatus(true, msg);
+                return new SaveContextStatus(msg, true);
             } catch (Exception e) {
-                return new SaveContextStatus(false, "Failed to save context: " + e.getMessage());
+                return new SaveContextStatus("Failed to save context: " + e.getMessage(), false);
             }
         });
     }
 }
-
