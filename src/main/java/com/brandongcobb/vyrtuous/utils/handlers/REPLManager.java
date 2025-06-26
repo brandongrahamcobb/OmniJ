@@ -43,6 +43,16 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 public class REPLManager {
 
@@ -280,20 +290,44 @@ public class REPLManager {
                         StringWriter initBuffer = new StringWriter();
                         PrintWriter initWriter = new PrintWriter(initBuffer, true);
                         mcpServer.handleRequest(initRequest.toString(), initWriter);
-                        initWriter.flush();
-
-                        System.out.println("Initialize response: " + initBuffer.toString());
                     }
 
-                    String requestJson = toolCallRequest.toString();
-                    // Now call the tool
                     StringWriter outBuffer = new StringWriter();
                     PrintWriter writer = new PrintWriter(outBuffer, true);
-                    mcpServer.handleRequest(requestJson, writer);
-                    writer.flush();
+
+                    CountDownLatch latch = new CountDownLatch(1);
+
+                    // Wrap the writer to latch when the response is flushed
+                    PrintWriter wrappedWriter = new PrintWriter(new Writer() {
+                        @Override
+                        public void write(char[] cbuf, int off, int len) throws IOException {
+                            outBuffer.write(cbuf, off, len);
+                        }
+
+                        @Override
+                        public void flush() throws IOException {
+                            outBuffer.flush();
+                            latch.countDown(); // Signal response is ready
+                        }
+
+                        @Override
+                        public void close() throws IOException {
+                            outBuffer.close();
+                        }
+                    }, true);
+
+                    // Call handleRequest
+                    String requestJson = toolCallRequest.toString();
+                    mcpServer.handleRequest(requestJson, wrappedWriter);
+
+                    // Wait for the response
+                    latch.await(2, TimeUnit.SECONDS); // Adjust timeout as needed
 
                     String responseStr = outBuffer.toString().trim();
+                    System.out.println("Tool response: " + responseStr);
+
                     JsonNode responseJson = mapper.readTree(responseStr);
+
                     CompletableFuture<JsonNode> toolResponseFuture = CompletableFuture.completedFuture(responseJson);
                     
                     CompletableFuture<Void> individualToolFuture = toolResponseFuture.thenAccept(toolResult -> {

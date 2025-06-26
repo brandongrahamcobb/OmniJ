@@ -149,7 +149,6 @@ public class MCPServer {
                 } else {
                     response.set("result", result);
                 }
-                
                 writer.println(response.toString());
                 writer.flush();
             }).exceptionally(ex -> {
@@ -210,10 +209,8 @@ public class MCPServer {
         }
 
         try {
-            
             String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
-            
             ToolWrapper tool = tools.get(toolName);
             if (tool == null) {
                 return CompletableFuture.completedFuture(createError(-32602, "Tool not found: " + toolName));
@@ -224,7 +221,6 @@ public class MCPServer {
                 ObjectNode content = mapper.createObjectNode();
                 content.put("type", "text");
                 content.put("text", ((ToolStatus) status).getMessage());
-                
                 ArrayNode contentArray = mapper.createArrayNode();
                 ((com.fasterxml.jackson.databind.node.ArrayNode) contentArray).add(content);
                 result.set("content", contentArray);
