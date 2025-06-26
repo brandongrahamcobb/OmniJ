@@ -299,7 +299,6 @@ public class REPLManager {
                     mcpServer.handleRequest(requestJson, wrappedWriter);
                     latch.await(2, TimeUnit.SECONDS);
                     String responseStr = outBuffer.toString().trim();
-                    System.out.println(responseStr);
                     JsonNode responseJson = mapper.readTree(responseStr);
                     CompletableFuture<JsonNode> toolResponseFuture = CompletableFuture.completedFuture(responseJson);
                     CompletableFuture<Void> individualToolFuture = toolResponseFuture.thenAccept(toolResult -> {
