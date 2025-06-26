@@ -88,7 +88,7 @@ public class REPLManager {
     }
 
     public CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
-        System.out.println("Thinking...");
+        System.out.println(Vyrtuous.BLURPLE + "Thinking..." + Vyrtuous.RESET);
         if (scanner == null) {
             CompletableFuture<Void> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalArgumentException("Scanner cannot be null"));
@@ -356,6 +356,7 @@ public class REPLManager {
 
     private CompletableFuture<Void> completeLStep(Scanner scanner) {
         LOGGER.fine("Loop to R-step");
+        System.out.println(Vyrtuous.BLURPLE + "Thinking..." + Vyrtuous.RESET);
         return completeRStepWithTimeout(scanner, false)
             .thenCompose(resp ->
                 completeEStep(resp, scanner, false)
