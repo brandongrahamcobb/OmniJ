@@ -68,6 +68,7 @@ public class Vyrtuous {
     public static final String DODGER_BLUE = "\u001B[38;5;33m";
     public static final String TEAL = "\u001B[38;5;30m"; // or whatever
     public static final String BLURPLE = "\033[38;5;61m";
+    
     public static void main(String[] args) {
         app = new Vyrtuous();
         DiscordBot bot = new DiscordBot();

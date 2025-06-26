@@ -99,6 +99,7 @@ public class REPLManager {
         }
         userContextManager.clear();
         originalDirective = userInput;
+        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
