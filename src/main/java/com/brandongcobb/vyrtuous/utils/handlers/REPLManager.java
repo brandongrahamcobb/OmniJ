@@ -77,9 +77,9 @@ public class REPLManager {
     }
 
     public REPLManager(ApprovalMode mode, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
         this.mcpServer = server;
