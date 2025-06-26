@@ -288,6 +288,9 @@ Here is a save_context schema:
 }
 
 Use these tools in tandem to recursively accomplish a task specified by the user.
+You MUST operate under the assumption that all the tools described in the schemas are available and functional unless explicitly told otherwise.
+You MUST then focus on constructing valid requests for those tools.
+If a request fails, it will be due to an issue with the *content* of the request (e.g., invalid path, malformed JSON) rather than the mere existence of the tool itself.
 If you happen to find a pitfall where a tool is required but it does not exist, engage in a conversation with the user about how to create the tool and encourage them to deploy it within the codebase.
 You may request the user to make manual changes where it is ideal.
     """),
