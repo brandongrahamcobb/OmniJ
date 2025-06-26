@@ -270,29 +270,30 @@ public class REPLManager {
                     params.put("name", toolName);
                     params.set("arguments", toolArguments);
                     toolCallRequest.set("params", params);
+                    if (firstRun) {
+                        ObjectNode initRequest = mapper.createObjectNode();
+                        initRequest.put("jsonrpc", "2.0");
+                        initRequest.put("method", "initialize");
+                        initRequest.set("params", mapper.createObjectNode());
+                        initRequest.put("id", "init-001");
+
+                        StringWriter initBuffer = new StringWriter();
+                        PrintWriter initWriter = new PrintWriter(initBuffer, true);
+                        mcpServer.handleRequest(initRequest.toString(), initWriter);
+                        initWriter.flush();
+
+                        System.out.println("Initialize response: " + initBuffer.toString());
+                    }
+
+                    String requestJson = toolCallRequest.toString();
+                    // Now call the tool
                     StringWriter outBuffer = new StringWriter();
                     PrintWriter writer = new PrintWriter(outBuffer, true);
-
-                    // Build the raw request string
-                    String requestJson = toolCallRequest.toString();
-
-                    // Call the existing method
-                    if (firstRun) {
-                        ObjectNode request = mapper.createObjectNode();
-                        request.put("jsonrpc", "2.0");
-                        request.put("method", "initialize");
-                        request.set("params", mapper.createObjectNode()); // Empty params
-                        request.put("id", "init-001"); // Optional ID for tracking
-
-                        mcpServer.handleRequest(request.toString(), writer);
-                    }
                     mcpServer.handleRequest(requestJson, writer);
-                    // Flush and parse the output from the writer
                     writer.flush();
-                    String responseStr = outBuffer.toString().trim();
 
+                    String responseStr = outBuffer.toString().trim();
                     JsonNode responseJson = mapper.readTree(responseStr);
-                    // Optional: wrap in CompletableFuture if you're chaining it
                     CompletableFuture<JsonNode> toolResponseFuture = CompletableFuture.completedFuture(responseJson);
                     
                     CompletableFuture<Void> individualToolFuture = toolResponseFuture.thenAccept(toolResult -> {
