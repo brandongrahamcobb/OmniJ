@@ -362,6 +362,7 @@ public class REPLManager {
             LOGGER.fine("No such JSON tool avalabile in evaluation, resorting plaintext...");
             System.out.print("> ");
             String newInput = scanner.nextLine();
+            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
             return CompletableFuture.completedFuture(null);
         }
