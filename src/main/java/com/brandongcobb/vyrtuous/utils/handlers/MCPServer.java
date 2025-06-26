@@ -47,6 +47,7 @@ public class MCPServer {
             (input) -> {
                 CreateFileInput createFileInput = mapper.treeToValue(input, CreateFileInput.class);
                 CreateFile createFile = new CreateFile(modelContextManager, userContextManager);
+                createFileInput.setOriginalJson(input);
                 return createFile.run(createFileInput).thenApply(result -> result);
             }
         ));
@@ -58,6 +59,7 @@ public class MCPServer {
             (input) -> {
                 ReadFileInput readFileInput = mapper.treeToValue(input, ReadFileInput.class);
                 ReadFile readFile = new ReadFile(modelContextManager, userContextManager);
+                readFileInput.setOriginalJson(input);
                 return readFile.run(readFileInput).thenApply(result -> result);
             }
         ));
@@ -69,6 +71,7 @@ public class MCPServer {
             (input) -> {
                 PatchInput patchInput = mapper.treeToValue(input, PatchInput.class);
                 Patch patch = new Patch(modelContextManager, userContextManager);
+                patchInput.setOriginalJson(input);
                 return patch.run(patchInput).thenApply(result -> result);
             }
         ));
@@ -80,6 +83,7 @@ public class MCPServer {
             (input) -> {
                 LoadContextInput loadContextInput = mapper.treeToValue(input, LoadContextInput.class);
                 LoadContext loadContext = new LoadContext(modelContextManager, userContextManager);
+                loadContextInput.setOriginalJson(input);
                 return loadContext.run(loadContextInput).thenApply(result -> result);
             }
         ));
@@ -90,6 +94,7 @@ public class MCPServer {
             createSaveContextSchema(),
             (input) -> {
                 SaveContextInput saveContextInput = mapper.treeToValue(input, SaveContextInput.class);
+                saveContextInput.setOriginalJson(input);
                 SaveContext saveContext = new SaveContext(modelContextManager, userContextManager);
                 return saveContext.run(saveContextInput).thenApply(result -> result);
             }
@@ -101,6 +106,7 @@ public class MCPServer {
             createSearchFilesSchema(),
             (input) -> {
                 SearchFilesInput searchFilesInput = mapper.treeToValue(input, SearchFilesInput.class);
+                searchFilesInput.setOriginalJson(input);
                 SearchFiles searchFiles = new SearchFiles(modelContextManager, userContextManager);
                 return searchFiles.run(searchFilesInput).thenApply(result -> result);
             }
