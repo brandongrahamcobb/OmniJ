@@ -6,7 +6,8 @@
 //
 package com.brandongcobb.vyrtuous.domain;
 
-public class PatchStatus {
+public class PatchStatus implements ToolStatus {
+    
     private final boolean success;
     private final String message;
 
@@ -15,10 +16,12 @@ public class PatchStatus {
         this.message = message;
     }
 
+    @Override
     public boolean isSuccess() {
         return success;
     }
 
+    @Override
     public String getMessage() {
         return message;
     }

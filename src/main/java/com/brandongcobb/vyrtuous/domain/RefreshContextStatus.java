@@ -6,7 +6,7 @@
 //
 package com.brandongcobb.vyrtuous.domain;
 
-public class RefreshContextStatus {
+public class RefreshContextStatus implements ToolStatus {
     
     private final boolean success;
     private final String message;
@@ -15,11 +15,13 @@ public class RefreshContextStatus {
         this.success = success;
         this.message = message;
     }
-
+    
+    @Override
     public boolean isSuccess() {
         return success;
     }
 
+    @Override
     public String getMessage() {
         return message;
     }

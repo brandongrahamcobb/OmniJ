@@ -12,8 +12,11 @@ import com.brandongcobb.vyrtuous.objects.*;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 public class RefreshContext implements Tool<RefreshContextInput, RefreshContextStatus> {
-
+    
+    private static final ObjectMapper mapper = new ObjectMapper();
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
 
@@ -25,6 +28,32 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
     @Override
     public String getName() {
         return "refresh_context";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "Deprecated.";
+    }
+
+    @Override
+    public JsonNode getJsonSchema() {
+        try {
+            return mapper.readTree("""
+            {
+                "type": "object",
+                "properties": {
+                    "progressiveSummary": {
+                        "type": "string",
+                        "description": "Optional summary content to inject into memory context."
+                    }
+                },
+                    "additionalProperties": false
+                }
+            }
+            """);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build save_context schema", e);
+        }
     }
 
     @Override

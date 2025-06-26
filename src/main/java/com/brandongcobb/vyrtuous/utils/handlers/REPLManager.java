@@ -243,6 +243,72 @@ public class REPLManager {
         });
     }
     
+//    private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
+//            LOGGER.fine("Starting E-step");
+//            String contentStr = new MetadataUtils(response).completeGetContent().join();
+//
+//            // If contentStr is null, it means there were tool calls identified in lastResults
+//            if (contentStr == null && lastResults != null && !lastResults.isEmpty()) {
+//                List<CompletableFuture<Void>> toolExecutionFutures = new ArrayList<>();
+//                for (JsonNode toolCallNode : lastResults) {
+//                    try {
+//                        String toolName = toolCallNode.get("tool").asText();
+//                        JsonNode toolArguments = toolCallNode.get("input"); // Assuming "input" holds the arguments
+//
+//                        // Create a pseudo-request object for handleToolCall
+//                        ObjectNode toolCallRequest = mapper.createObjectNode();
+//                        toolCallRequest.put("method", "tools/call");
+//                        ObjectNode params = mapper.createObjectNode();
+//                        params.put("name", toolName);
+//                        params.set("arguments", toolArguments);
+//                        toolCallRequest.set("params", params);
+//
+//                        CompletableFuture<JsonNode> toolResponseFuture = handleToolCall(params); // Call the server's tool handler
+//
+//                        CompletableFuture<Void> individualToolFuture = toolResponseFuture.thenAccept(toolResult -> {
+//                            // Process the result from the tool call
+//                            if (toolResult.has("error")) {
+//                                LOGGER.severe("Tool '" + toolName + "' execution failed: " + toolResult.get("error").get("message").asText());
+//                                // You might want to add this error to context or handle it specifically
+//                                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + toolResult.get("error").get("message").asText()));
+//                                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Error executing " + toolName + ": " + toolResult.get("error").get("message").asText()));
+//                            } else {
+//                                String outputMessage = toolResult.get("content").get(0).get("text").asText(); // Extract the message from the "content" array
+//                                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, outputMessage));
+//                                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, outputMessage));
+//                                LOGGER.fine("Tool '" + toolName + "' executed successfully. Output: " + outputMessage);
+//                            }
+//                        }).exceptionally(ex -> {
+//                            LOGGER.severe("Exception during tool '" + toolName + "' execution: " + ex.getMessage());
+//                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Exception during tool " + toolName + ": " + ex.getMessage()));
+//                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, "Exception during tool " + toolName + ": " + ex.getMessage()));
+//                            return null; // Return null to avoid re-throwing and stopping allOf
+//                        });
+//                        toolExecutionFutures.add(individualToolFuture);
+//
+//                    } catch (Exception e) {
+//                        LOGGER.severe("Error parsing or preparing tool call: " + e.getMessage());
+//                        // Handle parsing errors for individual tool calls
+//                        toolExecutionFutures.add(CompletableFuture.failedFuture(new RuntimeException("Error preparing tool call: " + e.getMessage())));
+//                    }
+//                }
+//                // Wait for all tool executions to complete
+//                return CompletableFuture.allOf(toolExecutionFutures.toArray(new CompletableFuture[0]))
+//                        .exceptionally(ex -> {
+//                            LOGGER.severe("One or more tool executions failed in E-step: " + ex.getMessage());
+//                            return null; // Suppress the exception if any tool failed, as errors are logged individually
+//                        });
+//            } else {
+//                // Original logic for when no tool calls are found, or contentStr is not null (plaintext response)
+//                lastResults = null; // Clear previous tool results
+//                LOGGER.fine("No JSON tool available for evaluation, resorting to plaintext...");
+//                System.out.print("> ");
+//                String newInput = scanner.nextLine();
+//                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+//                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+//                return CompletableFuture.completedFuture(null);
+//            }
+//        }
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step");
         ObjectMapper mapper = new ObjectMapper();

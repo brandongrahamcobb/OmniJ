@@ -3,7 +3,10 @@ package com.brandongcobb.vyrtuous.tools;
 import com.brandongcobb.vyrtuous.objects.ContextEntry;
 import com.brandongcobb.vyrtuous.utils.handlers.ContextManager;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.brandongcobb.vyrtuous.domain.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,7 +17,8 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
-
+    private static final ObjectMapper mapper = new ObjectMapper();
+    
     public CreateFile(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
@@ -23,6 +27,42 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
     @Override
     public String getName() {
         return "create_file";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "Creates a file with specified content, optionally overwriting.";
+    }
+
+    @Override
+    public JsonNode getJsonSchema() {
+        try {
+            String schemaJson = """
+            {
+              "type": "object",
+              "required": ["path", "content"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "The file path where content should be written."
+                },
+                "content": {
+                  "type": "string",
+                  "description": "The content to write into the file."
+                },
+                "overwrite": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to overwrite the file if it already exists."
+                }
+              },
+              "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build create_file schema", e);
+        }
     }
 
     @Override

@@ -3,7 +3,7 @@ package com.brandongcobb.vyrtuous.domain;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SearchFilesStatus {
+public class SearchFilesStatus implements ToolStatus{
 
     private final boolean success;
     private final String message;
@@ -15,10 +15,12 @@ public class SearchFilesStatus {
         this.results = results != null ? results : new ArrayList<>();
     }
 
+    @Override
     public boolean isSuccess() {
         return success;
     }
 
+    @Override
     public String getMessage() {
         return message;
     }

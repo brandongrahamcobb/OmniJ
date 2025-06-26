@@ -10,6 +10,7 @@ import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.objects.ContextEntry;
 import com.brandongcobb.vyrtuous.utils.handlers.ContextManager;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -18,11 +19,14 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
-
+    private static final ObjectMapper mapper = new ObjectMapper();
+    
     public SearchFiles(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
@@ -33,6 +37,52 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
         return "search_files";
     }
 
+    @Override
+    public String getDescription() {
+        return "Searches files recursively from a root directory.";
+    }
+
+    @Override
+    public JsonNode getJsonSchema() {
+        try {
+            return mapper.readTree("""
+            {
+              "type": "object",
+              "required": ["rootDirectory"],
+              "properties": {
+                "rootDirectory": {
+                  "type": "string",
+                  "description": "Directory to search from (recursively)."
+                },
+                "fileExtensions": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Optional file extensions to filter by (e.g. ['.java', '.kt'])."
+                },
+                "fileNameContains": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Optional substring that must appear in file name."
+                },
+                "grepContains": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Optional text that must appear in file contents."
+                },
+                "maxResults": {
+                  "type": "integer",
+                  "default": 100,
+                  "description": "Maximum number of files to return."
+                }
+              },
+              "additionalProperties": false
+            }
+            """);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build search_files schema", e);
+        }
+    }
+    
     @Override
     public CompletableFuture<SearchFilesStatus> run(SearchFilesInput input) {
         return CompletableFuture.supplyAsync(() -> {

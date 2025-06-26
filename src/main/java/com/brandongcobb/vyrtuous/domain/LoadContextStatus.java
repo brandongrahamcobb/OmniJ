@@ -8,7 +8,7 @@
 
 package com.brandongcobb.vyrtuous.domain;
 
-public class LoadContextStatus {
+public class LoadContextStatus implements ToolStatus {
 
     private final boolean success;
     private final String message;
@@ -18,10 +18,12 @@ public class LoadContextStatus {
         this.message = message;
     }
 
+    @Override
     public boolean isSuccess() {
         return success;
     }
 
+    @Override
     public String getMessage() {
         return message;
     }

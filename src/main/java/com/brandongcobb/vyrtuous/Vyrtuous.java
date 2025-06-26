@@ -74,6 +74,7 @@ public class Vyrtuous {
         boolean isInputThreadRunning = false;
         if (!isInputThreadRunning) {
             ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_ALL;
+            
             REPLManager repl = new REPLManager(approvalMode);
             repl.startResponseInputThread();
             isInputThreadRunning = true;

@@ -8,9 +8,12 @@
 
 package com.brandongcobb.vyrtuous.tools;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.vyrtuous.utils.handlers.ContextManager;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -18,7 +21,8 @@ public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
-
+    private static final ObjectMapper mapper = new ObjectMapper();
+    
     public LoadContext(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
@@ -28,6 +32,32 @@ public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
     public String getName() {
         return "load_context";
     }
+    
+    @Override
+     public String getDescription() {
+         return "Reads and returns the contents of a file.";
+     }
+
+     @Override
+     public JsonNode getJsonSchema() {
+         try {
+             return mapper.readTree("""
+             {
+               "type": "object",
+               "required": ["path"],
+               "properties": {
+                 "path": {
+                   "type": "string",
+                   "description": "The path to the file to be read."
+                 }
+               },
+               "additionalProperties": false
+             }
+             """);
+         } catch (Exception e) {
+             throw new RuntimeException("Failed to build read_file schema", e);
+         }
+     }
 
     @Override
     public CompletableFuture<LoadContextStatus> run(LoadContextInput input) {

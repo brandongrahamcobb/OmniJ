@@ -1,7 +1,7 @@
 
 package com.brandongcobb.vyrtuous.domain;
 
-public class CreateFileStatus {
+public class CreateFileStatus implements ToolStatus {
 
     private final boolean success;
     private final String message;
@@ -11,10 +11,12 @@ public class CreateFileStatus {
         this.message = message;
     }
 
+    @Override
     public boolean isSuccess() {
         return success;
     }
-
+    
+    @Override
     public String getMessage() {
         return message;
     }

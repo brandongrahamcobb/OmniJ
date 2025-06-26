@@ -6,9 +6,12 @@
 //
 package com.brandongcobb.vyrtuous.tools;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.objects.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +24,8 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
-
+    private static final ObjectMapper mapper = new ObjectMapper();
+    
     public Patch(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
@@ -31,6 +35,77 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
     public String getName() {
         return "patch";
     }
+    
+    @Override
+    public String getDescription() {
+        return "Applies a patch to a file using match and replace/insert rules.";
+    }
+
+    @Override
+    public JsonNode getJsonSchema() {
+        try {
+            return mapper.readTree("""
+            {
+            "type": "object",
+            "required": ["targetFile", "patches"],
+            "properties": {
+                "targetFile": {
+                "type": "string",
+                "description": "Relative or absolute path to the file to patch"
+                },
+                "patches": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "required": ["type", "match"],
+                    "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["replace", "insertBefore", "insertAfter", "delete", "append"],
+                        "description": "Type of patch operation"
+                    },
+                    "match": {
+                        "type": "string",
+                        "description": "Exact string or regex to locate target for patch"
+                    },
+                    "replacement": {
+                        "type": "string",
+                        "description": "Replacement string for 'replace' type"
+                    },
+                    "code": {
+                        "type": "string",
+                        "description": "Code to insert for insertBefore/insertAfter/append"
+                    }
+                    },
+                    "additionalProperties": false,
+                    "allOf": [
+                    {
+                        "if": { "properties": { "type": { "const": "replace" } } },
+                        "then": { "required": ["replacement"] }
+                    },
+                    {
+                        "if": {
+                        "properties": {
+                            "type": {
+                            "enum": ["insertBefore", "insertAfter", "append"]
+                            }
+                        }
+                        },
+                        "then": { "required": ["code"] }
+                    }
+                    ]
+                }
+                }
+            },
+            "additionalProperties": false
+            }
+            """);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build patch schema", e);
+        }
+    }
+
 
     @Override
     public CompletableFuture<PatchStatus> run(PatchInput input) {
