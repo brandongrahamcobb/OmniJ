@@ -158,7 +158,7 @@ public class ContextManager {
         if (lastBuildModelIndex >= entries.size()) {
             return new ArrayList<>();
         }
-        List<ContextEntry> newEntries = new ArrayList<>(entries.subList(lastBuildIndex, entries.size()));
+        List<ContextEntry> newEntries = new ArrayList<>(entries.subList(lastBuildModelIndex, entries.size()));
         lastBuildModelIndex = entries.size();
         return newEntries;
     }
