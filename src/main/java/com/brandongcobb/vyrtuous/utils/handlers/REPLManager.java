@@ -95,9 +95,9 @@ public class REPLManager {
     
 
     public REPLManager(ApprovalMode mode, DiscordBot discordBot, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.OFF);
         }
         this.approvalMode = mode;
         this.api = discordBot.getJDA();
@@ -265,10 +265,11 @@ public class REPLManager {
                                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                         mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                         metadataContainer.put(contentKey, content);
+                                    } else {
+                                        metadataContainer.put(contentKey, cleanedText);
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                     }
-                                    metadataContainer.put(contentKey, cleanedText);
-                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                     mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                 }
                             } catch (Exception e) {

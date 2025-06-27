@@ -176,8 +176,8 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                     summary = sb.toString().trim();
                 }
                 
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
                 return new SearchFilesStatus(summary, results, true);
 
             } catch (IOException e) {

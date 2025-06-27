@@ -23,7 +23,9 @@ import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.objects.*;
 
+import com.brandongcobb.vyrtuous.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +39,7 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     
     public Patch(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
@@ -124,8 +127,8 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
     @Override
     public CompletableFuture<PatchStatus> run(PatchInput input) {
         return CompletableFuture.supplyAsync(() -> {
-            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
-            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
+            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
+            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
             String targetFile = input.getTargetFile();
             List<PatchOperation> operations = input.getPatches();
             if (targetFile == null || operations == null || operations.isEmpty()) {
@@ -155,6 +158,7 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
                     String replacement = op.getReplacement();
                     for (int i = 0; i < result.size(); i++) {
                         if (result.get(i).contains(match)) {
+                            LOGGER.fine("Matched line: " + result.get(i));
                             result.set(i, result.get(i).replace(match, replacement));
                         }
                     }
@@ -182,9 +186,18 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
                 }
                 case "append" -> {
                     String code = op.getCode();
-                    for (int i = 0; i < result.size(); i++) {
-                        if (result.get(i).contains(match)) {
-                            result.set(i, result.get(i) + "\n" + code);
+                    if (match == null) {
+                        result.add(code);  // Append to end of file
+                    } else {
+                        boolean matched = false;
+                        for (int i = 0; i < result.size(); i++) {
+                            if (result.get(i).contains(match)) {
+                                result.set(i, result.get(i) + "\n" + code);
+                                matched = true;
+                            }
+                        }
+                        if (!matched) {
+                            LOGGER.warning("Append operation: no match found for string '" + match + "'");
                         }
                     }
                 }
