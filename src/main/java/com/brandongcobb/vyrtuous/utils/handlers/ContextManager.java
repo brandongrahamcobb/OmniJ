@@ -343,7 +343,7 @@ public class ContextManager {
             Snapshot snapshot = mapper.readValue(jsonBytes, Snapshot.class);
             this.entries.clear();
             this.entries.addAll(snapshot.entries);
-            this.lastBuildIndex = entries.size();
+            this.lastBuildModelIndex = entries.size();
         } catch (Exception e) {
             throw new RuntimeException("Failed to load encrypted snapshot: " + e.getMessage(), e);
         }

@@ -230,7 +230,7 @@ Here is a schema for creating a file.
   },
   "additionalProperties": false
 }
-Here is a save_context schema. This tool allows you to save a checkpoint of the conversation for later recall using load_context. 
+Here is a save_context schema. This tool allows you to save a checkpoint of the conversation for later recall using load_context. Snapshots are saved in /Users/spawd/git/jVyrtuous/snapshots/. Save a snapshot when you\'re nearing your token limit.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SaveContext",
@@ -260,7 +260,7 @@ Here is a save_context schema. This tool allows you to save a checkpoint of the 
   },
   "additionalProperties": false
 }
-Here is a load_context schema. This tool loads a snapshot from a conversation checkpoint created previously by save_context.
+Here is a load_context schema. This tool loads a snapshot from a conversation checkpoint created previously by save_context. Snapshots are loaded from /Users/spawd/git/jVyrtuous/snapshots/.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "LoadContext",
@@ -286,7 +286,7 @@ Here is a load_context schema. This tool loads a snapshot from a conversation ch
   },
   "additionalProperties": false
 }
-Here is a refresh_context schema. This tool overwrites the context with a progressive summary and is advised after every file read.
+Here is a refresh_context schema. This tool overwrites the context with a progressive summary. Use this after saving snapshots. Be specific about the snapshot you saved.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "RefreshContext",

@@ -41,7 +41,7 @@ public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
      */
     @Override
     public String getDescription() {
-        return "Reads and returns the contents of a file.";
+        return "Loads a context snapshot to build the snapshot";
     }
 
     @Override
@@ -50,18 +50,18 @@ public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
             return mapper.readTree("""
             {
               "type": "object",
-              "required": ["path"],
+              "required": ["name"],
               "properties": {
-                "path": {
+                "name": {
                   "type": "string",
-                  "description": "The path to the file to be read."
+                  "description": "The unique name of the previously saved context snapshot to load."
                 }
               },
               "additionalProperties": false
             }
             """);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to build read_file schema", e);
+            throw new RuntimeException("Failed to build load_context schema", e);
         }
     }
 
