@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -104,8 +105,29 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
     public CompletableFuture<SearchFilesStatus> run(SearchFilesInput input) {
         return CompletableFuture.supplyAsync(() -> {
             List<SearchFilesStatus.Result> results = new ArrayList<>();
+
+            // Define forbidden roots
+            Set<Path> forbidden = Set.of(
+                Paths.get("/System"),
+                Paths.get("/usr/sbin"),
+                Paths.get("/private"),
+                Paths.get("/Volumes"),
+                Paths.get("/dev"),
+                Paths.get("/proc")
+            );
+
             try (Stream<Path> stream = Files.walk(Paths.get(input.getRootDirectory()))) {
                 stream
+                    .filter(path -> {
+                        // Skip forbidden directories and their children
+                        Path normalized = path.toAbsolutePath().normalize();
+                        for (Path forbiddenRoot : forbidden) {
+                            if (normalized.startsWith(forbiddenRoot)) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    })
                     .filter(Files::isRegularFile)
                     .filter(path -> {
                         if (input.getFileExtensions() != null && !input.getFileExtensions().isEmpty()) {
@@ -128,7 +150,6 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                                 String content = Files.readString(path, StandardCharsets.UTF_8);
                                 boolean found = input.getGrepContains().stream().anyMatch(content::contains);
                                 if (!found) return;
-                                // Get first match index for snippet
                                 String match = input.getGrepContains().stream()
                                     .filter(content::contains)
                                     .findFirst()
@@ -141,6 +162,7 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                         }
                         results.add(new SearchFilesStatus.Result(path.toString(), snippet));
                     });
+
                 String summary;
                 if (results.isEmpty()) {
                     summary = "No matching files found.";
@@ -151,11 +173,14 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                     results.forEach(r -> sb.append("• ").append(r.path).append("\n"));
                     summary = sb.toString().trim();
                 }
+
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new SearchFilesStatus(summary, results, true);
+
             } catch (IOException e) {
                 return new SearchFilesStatus("IO error: " + e.getMessage(), null, false);
             }
         });
     }
+
 }
