@@ -95,9 +95,9 @@ public class REPLManager {
     
 
     public REPLManager(ApprovalMode mode, DiscordBot discordBot, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.approvalMode = mode;
         this.api = discordBot.getJDA();
