@@ -80,6 +80,7 @@ public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
             try {
                 modelContextManager.saveSnapshot(input.getName(), input.getDescription());
                 String msg = "Context snapshot '" + input.getName() + "' saved successfully.";
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new SaveContextStatus(msg, true);
             } catch (Exception e) {

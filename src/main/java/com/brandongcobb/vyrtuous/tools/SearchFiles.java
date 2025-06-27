@@ -46,7 +46,6 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
         this.userContextManager = userContextManager;
     }
     
-
     /*
      *  Getters
      */
@@ -174,6 +173,7 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                     summary = sb.toString().trim();
                 }
 
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new SearchFilesStatus(summary, results, true);
 

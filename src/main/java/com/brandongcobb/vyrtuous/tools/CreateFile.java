@@ -100,6 +100,7 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
                     input.getOverwrite() ? StandardOpenOption.CREATE : StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.TRUNCATE_EXISTING
                 );
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new CreateFileStatus("File created successfully: " + filePath.toString(), true);
             } catch (FileAlreadyExistsException e) {

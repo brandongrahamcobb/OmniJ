@@ -76,6 +76,7 @@ public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
             try {
                 modelContextManager.loadSnapshot(input.getName());
                 String msg = "Context snapshot '" + input.getName() + "' loaded successfully.";
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new LoadContextStatus(msg, true);
             } catch (Exception e) {

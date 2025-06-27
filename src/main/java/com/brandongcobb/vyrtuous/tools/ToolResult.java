@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ToolResult {
+    
     private final JsonNode output;
 
     @JsonCreator

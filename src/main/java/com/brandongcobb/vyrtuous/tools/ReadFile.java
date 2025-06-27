@@ -85,6 +85,7 @@ public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
 
                 String content = Files.readString(filePath, StandardCharsets.UTF_8);
 
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
                 return new ReadFileStatus("File read successfully.", content, true);
             } catch (IOException e) {
