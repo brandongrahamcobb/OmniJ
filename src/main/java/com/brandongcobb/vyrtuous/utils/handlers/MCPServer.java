@@ -109,8 +109,8 @@ public class MCPServer {
             createSaveContextSchema(),
             (input) -> {
                 SaveContextInput saveContextInput = mapper.treeToValue(input, SaveContextInput.class);
-                saveContextInput.setOriginalJson(input);
                 SaveContext saveContext = new SaveContext(modelContextManager, userContextManager);
+                saveContextInput.setOriginalJson(input);
                 return saveContext.run(saveContextInput).thenApply(result -> result);
             }
         ));
@@ -120,8 +120,8 @@ public class MCPServer {
             createSearchFilesSchema(),
             (input) -> {
                 SearchFilesInput searchFilesInput = mapper.treeToValue(input, SearchFilesInput.class);
-                searchFilesInput.setOriginalJson(input);
                 SearchFiles searchFiles = new SearchFiles(modelContextManager, userContextManager);
+                searchFilesInput.setOriginalJson(input);
                 return searchFiles.run(searchFilesInput).thenApply(result -> result);
             }
         ));

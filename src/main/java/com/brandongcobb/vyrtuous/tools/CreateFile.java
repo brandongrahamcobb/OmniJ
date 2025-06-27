@@ -18,6 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.tools;
 
+import com.brandongcobb.vyrtuous.*;
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.objects.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
@@ -27,17 +28,21 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     
     public CreateFile(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
     }
+    
+    
 
     /*
      *  Getters
@@ -87,12 +92,16 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
     public CompletableFuture<CreateFileStatus> run(CreateFileInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                LOGGER.fine(input.getPath());
                 Path filePath = Paths.get(input.getPath());
                 boolean fileExists = Files.exists(filePath);
                 if (fileExists && !input.getOverwrite()) {
                     return new CreateFileStatus("File already exists and overwrite is false.", false);
                 }
-                Files.createDirectories(filePath.getParent());
+                Path parent = filePath.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
                 Files.writeString(
                     filePath,
                     input.getContent(),
@@ -100,8 +109,8 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
                     input.getOverwrite() ? StandardOpenOption.CREATE : StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.TRUNCATE_EXISTING
                 );
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
                 return new CreateFileStatus("File created successfully: " + filePath.toString(), true);
             } catch (FileAlreadyExistsException e) {
                 return new CreateFileStatus("File already exists and overwrite not allowed.", false);

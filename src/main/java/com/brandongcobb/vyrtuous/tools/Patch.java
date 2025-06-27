@@ -124,7 +124,8 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
     @Override
     public CompletableFuture<PatchStatus> run(PatchInput input) {
         return CompletableFuture.supplyAsync(() -> {
-            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, input.getOriginalJson().toString()));
+            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
+            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"" + input.getOriginalJson().toString() + "\""));
             String targetFile = input.getTargetFile();
             List<PatchOperation> operations = input.getPatches();
             if (targetFile == null || operations == null || operations.isEmpty()) {

@@ -173,6 +173,7 @@ public class REPLManager {
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
         String prompt = firstRun ? originalDirective : modelContextManager.buildPromptContext();
+        LOGGER.fine(Vyrtuous.BLURPLE + prompt + Vyrtuous.RESET);
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
@@ -250,6 +251,7 @@ public class REPLManager {
                                 if (!validJson) {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, content);
+                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                     userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
@@ -259,11 +261,13 @@ public class REPLManager {
                                     String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
                                     String cleanedText = before + after;
                                     if (cleanedText.equals("")) {
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                         mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                         metadataContainer.put(contentKey, content);
                                     }
                                     metadataContainer.put(contentKey, cleanedText);
+                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                     mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                 }
