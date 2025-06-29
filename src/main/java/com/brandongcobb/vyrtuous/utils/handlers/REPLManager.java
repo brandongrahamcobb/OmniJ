@@ -379,6 +379,7 @@ public class REPLManager {
                 MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
 
                 if (!validJson) {
+                    LOGGER.fine("Invalid Json");
                     container.put(contentKey, content);
                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
