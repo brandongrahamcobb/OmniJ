@@ -18,34 +18,30 @@
  */
 package com.brandongcobb.vyrtuous.objects;
 
-
-import com.brandongcobb.vyrtuous.utils.handlers.*;
-import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.metadata.*;
+import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-
-import java.util.logging.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.logging.*;
+import java.util.stream.Collectors;
 
 public class OpenAIContainer extends MainContainer {
     
     public static Map<String, Object> mapMap;
-    
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     public static final MetadataKey<Integer> SHELL_EXIT_CODE = new MetadataKey<>("shell.exit_code", Metadata.INTEGER);
     public static final MetadataKey<String> SHELL_STDOUT = new MetadataKey<>("shell.stdout", Metadata.STRING);
@@ -174,17 +170,14 @@ public class OpenAIContainer extends MainContainer {
                     if (responsesUsage != null) {
                         Integer responsesTotalTokens = (Integer) responsesUsage.get("total_tokens");
                         put(responsesTotalTokensKey, responsesTotalTokens);
-                    }
                     MetadataKey<String> responsesUserKey = new MetadataKey<>("user", Metadata.STRING);
                     String responsesUser = (String) responseMap.get("user");
                     put(responsesUserKey, responsesUser);
                     MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("metadata", Metadata.MAP);
                     Map<String, Object> responsesMetadata = (Map<String, Object>) responseMap.get("metadata");
-                    
                     MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
                     Object outputObj = responseMap.get("output");
                     List<String> allCallIds = new ArrayList<>();
-
                     List<List<String>> allCommands = new ArrayList<>();
                     if (outputObj instanceof List<?> outputList) {
                         for (Object outputItemObj : outputList) {
@@ -347,7 +340,7 @@ public class OpenAIContainer extends MainContainer {
                                                 if (cmdObj instanceof List<?> cmdList) {
                                                     List<String> commands = cmdList.stream()
                                                         .map(Object::toString)
-                                                        .toList(); // Java 16+, otherwise use .collect(Collectors.toList())
+                                                        .toList();
                                                     put(LOCALSHELLTOOL_COMMANDS, commands);
                                                 } else if (cmdObj instanceof String singleCommand) {
                                                     put(LOCALSHELLTOOL_COMMANDS, List.of(singleCommand));
@@ -359,7 +352,6 @@ public class OpenAIContainer extends MainContainer {
                                         }
                                     }
                                 }
-                    
                                 default -> {
                                 }
                             }
@@ -393,6 +385,9 @@ public class OpenAIContainer extends MainContainer {
                 put(completionIndexKey, completionIndex);
             }
             Map<String, Integer> completionUsage = (Map<String, Integer>) responseMap.get("usage");
+            /*
+             *  Null checks
+             */
             if (completionUsage != null) {
                 MetadataKey<Integer> completionTotalTokensKey = new MetadataKey<>("total_tokens", Metadata.INTEGER);
                 Integer completionTotalTokens = completionUsage.get("total_tokens");
@@ -408,6 +403,9 @@ public class OpenAIContainer extends MainContainer {
         else if (requestId.contains("models")) {
             MetadataKey<String> objectKey = new MetadataKey<>("object", Metadata.STRING);
             String requestObject = (String) responseMap.get("object");
+            /*
+             *  Null checks
+             */
             if (requestObject == null) {
                 throw new NullPointerException("The response map is missing the mandatory 'object' field.");
             }
@@ -420,30 +418,45 @@ public class OpenAIContainer extends MainContainer {
             put(ownerCreatedKey, ownerCreated);
         } else if (requestId.startsWith("resp_")) {
             MetadataKey<String> responsesObjectKey = new MetadataKey<>("object", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             String responsesObject = responseMap != null ? (String) responseMap.get("object") : null;
             if (responsesObject != null) {
                 put(responsesObjectKey, responsesObject);
             }
 
             MetadataKey<Integer> responsesCreatedAtKey = new MetadataKey<>("created_at", Metadata.INTEGER);
+            /*
+             *  Null checks
+             */
             Integer responsesCreatedAt = responseMap != null ? (Integer) responseMap.get("created_at") : null;
             if (responsesCreatedAt != null) {
                 put(responsesCreatedAtKey, responsesCreatedAt);
             }
 
             MetadataKey<String> responsesStatusKey = new MetadataKey<>("status", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             String responsesStatus = responseMap != null ? (String) responseMap.get("status") : null;
             if (responsesStatus != null) {
                 put(responsesStatusKey, responsesStatus);
             }
 
             MetadataKey<String> responsesErrorKey = new MetadataKey<>("error", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             String responsesError = responseMap != null ? (String) responseMap.get("error") : null;
             if (responsesError != null) {
                 put(responsesErrorKey, responsesError);
             }
 
             MetadataKey<String> responsesIncompleteDetailsReasonKey = new MetadataKey<>("reason", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             Map<String, String> responsesIncompleteDetails = responseMap != null ? (Map<String, String>) responseMap.get("incomplete_details") : null;
             String reason = (responsesIncompleteDetails != null) ? responsesIncompleteDetails.get("reason") : null;
             if (reason != null) {
@@ -451,30 +464,45 @@ public class OpenAIContainer extends MainContainer {
             }
 
             MetadataKey<String> responsesInstructionsKey = new MetadataKey<>("instructions", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             String responsesInstructions = responseMap != null ? (String) responseMap.get("instructions") : null;
             if (responsesInstructions != null) {
                 put(responsesInstructionsKey, responsesInstructions);
             }
 
             MetadataKey<Integer> responsesMaxOutputTokensKey = new MetadataKey<>("max_output_tokens", Metadata.INTEGER);
+            /*
+             *  Null checks
+             */
             Integer responsesMaxOutputTokens = responseMap != null ? (Integer) responseMap.get("max_output_tokens") : null;
             if (responsesMaxOutputTokens != null) {
                 put(responsesMaxOutputTokensKey, responsesMaxOutputTokens);
             }
 
             MetadataKey<String> responsesModelKey = new MetadataKey<>("model", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             String responsesModel = responseMap != null ? (String) responseMap.get("model") : null;
             if (responsesModel != null) {
                 put(responsesModelKey, responsesModel);
             }
 
             MetadataKey<Boolean> responsesParallelToolCallsKey = new MetadataKey<>("parallel_tool_calls", Metadata.BOOLEAN);
+            /*
+             *  Null checks
+             */
             Boolean responsesParallelToolCalls = responseMap != null ? (Boolean) responseMap.get("parallel_tool_calls") : null;
             if (responsesParallelToolCalls != null) {
                 put(responsesParallelToolCallsKey, responsesParallelToolCalls);
             }
 
             MetadataKey<String> responsesPreviousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             String responsesPreviousResponseId = responseMap != null ? (String) responseMap.get("previous_response_id") : null;
             if (responsesPreviousResponseId != null) {
                 put(responsesPreviousResponseIdKey, responsesPreviousResponseId);
@@ -482,6 +510,9 @@ public class OpenAIContainer extends MainContainer {
 
             MetadataKey<String> responsesReasoningEffortKey = new MetadataKey<>("effort", Metadata.STRING);
             MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             Map<String, String> responsesReasoning = responseMap != null ? (Map<String, String>) responseMap.get("reasoning") : null;
             if (responsesReasoning != null) {
                 String responsesReasoningEffort = responsesReasoning.get("effort");
@@ -495,30 +526,45 @@ public class OpenAIContainer extends MainContainer {
             }
 
             MetadataKey<Double> responsesTemperatureKey = new MetadataKey<>("temperature", Metadata.DOUBLE);
+            /*
+             *  Null checks
+             */
             Double responsesTemperature = responseMap != null ? (Double) responseMap.get("temperature") : null;
             if (responsesTemperature != null) {
                 put(responsesTemperatureKey, responsesTemperature);
             }
 
             MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
+            /*
+             *  Null checks
+             */
             Map<String, Object> responsesTextFormat = responseMap != null ? (Map<String, Object>) responseMap.get("text") : null;
             if (responsesTextFormat != null) {
                 put(responsesTextFormatKey, responsesTextFormat);
             }
 
             MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", Metadata.DOUBLE);
+            /*
+             *  Null checks
+             */
             Double responsesTopP = responseMap != null ? (Double) responseMap.get("top_p") : null;
             if (responsesTopP != null) {
                 put(responsesTopPKey, responsesTopP);
             }
 
             MetadataKey<String> responsesTruncationKey = new MetadataKey<>("truncation", Metadata.STRING);
+            /*
+             *  Null checks
+             */
             String responsesTruncation = responseMap != null ? (String) responseMap.get("truncation") : null;
             if (responsesTruncation != null) {
                 put(responsesTruncationKey, responsesTruncation);
             }
 
             MetadataKey<Integer> responsesTotalTokensKey = new MetadataKey<>("total_tokens", Metadata.INTEGER);
+            /*
+             *  Null checks
+             */
             Map<String, Object> responsesUsage = responseMap != null ? (Map<String, Object>) responseMap.get("usage") : null;
             if (responsesUsage != null) {
                 Integer responsesTotalTokens = (Integer) responsesUsage.get("total_tokens");
@@ -526,26 +572,28 @@ public class OpenAIContainer extends MainContainer {
                     put(responsesTotalTokensKey, responsesTotalTokens);
                 }
             }
-
             MetadataKey<String> responsesUserKey = new MetadataKey<>("user", Metadata.STRING);
             String responsesUser = responseMap != null ? (String) responseMap.get("user") : null;
+            /*
+             *  Null checks
+             */
             if (responsesUser != null) {
                 put(responsesUserKey, responsesUser);
             }
-
             MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("metadata", Metadata.MAP);
             Map<String, Object> responsesMetadata = responseMap != null ? (Map<String, Object>) responseMap.get("metadata") : null;
             Boolean localShellFinished = (responsesMetadata != null) ? (Boolean) responsesMetadata.get("local_shell_command_sequence_finished") : null;
+            /*
+             *  Null checks
+             */
             if (responsesMetadata != null) {
                 put(responsesMetadataKey, responsesMetadata);
             }
             if (localShellFinished != null) {
                 put(LOCALSHELLTOOL_FINISHED, localShellFinished);
             }
-
             MetadataKey<String> responsesOutputContentKey = new MetadataKey<>("output_content", Metadata.STRING);
             Object outputObj = responseMap != null ? responseMap.get("output") : null;
-
             List<String> allCallIds = new ArrayList<>();
             List<List<String>> allCommands = new ArrayList<>();
             if (outputObj instanceof List<?> outputList) {
@@ -564,7 +612,6 @@ public class OpenAIContainer extends MainContainer {
                     }
                 }
             }
-
             MetadataKey<List<Map<String, Object>>> toolsKey = new MetadataKey<>("tools", Metadata.LIST_MAP);
             Object toolsObj = responseMap.get("tools");
             if (toolsObj instanceof List<?> toolsListRaw) {
@@ -575,30 +622,24 @@ public class OpenAIContainer extends MainContainer {
                     }
                 }
                 put(toolsKey, toolsList);
-            
                 for (Map<String, Object> toolMap : toolsList) {
                     if (toolMap == null) continue;
                     Object typeObj = toolMap.get("type");
                     if (!(typeObj instanceof String type)) continue;
-            
                     switch (type) {
                         case "file_search" -> {
                             put(FILESEARCHTOOL_TYPE, "file_search");
                             put(FILESEARCHTOOL_VECTOR_STORE_IDS, List.of("file-PLACEHOLDER"));
-            
                             Object filtersObj = toolMap.get("filters");
                             if (filtersObj instanceof Map<?, ?> filterMap) {
                                 Map<String, Object> filterMapCasted = (Map<String, Object>) filterMap;
                                 put(FILESEARCHTOOL_FILTERS, filterMapCasted);
-            
                                 if (filterMapCasted.containsKey("key") && filterMapCasted.containsKey("type") && filterMapCasted.containsKey("value")) {
                                     put(FILESEARCHTOOL_FILTER_COMPARISON, filterMapCasted);
                                 }
-            
                                 Object filterType = filterMapCasted.get("type");
                                 if ("and".equals(filterType) || "or".equals(filterType)) {
                                     put(FILESEARCHTOOL_FILTER_COMPOUND, filterMapCasted);
-            
                                     Object subFilters = filterMapCasted.get("filters");
                                     if (subFilters instanceof List<?> subList) {
                                         List<Map<String, Object>> casted = new ArrayList<>();
@@ -611,26 +652,21 @@ public class OpenAIContainer extends MainContainer {
                                     }
                                 }
                             }
-            
                             Object maxNumResults = toolMap.get("max_num_results");
                             if (maxNumResults instanceof Number num) {
                                 put(FILESEARCHTOOL_MAX_NUM_RESULTS, num.intValue());
                             }
-            
                             Object rankingOpts = toolMap.get("ranking_options");
                             if (rankingOpts instanceof Map<?, ?> rankingMap) {
                                 put(FILESEARCHTOOL_RANKING_OPTIONS, (Map<String, Object>) rankingMap);
                             }
                         }
-            
                         case "web_search_preview", "web_search_preview_2025_03_11" -> {
                             put(WEBSEARCHTOOL_TYPE, type);
-            
                             Object searchContextSize = toolMap.get("search_context_size");
                             if (searchContextSize instanceof String size) {
                                 put(WEBSEARCHTOOL_CONTEXT_SIZE, size);
                             }
-            
                             Object userLocObj = toolMap.get("user_location");
                             if (userLocObj instanceof Map<?, ?> loc) {
                                 Map<String, Object> locMap = (Map<String, Object>) loc;
@@ -646,7 +682,6 @@ public class OpenAIContainer extends MainContainer {
                                 if (timezoneObj instanceof String tz) put(WEBSEARCHTOOL_LOCATION_TIMEZONE, tz);
                             }
                         }
-            
                         case "computer_use_preview" -> {
                             put(COMPUTERTOOL_TYPE, type);
                             Object heightObj = toolMap.get("display_height");
@@ -656,7 +691,6 @@ public class OpenAIContainer extends MainContainer {
                             Object envObj = toolMap.get("environment");
                             if (envObj instanceof String env) put(COMPUTERTOOL_ENVIRONMENT, env);
                         }
-            
                         case "mcp" -> {
                             put(MCPTOOL_TYPE, type);
                             Object serverLabelObj = toolMap.get("server_label");
@@ -670,12 +704,10 @@ public class OpenAIContainer extends MainContainer {
                             } else if (allowedToolsObj instanceof Map<?, ?> allowedToolMap) {
                                 put(MCPTOOL_ALLOWED_TOOLS_FILTER, (Map<String, Object>) allowedToolMap);
                             }
-            
                             Object headersObj = toolMap.get("headers");
                             if (headersObj instanceof Map<?, ?> headersMap) {
                                 put(MCPTOOL_HEADERS, (Map<String, Object>) headersMap);
                             }
-            
                             Object approvalObj = toolMap.get("require_approval");
                             if (approvalObj instanceof String approvalSetting) {
                                 put(MCPTOOL_REQUIRE_APPROVAL_MODE, approvalSetting);
@@ -778,6 +810,9 @@ public class OpenAIContainer extends MainContainer {
                 Boolean moderationFlagged = (Boolean) result.get("flagged");
                 put(flaggedKey, moderationFlagged);
                 Map<String, Boolean> categories = (Map<String, Boolean>) result.get("categories");
+                /*
+                 *  Null checks
+                 */
                 if (categories != null) {
                     MetadataKey<Boolean> sexualKey = new MetadataKey<>("sexual", Metadata.BOOLEAN);
                     Boolean moderationSexual = categories.get("sexual");
@@ -820,6 +855,9 @@ public class OpenAIContainer extends MainContainer {
                     put(violenceGraphicKey, moderationViolenceGraphic);
                 }
                 Map<String, Double> categoryScores = (Map<String, Double>) result.get("category_scores");
+                /*
+                 *  Null checks
+                 */
                 if (categoryScores != null) {
                     MetadataKey<Double> sexualScoreKey = new MetadataKey<>("sexual", Metadata.DOUBLE);
                     Double moderationSexualScore = categoryScores.get("sexual");
@@ -864,12 +902,9 @@ public class OpenAIContainer extends MainContainer {
             }
         }
     }
-    
-    
-    
-    public Map<String, Object> getResponseMap() {
-        return mapMap;
-    }
-
+        
+//        public Map<String, Object> getResponseMap() {
+//            return mapMap;
+//        }
 }
-
+}

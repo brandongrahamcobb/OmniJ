@@ -26,11 +26,9 @@ public class Encryption {
         byte[] salt = SecureRandom.getInstanceStrong().generateSeed(SALT_SIZE);
         SecretKeySpec key = deriveKey(password, salt);
         byte[] iv = SecureRandom.getInstanceStrong().generateSeed(IV_SIZE);
-
         Cipher cipher = Cipher.getInstance(ALGO);
         cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
         byte[] encrypted = cipher.doFinal(data);
-
         try (FileOutputStream fos = new FileOutputStream(outFile)) {
             fos.write(salt);
             fos.write(iv);
@@ -40,17 +38,13 @@ public class Encryption {
 
     public static byte[] decryptFromFile(File inFile, char[] password) throws Exception {
         byte[] allBytes = Files.readAllBytes(inFile.toPath());
-
         byte[] salt = new byte[SALT_SIZE];
         byte[] iv = new byte[IV_SIZE];
         byte[] encrypted = new byte[allBytes.length - SALT_SIZE - IV_SIZE];
-
         System.arraycopy(allBytes, 0, salt, 0, SALT_SIZE);
         System.arraycopy(allBytes, SALT_SIZE, iv, 0, IV_SIZE);
         System.arraycopy(allBytes, SALT_SIZE + IV_SIZE, encrypted, 0, encrypted.length);
-
         SecretKeySpec key = deriveKey(password, salt);
-
         Cipher cipher = Cipher.getInstance(ALGO);
         cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
         return cipher.doFinal(encrypted);

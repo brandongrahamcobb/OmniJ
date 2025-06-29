@@ -43,10 +43,7 @@ public class LlamaContainer extends MainContainer {
         if (usage != null && usage.get("total_tokens") instanceof Number) {
             Integer totalTokens =  ((Number) usage.get("total_tokens")).intValue();
             put(tokenCountKey, totalTokens);
-        }
-        //Integer tokensPredicted = (Integer) responseMap.get("tokens_predicted");
-         //Evaluated + tokensPredicted);
-            
+        } 
         MetadataKey<String> modelKey = new MetadataKey<>("model", Metadata.STRING);
         MetadataKey<Integer> createdKey = new MetadataKey<>("created", Metadata.INTEGER);
         put(idKey, (String) responseMap.get("id"));

@@ -31,19 +31,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
-
+    
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
+    private static final ObjectMapper mapper = new ObjectMapper();
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
-    private static final ObjectMapper mapper = new ObjectMapper();
-    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     
     public CreateFile(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
         this.userContextManager = userContextManager;
     }
     
-    
-
     /*
      *  Getters
      */
@@ -88,6 +86,9 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
         return "create_file";
     }
 
+    /*
+     * Tool
+     */
     @Override
     public CompletableFuture<CreateFileStatus> run(CreateFileInput input) {
         return CompletableFuture.supplyAsync(() -> {

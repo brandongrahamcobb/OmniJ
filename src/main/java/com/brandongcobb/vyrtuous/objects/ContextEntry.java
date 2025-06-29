@@ -31,6 +31,9 @@ public class ContextEntry {
         this.content = content;
     }
     
+    /*
+     *  Getters
+     */
     @JsonProperty("type")
     public Type getType() {
         return type;

@@ -57,11 +57,6 @@ public class SearchFilesInput implements ToolInput {
         return rootDirectory;
     }
 
-
-    public void setOriginalJson(JsonNode originalJson) {
-        this.originalJson = originalJson;
-    }
-
     /*
      *  Setters
      */
@@ -79,6 +74,10 @@ public class SearchFilesInput implements ToolInput {
 
     public void setMaxResults(int maxResults) {
         this.maxResults = maxResults;
+    }
+    
+    public void setOriginalJson(JsonNode originalJson) {
+        this.originalJson = originalJson;
     }
     
     public void setRootDirectory(String rootDirectory) {

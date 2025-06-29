@@ -46,7 +46,7 @@ public class MetadataUtils {
      *    Getters
      */
     public CompletableFuture<String> completeGetContent() {
-        MetadataKey<String> outputKey = new MetadataKey<>("response", Metadata.STRING);
+        MetadataKey<String> outputKey = new MetadataKey<>("content", Metadata.STRING);
         return CompletableFuture.completedFuture(this.container.get(outputKey));
     }
     

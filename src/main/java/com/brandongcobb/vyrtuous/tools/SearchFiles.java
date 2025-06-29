@@ -103,12 +103,13 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
         return "search_files";
     }
     
+    /*
+     * Tool
+     */
     @Override
     public CompletableFuture<SearchFilesStatus> run(SearchFilesInput input) {
         return CompletableFuture.supplyAsync(() -> {
             List<SearchFilesStatus.Result> results = new ArrayList<>();
-
-            // Define forbidden roots
             Set<Path> forbidden = Set.of(
                 Paths.get("/System"),
                 Paths.get("/usr/sbin"),
@@ -117,11 +118,9 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                 Paths.get("/dev"),
                 Paths.get("/proc")
             );
-
             try (Stream<Path> stream = Files.walk(Paths.get(input.getRootDirectory()))) {
                 stream
                     .filter(path -> {
-                        // Skip forbidden directories and their children
                         Path normalized = path.toAbsolutePath().normalize();
                         for (Path forbiddenRoot : forbidden) {
                             if (normalized.startsWith(forbiddenRoot)) {
@@ -164,7 +163,6 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                         }
                         results.add(new SearchFilesStatus.Result(path.toString(), snippet));
                     });
-
                 String summary;
                 if (results.isEmpty()) {
                     summary = "No matching files found.";
@@ -175,11 +173,9 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                     results.forEach(r -> sb.append("• ").append(r.path).append("\n"));
                     summary = sb.toString().trim();
                 }
-                
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
                 return new SearchFilesStatus(summary, results, true);
-
             } catch (IOException e) {
                 return new SearchFilesStatus("IO error: " + e.getMessage(), null, false);
             }

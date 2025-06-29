@@ -28,7 +28,6 @@ public class RefreshContextInput implements ToolInput {
     /*
      *  Getters
      */
-    
     public String getProgressiveSummary() {
         return progressiveSummary;
     }

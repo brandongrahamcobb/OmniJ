@@ -28,6 +28,9 @@ public class PatchStatus implements ToolStatus {
         this.success = success;
     }
 
+    /*
+     *  Getters
+     */
     @Override
     public String getMessage() {
         return message;

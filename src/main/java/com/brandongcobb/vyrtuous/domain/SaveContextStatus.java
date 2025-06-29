@@ -34,7 +34,6 @@ public class SaveContextStatus implements ToolStatus {
     /*
      *  Getters
      */
-
     @Override
     public String getMessage() {
         return message;

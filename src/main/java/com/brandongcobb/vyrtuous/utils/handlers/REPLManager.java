@@ -70,7 +70,6 @@ public class REPLManager {
 
     private AIManager aim = new AIManager();
     private JDA api;
-    private ApprovalMode approvalMode;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
     private List<JsonNode> lastResults;
@@ -84,26 +83,18 @@ public class REPLManager {
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private final ContextManager userContextManager;
     
-    public void setApprovalMode(ApprovalMode mode) {
-        LOGGER.fine("Setting approval mode: " + mode);
-        this.approvalMode = mode;
-    }
-    
-    public REPLManager(ApprovalMode mode, DiscordBot discordBot, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
-        LOGGER.setLevel(Level.FINE);
-        for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
-        }
+    public REPLManager(DiscordBot discordBot, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
         this.api = discordBot.getJDA();
-        this.approvalMode = mode;
         this.mcpServer = server;
         this.mem = new MessageManager(this.api);
         this.modelContextManager = modelContextManager;
         this.rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
         this.userContextManager = userContextManager;
     }
-
     
+    /*
+     *  Helpers
+     */
     private void addToolOutput(String content) {
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
@@ -159,7 +150,6 @@ public class REPLManager {
         });
     }
 
-
     private CompletableFuture<Void> completeESubStep(boolean firstRun) {
         LOGGER.fine("Starting E-substep for first run...");
         if (!firstRun) return CompletableFuture.completedFuture(null);
@@ -185,11 +175,13 @@ public class REPLManager {
             return null;
         });
     }
-
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step...");
         return new MetadataUtils(response).completeGetContent().thenCompose(contentStr -> {
+            /*
+             *  Null Checks
+             */
             if ((contentStr == null || contentStr.isBlank()) && lastResults != null && !lastResults.isEmpty()) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 return completeESubStep(firstRun).thenCompose(v -> {
@@ -259,6 +251,9 @@ public class REPLManager {
                 completeRStep(scanner, firstRun)
                     .orTimeout(timeout, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
+                        /*
+                         *  Null Checks
+                         */
                         if (err != null || resp == null) {
                             userContextManager.clearModified();
                             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
@@ -283,19 +278,16 @@ public class REPLManager {
     
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
-
         String prompt = firstRun ? originalDirective : modelContextManager.buildPromptContext();
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
         boolean stream = Boolean.parseBoolean(System.getenv("CLI_STREAM"));
-
         CompletableFuture<String> endpointFuture = aim.completeGetAIEndpoint(false, provider, "cli", requestType);
         CompletableFuture<String> instructionsFuture = aim.completeGetInstructions(false, provider, "cli");
         CompletableFuture<String> responseIdFuture = firstRun
             ? CompletableFuture.completedFuture(null)
             : new MetadataUtils(lastAIResponseContainer).completeGetPreviousResponseId();
-
         return endpointFuture
             .thenCombine(instructionsFuture, AbstractMap.SimpleEntry::new)
             .thenCombine(responseIdFuture, (pair, responseId) -> new Object[]{ pair.getKey(), pair.getValue(), responseId })
@@ -304,7 +296,6 @@ public class REPLManager {
                     String endpoint = (String) tuple[0];
                     String instructions = (String) tuple[1];
                     String responseId = (String) tuple[2];
-
                     return aim.completeRequest(instructions, prompt, responseId, model, requestType, endpoint, stream, null, provider)
                         .thenCompose(resp -> {
                             LOGGER.fine("Completing request...");
@@ -325,7 +316,6 @@ public class REPLManager {
                 return new MetadataContainer(); // fallback
             });
     }
-
     
     private CompletableFuture<LlamaContainer> completeRSubStep(LlamaContainer container) {
         LOGGER.fine("Starting R-substep with Llama...");
@@ -343,6 +333,11 @@ public class REPLManager {
             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokenCount));
             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokenCount));
             return (LlamaContainer) metadataContainer;
+        })
+        .exceptionally(ex -> {
+            LOGGER.severe("Exception in completeRSubStep: " + ex.getMessage());
+            ex.printStackTrace();
+            return null;
         });
     }
       
@@ -354,7 +349,6 @@ public class REPLManager {
                 List<JsonNode> results = new ArrayList<>();
                 Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
                 Matcher matcher = pattern.matcher(content);
-
                 while (matcher.find()) {
                     String jsonText = matcher.group(1).trim();
                     try {
@@ -374,18 +368,17 @@ public class REPLManager {
                         LOGGER.warning("Skipping invalid JSON block: " + e.getMessage());
                     }
                 }
-
                 lastResults = results;
-                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-
+                MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
                 if (!validJson) {
-                    LOGGER.fine("Invalid Json");
+                    LOGGER.fine("Invalid JSON from container...");
                     container.put(contentKey, content);
                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                     mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                     userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
                 } else {
+                    LOGGER.fine("Valid JSON from container...");
                     String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
                     String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
                     String cleanedText = before + after;
@@ -394,12 +387,11 @@ public class REPLManager {
                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                     mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                 }
-
                 return container;
             });
         }).exceptionally(ex -> {
             LOGGER.severe("Exception processing JSON response: " + ex.getMessage());
-            return container; // fallback to returning container in error case
+            return container;
         });
     }
     
@@ -419,8 +411,11 @@ public class REPLManager {
     /*
      * Full-REPL
      */
-    public CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
+    private CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
         System.out.println(Vyrtuous.BLURPLE + "Thinking..." + Vyrtuous.RESET);
+        /*
+         *  Null Checks
+         */
         if (scanner == null) {
             CompletableFuture<Void> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalArgumentException("Scanner cannot be null"));

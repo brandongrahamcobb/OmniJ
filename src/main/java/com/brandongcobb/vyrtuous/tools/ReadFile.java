@@ -30,10 +30,10 @@ import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 
 public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
-
+    
+    private static final ObjectMapper mapper = new ObjectMapper();
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
-    private static final ObjectMapper mapper = new ObjectMapper();
     
     public ReadFile(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
@@ -74,6 +74,9 @@ public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
         return "read_file";
     }
     
+    /*
+     * Tool
+     */
     @Override
     public CompletableFuture<ReadFileStatus> run(ReadFileInput input) {
         return CompletableFuture.supplyAsync(() -> {

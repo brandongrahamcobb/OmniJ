@@ -41,6 +41,7 @@ import java.util.concurrent.CompletionException;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -71,14 +72,17 @@ public class Vyrtuous {
     
     public static void main(String[] args) {
         app = new Vyrtuous();
+        LOGGER.setLevel(Level.FINE);
+        for (Handler h : LOGGER.getParent().getHandlers()) {
+            h.setLevel(Level.FINE);
+        }
         DiscordBot bot = new DiscordBot();
         boolean isInputThreadRunning = false;
         if (!isInputThreadRunning) {
-            ApprovalMode approvalMode = ApprovalMode.EDIT_APPROVE_ALL;
             ContextManager userContextManager = new ContextManager(3200);
             ContextManager modelContextManager = new ContextManager(3200);
             MCPServer server = new MCPServer(modelContextManager, userContextManager);
-            REPLManager repl = new REPLManager(approvalMode, bot, server, modelContextManager, userContextManager);
+            REPLManager repl = new REPLManager(bot, server, modelContextManager, userContextManager);
             repl.startResponseInputThread();
             isInputThreadRunning = true;
         }

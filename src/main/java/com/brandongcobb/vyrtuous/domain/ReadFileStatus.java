@@ -30,7 +30,9 @@ public class ReadFileStatus implements ToolStatus {
         this.success = success;
     }
 
-
+    /*
+     *  Getters
+     */
     public String getContent() {
         return content;
     }

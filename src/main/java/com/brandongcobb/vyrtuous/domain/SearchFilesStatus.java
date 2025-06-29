@@ -50,6 +50,9 @@ public class SearchFilesStatus implements ToolStatus{
         return success;
     }
     
+    /*
+     *  Nested class
+     */
     public static class Result {
     
         public String path;

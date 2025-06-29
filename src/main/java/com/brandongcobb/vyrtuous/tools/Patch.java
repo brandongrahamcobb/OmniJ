@@ -18,28 +18,26 @@
  */
 package com.brandongcobb.vyrtuous.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.brandongcobb.vyrtuous.objects.*;
-
 import com.brandongcobb.vyrtuous.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.logging.Logger;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 public class Patch implements Tool<PatchInput, PatchStatus> {
-
+    
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
+    private static final ObjectMapper mapper = new ObjectMapper();
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
-    private static final ObjectMapper mapper = new ObjectMapper();
-    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     
     public Patch(ContextManager modelContextManager, ContextManager userContextManager) {
         this.modelContextManager = modelContextManager;
@@ -124,6 +122,9 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
         return "patch";
     }
     
+    /*
+     *  Tool
+     */
     @Override
     public CompletableFuture<PatchStatus> run(PatchInput input) {
         return CompletableFuture.supplyAsync(() -> {

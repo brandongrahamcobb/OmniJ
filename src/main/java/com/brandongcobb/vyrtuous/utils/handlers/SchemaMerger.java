@@ -29,16 +29,6 @@ import java.util.concurrent.CompletableFuture;
 public class SchemaMerger {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
-
-    public static String mergeLocalShell(String baseSchemaString, String metadataSnippet) throws IOException {
-        JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
-        JsonNode metadataNode = baseSchema.path("properties").path("metadata").path("properties");
-        if (metadataNode instanceof ObjectNode) {
-            JsonNode metadataToAdd = objectMapper.readTree(metadataSnippet);
-            ((ObjectNode) metadataNode).set("local_shell_command_sequence_finished", metadataToAdd.path("local_shell_command_sequence_finished"));
-        }
-        return objectMapper.writeValueAsString(baseSchema);
-    }
     
     public static String mergeModeration(String baseSchemaString, String outputItemSnippet) throws IOException {
         JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
@@ -66,19 +56,4 @@ public class SchemaMerger {
         });
     }
     
-    public static CompletableFuture<String> completeGetShellToolSchemaNestResponse() {
-        return CompletableFuture.supplyAsync(() -> {
-            String baseSchema = StructuredOutput.RESPONSE.asString();
-            try {
-                String mergedSchemas = mergeLocalShell(
-                    baseSchema,
-                    StructuredOutput.LOCALSHELLTOOL.asString()
-                );
-                return mergedSchemas;
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-                return ioe.getMessage();
-            }
-        });
-    }
 }

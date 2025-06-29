@@ -70,6 +70,9 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
         return "refresh_context";
     }
 
+    /*
+     * Tool
+     */
     @Override
     public CompletableFuture<RefreshContextStatus> run(RefreshContextInput input) {
         return CompletableFuture.supplyAsync(() -> {

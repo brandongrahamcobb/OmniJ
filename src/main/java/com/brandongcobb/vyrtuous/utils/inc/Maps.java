@@ -93,11 +93,11 @@ public class Maps {
     );
     
     public static final Map<String, String> CLI_INSTRUCTIONS = Map.ofEntries(
-        Map.entry("lmstudio", ModelRegistry.LMSTUDIO_TEXT_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join()),
+        Map.entry("lmstudio", ModelRegistry.LMSTUDIO_TEXT_INSTRUCTIONS_CLI.asString()),
         Map.entry("llama", ModelRegistry.LLAMA_TEXT_INSTRUCTIONS_CLI.asString()),
-        Map.entry("ollama", ModelRegistry.OLLAMA_TEXT_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join()),
-        Map.entry("openai", ModelRegistry.OPENAI_TEXT_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join()),
-        Map.entry("openrouter", ModelRegistry.OPENROUTER_TEXT_INSTRUCTIONS_CLI.asString() + sm.completeGetShellToolSchemaNestResponse().join())
+        Map.entry("ollama", ModelRegistry.OLLAMA_TEXT_INSTRUCTIONS_CLI.asString()),
+        Map.entry("openai", ModelRegistry.OPENAI_TEXT_INSTRUCTIONS_CLI.asString()),
+        Map.entry("openrouter", ModelRegistry.OPENROUTER_TEXT_INSTRUCTIONS_CLI.asString())
     );
     
     public static final Map<String, String> TWITCH_INSTRUCTIONS = Map.ofEntries(

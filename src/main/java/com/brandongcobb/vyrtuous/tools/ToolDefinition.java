@@ -42,13 +42,15 @@ public class ToolDefinition {
     /*
      *  Getters
      */
-
     public String getDescription() { return description; }
     
     public String getName() { return name; }
 
     public JsonNode getParameters() { return parameters; }
     
+    /*
+     *  Nested class
+     */
     public static class Builder {
         
         private String name;
