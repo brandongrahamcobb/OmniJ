@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -279,146 +280,123 @@ public class REPLManager {
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
         String prompt = firstRun ? originalDirective : modelContextManager.buildPromptContext();
+        LOGGER.fine(Vyrtuous.BLURPLE + prompt + Vyrtuous.RESET);
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
-        boolean stream = Boolean.parseBoolean(System.getenv("CLI_STREAM"));
         CompletableFuture<String> endpointFuture = aim.completeGetAIEndpoint(false, provider, "cli", requestType);
         CompletableFuture<String> instructionsFuture = aim.completeGetInstructions(false, provider, "cli");
-        CompletableFuture<String> responseIdFuture = firstRun
-            ? CompletableFuture.completedFuture(null)
-            : new MetadataUtils(lastAIResponseContainer).completeGetPreviousResponseId();
-        return endpointFuture
-            .thenCombine(instructionsFuture, AbstractMap.SimpleEntry::new)
-            .thenCombine(responseIdFuture, (pair, responseId) -> new Object[]{ pair.getKey(), pair.getValue(), responseId })
-            .thenCompose(tuple -> {
-                try {
-                    String endpoint = (String) tuple[0];
-                    String instructions = (String) tuple[1];
-                    String responseId = (String) tuple[2];
-                    return aim.completeRequest(instructions, prompt, responseId, model, requestType, endpoint, stream, null, provider)
-                        .thenCompose(resp -> {
-                            LOGGER.fine("Completing request...");
-                            if (resp == null) {
-                                return CompletableFuture.failedFuture(new IllegalStateException("AI returned null"));
-                            }
-                            lastAIResponseContainer = resp;
-                            return completeRSubStep(resp);
-                        });
-                } catch (Exception e) {
-                    LOGGER.severe("Exception in thenCompose: " + e.getMessage());
-                    return CompletableFuture.failedFuture(e);
-                }
-            })
-            .exceptionally(ex -> {
-                LOGGER.severe("Exception in completeRStep: " + ex.getMessage());
-                ex.printStackTrace();
-                return new MetadataContainer(); // fallback
-            });
-    }
-    
-    private CompletableFuture<LlamaContainer> completeRSubStep(LlamaContainer container) {
-        LOGGER.fine("Starting R-substep with Llama...");
-        LlamaUtils llamaUtils = new LlamaUtils(container);
-        CompletableFuture<String> contentFuture = llamaUtils.completeGetContent();
-        CompletableFuture<String> responseIdFuture = llamaUtils.completeGetResponseId();
-        CompletableFuture<Integer> tokensFuture = llamaUtils.completeGetTokens();
-        return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
-            MetadataContainer metadataContainer = new MetadataContainer();
-            metadataContainer.put(new MetadataKey<>("content", Metadata.STRING), content);
-            metadataContainer.put(new MetadataKey<>("id", Metadata.STRING), responseId);
-            return metadataContainer;
-        }).thenCombine(tokensFuture, (metadataContainer, tokens) -> {
-            String tokenCount = String.valueOf(tokens);
-            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokenCount));
-            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokenCount));
-            return (LlamaContainer) metadataContainer;
-        })
-        .exceptionally(ex -> {
-            LOGGER.severe("Exception in completeRSubStep: " + ex.getMessage());
-            ex.printStackTrace();
-            return null;
-        });
-    }
-      
-    private CompletableFuture<MetadataContainer> completeRSubStep(MetadataContainer container) {
-        LOGGER.fine("Starting async R-substep JSON response handling...");
-        return new MetadataUtils(container).completeGetContent().thenCompose(content ->
-            CompletableFuture.supplyAsync(() -> {
-                boolean validJson = false;
-                List<JsonNode> results = new ArrayList<>();
-                Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
-                Matcher matcher = pattern.matcher(content);
-
-                int matchStart = -1;
-                int matchEnd = -1;
-
-                while (matcher.find()) {
-                    matchStart = matcher.start();
-                    matchEnd = matcher.end();
-
-                    String jsonText = matcher.group(1).trim();
-                    try {
-                        JsonNode node = mapper.readTree(jsonText);
-                        if (node.isArray()) {
-                            for (JsonNode element : node) {
-                                if (element.has("tool")) {
-                                    results.add(element);
-                                    validJson = true;
+        return endpointFuture.thenCombine(instructionsFuture, AbstractMap.SimpleEntry::new).thenCompose(pair -> {
+            String endpoint = pair.getKey();
+            String instructions = pair.getValue();
+            String prevId = null;
+            if (!firstRun) {
+                MetadataKey<String> previousResponseIdKey = new MetadataKey<>("id", Metadata.STRING);
+                prevId = (String) lastAIResponseContainer.get(previousResponseIdKey);
+            }
+            try {
+                return aim
+                    .completeRequest(instructions, prompt, prevId, model, requestType, endpoint,
+                        Boolean.parseBoolean(System.getenv("CLI_STREAM")), null, provider)
+                    .thenCompose(resp -> {
+                        if (resp == null) {
+                            return CompletableFuture.failedFuture(new IllegalStateException("AI returned null"));
+                        }
+                        CompletableFuture<String> contentFuture;
+                        CompletableFuture<String> responseIdFuture;
+                        switch (provider) {
+                            case "llama" -> {
+                                LlamaUtils llamaUtils = new LlamaUtils(resp);
+                                contentFuture = llamaUtils.completeGetContent();
+                                responseIdFuture = llamaUtils.completeGetResponseId();
+                                String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
+                                if (!firstRun) {
+                                    
+                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                 }
                             }
-                        } else if (node.has("tool")) {
-                            results.add(node);
-                            validJson = true;
+                            case "openai" -> {
+                                OpenAIUtils openaiUtils = new OpenAIUtils(resp);
+                                contentFuture = openaiUtils.completeGetOutput().thenApply(String.class::cast);
+                                responseIdFuture = openaiUtils.completeGetResponseId();
+                            }
+                            default -> {
+                                return CompletableFuture.completedFuture(new MetadataContainer());
+                            }
                         }
-                    } catch (Exception e) {
-                        LOGGER.warning("Skipping invalid JSON block: " + e.getMessage());
-                    }
+                        lastAIResponseContainer = resp;
+                        return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
+                            MetadataContainer metadataContainer = new MetadataContainer();
+                            boolean validJson = false;
+                            JsonNode rootNode;
+                            try {
+                                List<JsonNode> results = new ArrayList<>();
+                                Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
+                                Matcher matcher = pattern.matcher(content);
+                                while (matcher.find()) {
+                                    String jsonText = matcher.group(1).trim();
+                                    try {
+                                        JsonNode node = mapper.readTree(jsonText);
+                                        if (node.isArray()) {
+                                            for (JsonNode element : node) {
+                                                if (element.has("tool")) {
+                                                    results.add(element);
+                                                    validJson  = true;
+                                                }
+                                            }
+                                        } else if (node.has("tool")) {
+                                            results.add(node);
+                                            validJson = true;
+                                        }
+                                    } catch (Exception e) {
+                                        System.err.println("Skipping invalid JSON block: " + e.getMessage());
+                                    }
+                                }
+                                lastResults = results;
+                                if (!validJson) {
+                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                    metadataContainer.put(contentKey, content);
+                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                    userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
+                                } else {
+                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
+                                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
+                                    String cleanedText = before + after;
+                                    if (cleanedText.equals("")) {
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                        mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                        metadataContainer.put(contentKey, content);
+                                    } else {
+                                        metadataContainer.put(contentKey, cleanedText);
+                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                    }
+                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                }
+                            } catch (Exception e) {
+                            }
+                            return metadataContainer;
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        LOGGER.severe("completeRequest failed: " + ex.getMessage());
+                        throw new CompletionException(ex);
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return CompletableFuture.completedFuture(null);
                 }
-
-                lastResults = results;
-                MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
-
-                if (!validJson || matchStart == -1 || matchEnd == -1) {
-                    LOGGER.fine("Invalid JSON from container...");
-                    container.put(contentKey, content);
-                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
-                    userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
-                } else {
-                    LOGGER.fine("Valid JSON from container...");
-                    String before = content.substring(0, matchStart).replaceAll("[\\n]+$", "");
-                    String after = content.substring(matchEnd).replaceAll("^[\\n]+", "");
-                    String cleanedText = before + after;
-
-                    container.put(contentKey, cleanedText);
-                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
-                }
-
-                return container;
-            })
-        ).exceptionally(ex -> {
-            LOGGER.severe("Exception processing JSON response: " + ex.getMessage());
-            return container;
         });
     }
 
     
-    private CompletableFuture<OpenAIContainer> completeRSubStep(OpenAIContainer container) {
-        LOGGER.fine("Starting R-substep with OpenAI...");
-        OpenAIUtils openaiUtils = new OpenAIUtils(container);
-        CompletableFuture<String> contentFuture = openaiUtils.completeGetOutput().thenApply(String.class::cast);
-        CompletableFuture<String> responseIdFuture = openaiUtils.completeGetResponseId();
-        return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
-            MetadataContainer metadataContainer = new MetadataContainer();
-            metadataContainer.put(new MetadataKey<>("content", Metadata.STRING), content);
-            metadataContainer.put(new MetadataKey<>("id", Metadata.STRING), responseId);
-            return (OpenAIContainer) metadataContainer;
-        });
-    }
+ 
     
     /*
      * Full-REPL
