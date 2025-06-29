@@ -280,7 +280,6 @@ public class REPLManager {
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
         String prompt = firstRun ? originalDirective : modelContextManager.buildPromptContext();
-        LOGGER.fine(Vyrtuous.BLURPLE + prompt + Vyrtuous.RESET);
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
