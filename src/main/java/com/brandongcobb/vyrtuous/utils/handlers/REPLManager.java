@@ -90,9 +90,9 @@ public class REPLManager {
     }
     
     public REPLManager(ApprovalMode mode, DiscordBot discordBot, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINE);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINE);
         }
         this.api = discordBot.getJDA();
         this.approvalMode = mode;
@@ -307,6 +307,7 @@ public class REPLManager {
 
                     return aim.completeRequest(instructions, prompt, responseId, model, requestType, endpoint, stream, null, provider)
                         .thenCompose(resp -> {
+                            LOGGER.fine("Completing request...");
                             if (resp == null) {
                                 return CompletableFuture.failedFuture(new IllegalStateException("AI returned null"));
                             }
@@ -326,7 +327,7 @@ public class REPLManager {
     }
 
     
-    private CompletableFuture<MetadataContainer> completeRSubStep(LlamaContainer container) {
+    private CompletableFuture<LlamaContainer> completeRSubStep(LlamaContainer container) {
         LOGGER.fine("Starting R-substep with Llama...");
         LlamaUtils llamaUtils = new LlamaUtils(container);
         CompletableFuture<String> contentFuture = llamaUtils.completeGetContent();
@@ -341,7 +342,7 @@ public class REPLManager {
             String tokenCount = String.valueOf(tokens);
             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokenCount));
             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokenCount));
-            return metadataContainer;
+            return (LlamaContainer) metadataContainer;
         });
     }
       
@@ -401,7 +402,7 @@ public class REPLManager {
         });
     }
     
-    private CompletableFuture<MetadataContainer> completeRSubStep(OpenAIContainer container) {
+    private CompletableFuture<OpenAIContainer> completeRSubStep(OpenAIContainer container) {
         LOGGER.fine("Starting R-substep with OpenAI...");
         OpenAIUtils openaiUtils = new OpenAIUtils(container);
         CompletableFuture<String> contentFuture = openaiUtils.completeGetOutput().thenApply(String.class::cast);
@@ -410,7 +411,7 @@ public class REPLManager {
             MetadataContainer metadataContainer = new MetadataContainer();
             metadataContainer.put(new MetadataKey<>("content", Metadata.STRING), content);
             metadataContainer.put(new MetadataKey<>("id", Metadata.STRING), responseId);
-            return metadataContainer;
+            return (OpenAIContainer) metadataContainer;
         });
     }
     
