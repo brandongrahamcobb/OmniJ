@@ -303,7 +303,7 @@ public class REPLManager {
                                 return CompletableFuture.failedFuture(new IllegalStateException("AI returned null"));
                             }
                             lastAIResponseContainer = resp;
-                            return completeRSubStep(resp).thenCompose(this::completeRSubStep);
+                            return completeRSubStep(resp);
                         });
                 } catch (Exception e) {
                     LOGGER.severe("Exception in thenCompose: " + e.getMessage());
@@ -343,13 +343,20 @@ public class REPLManager {
       
     private CompletableFuture<MetadataContainer> completeRSubStep(MetadataContainer container) {
         LOGGER.fine("Starting async R-substep JSON response handling...");
-        return new MetadataUtils(container).completeGetContent().thenCompose(content -> {
-            return CompletableFuture.supplyAsync(() -> {
+        return new MetadataUtils(container).completeGetContent().thenCompose(content ->
+            CompletableFuture.supplyAsync(() -> {
                 boolean validJson = false;
                 List<JsonNode> results = new ArrayList<>();
                 Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
                 Matcher matcher = pattern.matcher(content);
+
+                int matchStart = -1;
+                int matchEnd = -1;
+
                 while (matcher.find()) {
+                    matchStart = matcher.start();
+                    matchEnd = matcher.end();
+
                     String jsonText = matcher.group(1).trim();
                     try {
                         JsonNode node = mapper.readTree(jsonText);
@@ -368,9 +375,11 @@ public class REPLManager {
                         LOGGER.warning("Skipping invalid JSON block: " + e.getMessage());
                     }
                 }
+
                 lastResults = results;
                 MetadataKey<String> contentKey = new MetadataKey<>("content", Metadata.STRING);
-                if (!validJson) {
+
+                if (!validJson || matchStart == -1 || matchEnd == -1) {
                     LOGGER.fine("Invalid JSON from container...");
                     container.put(contentKey, content);
                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
@@ -379,21 +388,24 @@ public class REPLManager {
                     userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
                 } else {
                     LOGGER.fine("Valid JSON from container...");
-                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
-                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
+                    String before = content.substring(0, matchStart).replaceAll("[\\n]+$", "");
+                    String after = content.substring(matchEnd).replaceAll("^[\\n]+", "");
                     String cleanedText = before + after;
+
                     container.put(contentKey, cleanedText);
                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                     mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                 }
+
                 return container;
-            });
-        }).exceptionally(ex -> {
+            })
+        ).exceptionally(ex -> {
             LOGGER.severe("Exception processing JSON response: " + ex.getMessage());
             return container;
         });
     }
+
     
     private CompletableFuture<OpenAIContainer> completeRSubStep(OpenAIContainer container) {
         LOGGER.fine("Starting R-substep with OpenAI...");
