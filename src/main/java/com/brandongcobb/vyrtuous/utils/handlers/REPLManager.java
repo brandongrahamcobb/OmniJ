@@ -250,7 +250,7 @@ public class REPLManager {
      */
     private CompletableFuture<MetadataContainer> completeRStepWithTimeout(Scanner scanner, boolean firstRun) {
         final int maxRetries = 2;
-        final long timeout = 300_000;
+        final long timeout = 3600_000;
         CompletableFuture<MetadataContainer> result = new CompletableFuture<>();
         Runnable attempt = new Runnable() {
             int retries = 0;
