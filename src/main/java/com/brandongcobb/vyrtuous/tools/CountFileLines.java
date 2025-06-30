@@ -93,10 +93,8 @@ public class CountFileLines implements Tool<CountFileLinesInput, CountFileLinesS
                     lineCount = lines.count();
                 }
 
-                String toolCallJson = "{\"name\": \"" + getName() + "\"," + input.getOriginalJson().toString().substring(1);  // merges JSON
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, toolCallJson));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, toolCallJson));
-
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName() + "\", \"input\": " + input.getOriginalJson().toString() + "\""));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName() + "\", \"input\": " + input.getOriginalJson().toString() + "\""));
                 return new CountFileLinesStatus(String.valueOf(lineCount), true);
             } catch (IOException e) {
                 return new CountFileLinesStatus("IO error: " + e.getMessage(), false);

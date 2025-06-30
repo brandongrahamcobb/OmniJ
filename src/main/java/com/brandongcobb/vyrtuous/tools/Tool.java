@@ -21,8 +21,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.concurrent.CompletableFuture;
 
 public interface Tool<I, O> {
-    String getName();
     String getDescription();
+    String getName();
     JsonNode getJsonSchema();
     CompletableFuture<O> run(I input) throws Exception;
 }

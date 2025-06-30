@@ -30,6 +30,7 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 public class MCPServer {
@@ -48,6 +49,17 @@ public class MCPServer {
     }
 
     private void registerTools() {
+        tools.put("count_file_lines", new ToolWrapper(
+            "count_file_lines",
+            "Count the number of lines in a file",
+            createCountFileLinesSchema(),
+            (input) -> {
+                CountFileLinesInput countFileLinesInput = mapper.treeToValue(input, CountFileLinesInput.class);
+                CountFileLines countFileLines = new CountFileLines(modelContextManager, userContextManager);
+                countFileLinesInput.setOriginalJson(input);
+                return countFileLines.run(countFileLinesInput).thenApply(result -> result);
+            }
+        ));
         tools.put("create_file", new ToolWrapper(
             "create_file",
             "Create a new file with specified content",
@@ -142,6 +154,7 @@ public class MCPServer {
 
     public void handleRequest(String requestLine, PrintWriter writer) {
         try {
+            LOGGER.fine("[JSON-RPC →] " + requestLine);
             JsonNode request = mapper.readTree(requestLine);
             String method = request.get("method").asText();
             String id = request.has("id") ? request.get("id").asText() : null;
@@ -163,17 +176,19 @@ public class MCPServer {
                 } else {
                     response.set("result", result);
                 }
+                LOGGER.fine("[JSON-RPC ←] " + response.toString());
                 writer.println(response.toString());
                 writer.flush();
             }).exceptionally(ex -> {
                 ObjectNode errorResponse = createErrorResponse(id, -32603, "Internal error: " + ex.getMessage());
+                LOGGER.severe("[JSON-RPC ← ERROR] " + errorResponse.toString());
                 writer.println(errorResponse.toString());
                 writer.flush();
                 return null;
             });
         } catch (Exception e) {
             ObjectNode errorResponse = createErrorResponse(null, -32700, "Parse error");
-            writer.println(errorResponse.toString());
+            LOGGER.severe("[JSON-RPC PARSE ERROR] " + errorResponse.toString());
             writer.flush();
         }
     }
@@ -214,29 +229,26 @@ public class MCPServer {
             return CompletableFuture.completedFuture(createError(-32002, "Server not initialized"));
         }
         try {
-            String toolName = params.get("name").asText();
+            String   toolName  = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
-            ToolWrapper tool = tools.get(toolName);
+            ToolWrapper tool   = tools.get(toolName);
             if (tool == null) {
                 return CompletableFuture.completedFuture(createError(-32602, "Tool not found: " + toolName));
             }
-            return tool.execute(arguments).thenApply(status -> {
-                ObjectNode result = mapper.createObjectNode();
-                ObjectNode content = mapper.createObjectNode();
-                content.put("type", "text");
-                content.put("text", ((ToolStatus) status).getMessage());
-                ArrayNode contentArray = mapper.createArrayNode();
-                ((com.fasterxml.jackson.databind.node.ArrayNode) contentArray).add(content);
-                result.set("content", contentArray);
-                return (JsonNode) result;
-            }).exceptionally(ex -> {
-                LOGGER.severe("Tool execution failed: " + ex.getMessage());
-                return createError(-32603, "Tool execution failed: " + ex.getMessage());
-            });
+
+            return tool.execute(arguments)
+                .<JsonNode>thenApply(statusObj -> mapper.valueToTree(statusObj))
+                .exceptionally(ex -> {
+                    LOGGER.severe("Tool execution failed: " + ex.getMessage());
+                    return createError(-32603, "Tool execution failed: " + ex.getMessage());
+                });
+
+
         } catch (Exception e) {
             return CompletableFuture.completedFuture(createError(-32602, "Invalid parameters"));
         }
     }
+
 
     private ObjectNode createError(int code, String message) {
         ObjectNode error = mapper.createObjectNode();
@@ -254,8 +266,29 @@ public class MCPServer {
         response.set("error", createError(code, message));
         return response;
     }
-
-    // Schema creation methods based on your actual schemas
+    
+    private JsonNode createCountFileLinesSchema() {
+        try {
+            String schemaJson = """
+            {
+              "type": "object",
+              "required": ["path"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "The path to the file to be counted."
+                }
+              },
+              "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create count_file_lines schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+    }
+    
     private JsonNode createCreateFileSchema() {
         try {
             String schemaJson = """
@@ -486,42 +519,42 @@ public class MCPServer {
         }
     }
 
-    private static class ToolWrapper {
-        
+    public static class ToolWrapper {
+    
+        private static final ObjectMapper mapper = new ObjectMapper();
+    
         private final String name;
         private final String description;
         private final JsonNode inputSchema;
         private final ToolExecutor executor;
-        private static final ObjectMapper mapper = new ObjectMapper();
-
+    
         public ToolWrapper(String name, String description, JsonNode inputSchema, ToolExecutor executor) {
             this.name = name;
             this.description = description;
             this.inputSchema = inputSchema;
             this.executor = executor;
         }
-
+    
         public String getName() { return name; }
-        
         public String getDescription() { return description; }
-        
         public JsonNode getInputSchema() { return inputSchema; }
-        
-        public CompletableFuture<ToolStatus> execute(JsonNode input) {
+    
+        public CompletableFuture<? extends ToolStatus> execute(JsonNode input) {
             try {
                 return executor.execute(input);
             } catch (Exception e) {
-                e.printStackTrace();
-                CompletableFuture<ToolStatus> failedFuture = new CompletableFuture<>();
-                failedFuture.completeExceptionally(e);
-                return failedFuture;
+                CompletableFuture<ToolStatus> failed = new CompletableFuture<>();
+                failed.completeExceptionally(e);
+                return failed;
             }
         }
     }
 
+
     @FunctionalInterface
-    private interface ToolExecutor {
-        CompletableFuture<ToolStatus> execute(JsonNode input) throws Exception;
+    public interface ToolExecutor {
+        CompletableFuture<? extends ToolStatus> execute(JsonNode input) throws Exception;
     }
+
 }
 

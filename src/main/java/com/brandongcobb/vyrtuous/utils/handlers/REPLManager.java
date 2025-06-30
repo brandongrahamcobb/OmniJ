@@ -108,44 +108,69 @@ public class REPLManager {
         return CompletableFuture.runAsync(() -> {
             String toolName = toolCallNode.get("tool").asText();
             try {
-                ObjectNode toolCallRequest = mapper.createObjectNode();
-                toolCallRequest.put("method", "tools/call");
-                ObjectNode params = mapper.createObjectNode();
+                // 1) Build the JSON-RPC 2.0 request
+                ObjectNode rpcRequest = mapper.createObjectNode();
+                rpcRequest.put("jsonrpc", "2.0");
+                rpcRequest.put("method", "tools/call");
+                ObjectNode params = rpcRequest.putObject("params");
                 params.put("name", toolName);
                 params.set("arguments", toolCallNode.get("input"));
-                toolCallRequest.set("params", params);
-                StringWriter toolBuffer = new StringWriter();
+
+                String rpcText = rpcRequest.toString();
+                LOGGER.fine("[JSON-RPC →] " + rpcText);
+
+                // 2) Dispatch to the MCP server
+                StringWriter buffer = new StringWriter();
                 CountDownLatch latch = new CountDownLatch(1);
-                PrintWriter wrappedWriter = new PrintWriter(new Writer() {
-                    @Override public void write(char[] cbuf, int off, int len) { toolBuffer.write(cbuf, off, len); }
-                    @Override public void flush() { latch.countDown(); }
-                    @Override public void close() {}
+                PrintWriter out = new PrintWriter(new Writer() {
+                    @Override public void write(char[] cbuf, int off, int len)  { buffer.write(cbuf, off, len); }
+                    @Override public void flush()     { latch.countDown(); }
+                    @Override public void close()     {}
                 }, true);
-                mcpServer.handleRequest(toolCallRequest.toString(), wrappedWriter);
+                mcpServer.handleRequest(rpcText, out);
+
                 if (!latch.await(2, TimeUnit.SECONDS)) {
                     throw new TimeoutException("Tool execution timed out");
                 }
-                String responseStr = toolBuffer.toString().trim();
+
+                // 3) Read and log the raw response
+                String responseStr = buffer.toString().trim();
+                LOGGER.fine("[JSON-RPC ←] " + responseStr);
                 if (responseStr.isEmpty()) {
                     throw new IOException("Empty tool response");
                 }
-                JsonNode resultNode = mapper.readTree(responseStr).get("result");
-                if (resultNode == null) {
-                    throw new IllegalStateException("Missing 'result' node");
+
+                // 4) Parse out the "result" object
+                JsonNode root   = mapper.readTree(responseStr);
+                JsonNode result = root.get("result");
+                if (result == null) {
+                    throw new IllegalStateException("Missing 'result' in tool response");
                 }
-                String message = resultNode.has("message")
-                    ? resultNode.get("message").asText()
-                    : "No message provided";
-                boolean success = resultNode.has("success")
-                    ? resultNode.get("success").asBoolean()
-                    : false;
-                if (!success) {
-                    addToolOutput("[" + toolName + " ERROR] " + message);
-                    LOGGER.severe(toolName + " failed: " + message);
-                } else {
+
+                // 5) Extract your flat status fields
+                String  message = result.path("message").asText("No message");
+                boolean success = result.path("success").asBoolean(false);
+
+                // 6) Emit the summary line
+                if (success) {
                     addToolOutput("[" + toolName + "] " + message);
                     LOGGER.fine(toolName + " succeeded: " + message);
+                } else {
+                    addToolOutput("[" + toolName + " ERROR] " + message);
+                    LOGGER.severe(toolName + " failed: " + message);
                 }
+
+                // 7) If there's a 'results' array, list each entry
+                JsonNode resultsNode = result.path("results");
+                if (resultsNode.isArray()) {
+                    for (JsonNode entry : resultsNode) {
+                        String path = entry.path("path").asText("<no-path>");
+                        JsonNode sn = entry.get("snippet");
+                        String snippet = (sn == null || sn.isNull()) ? "" : sn.asText();
+                        addToolOutput("  • " + path + (snippet.isBlank() ? "" : ": " + snippet));
+                    }
+                }
+
             } catch (Exception e) {
                 String err = "Exception executing tool '" + toolName + "': " + e.getMessage();
                 LOGGER.severe(err);
@@ -156,6 +181,7 @@ public class REPLManager {
             return null;
         });
     }
+
 
     private CompletableFuture<Void> completeESubStep(boolean firstRun) {
         LOGGER.fine("Starting E-substep for first run...");
