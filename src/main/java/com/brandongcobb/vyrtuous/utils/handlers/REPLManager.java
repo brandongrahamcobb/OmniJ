@@ -362,7 +362,6 @@ public class REPLManager {
                                 }
                                 lastResults = results;
                                 if (!validJson) {
-                                    lastResults = null;
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, content);
