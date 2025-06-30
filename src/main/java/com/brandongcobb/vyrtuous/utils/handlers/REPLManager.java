@@ -423,7 +423,7 @@ public class REPLManager {
         originalDirective = userInput;
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        mem.completeSendResponse(rawChannel, "[User] " + userInput);
+        mem.completeSendResponse(rawChannel, "[User]: " + userInput);
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->
