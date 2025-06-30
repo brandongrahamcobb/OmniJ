@@ -137,12 +137,32 @@ public class FindInFile implements Tool<FindInFileInput, ToolStatus> {
                     if (matches.size() >= input.getMaxResults()) break;
                 }
 
-                String summary = matches.isEmpty()
-                    ? "No matches found in file."
-                    : "Found " + matches.size() + " match(es) in " + filePath;
+                String summary;
+                if (matches.isEmpty()) {
+                    summary = "No matches found in file.";
+                } else {
+                    StringBuilder sb = new StringBuilder("Found ")
+                        .append(matches.size())
+                        .append(" match(es) in ")
+                        .append(filePath)
+                        .append(":\n\n");
 
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                    for (Match match : matches) {
+                        sb.append("Line ").append(match.getLineNumber()).append(":\n")
+                          .append(match.getContextSnippet()).append("\n\n");
+                    }
+
+                    summary = sb.toString().trim();
+                }
+
+                modelContextManager.addEntry(new ContextEntry(
+                    ContextEntry.Type.TOOL,
+                    "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"
+                ));
+                userContextManager.addEntry(new ContextEntry(
+                    ContextEntry.Type.TOOL,
+                    "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"
+                ));
 
                 return new ToolStatusWrapper(summary, true);
             } catch (IOException e) {
@@ -150,6 +170,7 @@ public class FindInFile implements Tool<FindInFileInput, ToolStatus> {
             }
         });
     }
+
     
     /*
      *  Nested class

@@ -118,7 +118,15 @@ public class SearchFiles implements Tool<SearchFilesInput, ToolStatus> {
                 Paths.get("/dev"),
                 Paths.get("/proc")
             );
-            try (Stream<Path> stream = Files.walk(Paths.get(input.getRootDirectory()))) {
+            String rootDir = input.getRootDirectory();
+
+            if (rootDir.startsWith("~")) {
+                String home = System.getProperty("user.home");
+                rootDir = home + rootDir.substring(1);
+            }
+
+            Path rootPath = Paths.get(rootDir);
+            try (Stream<Path> stream = Files.walk(rootPath)) {
                 stream
                     .filter(path -> {
                         Path normalized = path.toAbsolutePath().normalize();
