@@ -191,7 +191,7 @@ public class REPLManager {
             /*
              *  Null Checks
              */
-            userContextManager.printNewEntries(true, true, true, true, true, true, true, true);
+            userContextManager.printNewEntries(true, true, true, false, true, true, true, true);
             if (lastResults != null && !lastResults.isEmpty()) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 return completeESubStep(firstRun).thenCompose(v -> {
@@ -241,7 +241,7 @@ public class REPLManager {
      */
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Starting P-step");
-        userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
+        userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
 
@@ -360,13 +360,13 @@ public class REPLManager {
                                     } catch (Exception e) {
                                         System.err.println("Skipping invalid JSON block: " + e.getMessage());
                                     }
-                                    lastResults = results;
                                 }
+                                lastResults = results;
                                 if (!validJson) {
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, content);
-                                    userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
+                                    userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");

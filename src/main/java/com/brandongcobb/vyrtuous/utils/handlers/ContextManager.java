@@ -112,11 +112,11 @@ public class ContextManager {
             if (shouldPrint) {
                 String color;
                 switch (type) {
-                    case USER_MESSAGE:   color = Vyrtuous.BRIGHT_BLUE; break;
-                    case AI_RESPONSE:    color = Vyrtuous.TEAL;        break;
+                    case USER_MESSAGE:   color = Vyrtuous.BLURPLE;     break;
+                    case AI_RESPONSE:    color = Vyrtuous.YELLOW;      break;
                     case TOOL:           color = Vyrtuous.CYAN;        break;
-                    case TOOL_OUTPUT:    color = Vyrtuous.SKY_BLUE;    break;
-                    case TOKENS:         color = Vyrtuous.BRIGHT_CYAN; break;
+                    case TOOL_OUTPUT:    color = Vyrtuous.VIOLET;      break;
+                    case TOKENS:         color = Vyrtuous.RED;         break;
                     case SYSTEM_NOTE:    color = Vyrtuous.NAVY;        break;
                     case SHELL_OUTPUT:   color = Vyrtuous.DODGER_BLUE; break;
                     default:             color = Vyrtuous.RESET;       break;

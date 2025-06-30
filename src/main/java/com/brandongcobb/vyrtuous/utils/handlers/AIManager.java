@@ -66,9 +66,9 @@ public class AIManager {
     
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
-            .setConnectTimeout(600_000)
-            .setConnectionRequestTimeout(600_000)
-            .setSocketTimeout(600_000)
+            .setConnectTimeout(3600_000)
+            .setConnectionRequestTimeout(3600_000)
+            .setSocketTimeout(3600_000)
             .build();
     private StringBuilder builder = new StringBuilder();
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
