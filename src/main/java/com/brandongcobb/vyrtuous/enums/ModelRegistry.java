@@ -52,7 +52,7 @@ public enum ModelRegistry {
         You are designed to be a mostly autonomous programmer.
         You are designed to respond in valid JSON or plaintext.
         You are designed to put backticks on nested codeblocks.
-
+        You are designed to only submit commands once.
 Here is the patch schema.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -214,6 +214,32 @@ Here is the search_files schema:
           "type": "integer",
           "default": 100,
           "description": "Maximum number of files to return."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+Here is the search_web schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchWeb",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["search_web"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["query"],
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The search query to run using the Google Programmable Search API."
         }
       },
       "additionalProperties": false

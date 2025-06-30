@@ -149,6 +149,17 @@ public class MCPServer {
                 return searchFiles.run(searchFilesInput).thenApply(result -> result);
             }
         ));
+        tools.put("search_web", new ToolWrapper(
+            "search_web",
+            "Search the web for matching criteria",
+            createSearchWebSchema(),
+            (input) -> {
+                SearchWebInput searchWebInput = mapper.treeToValue(input, SearchWebInput.class);
+                SearchWeb searchWeb = new SearchWeb(modelContextManager, userContextManager);
+                searchWebInput.setOriginalJson(input);
+                return searchWeb.run(searchWebInput).thenApply(result -> result);
+            }
+        ));
     }
 
     public void start() {
@@ -520,6 +531,29 @@ public class MCPServer {
             return mapper.readTree(schemaJson);
         } catch (Exception e) {
             LOGGER.severe("Failed to create save_context schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+
+    }
+
+    private JsonNode createSearchWebSchema() {
+        try {
+            String schemaJson = """
+            {
+                "type": "object",
+                "required": ["query"],
+                "properties": {
+                    "query": {
+                    "type": "string",
+                    "description": "The search query to run using the Google Programmable Search API."
+                    }
+                },
+                "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create search_web schema: " + e.getMessage());
             return mapper.createObjectNode();
         }
     }
