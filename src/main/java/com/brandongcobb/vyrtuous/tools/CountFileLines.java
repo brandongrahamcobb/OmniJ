@@ -90,8 +90,8 @@ public class CountFileLines implements Tool<CountFileLinesInput, ToolStatus> {
                 try (Stream<String> lines = Files.lines(filePath, StandardCharsets.UTF_8)) {
                     lineCount = lines.count();
                 }
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "\""));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "\""));
                 return new ToolStatusWrapper(String.valueOf(lineCount), true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

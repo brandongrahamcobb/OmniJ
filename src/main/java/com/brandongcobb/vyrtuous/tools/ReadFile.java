@@ -86,8 +86,8 @@ public class ReadFile implements Tool<ReadFileInput, ToolStatus> {
                     return new ToolStatusWrapper("File not found: " + filePath, false);
                 }
                 String content = Files.readString(filePath, StandardCharsets.UTF_8);
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "\""));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "\""));
                 return new ToolStatusWrapper(content, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

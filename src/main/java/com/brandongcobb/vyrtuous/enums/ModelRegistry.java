@@ -51,6 +51,8 @@ public enum ModelRegistry {
         You are designed to work in the directory you are instanced from.
         You are designed to be a mostly autonomous programmer.
         You are designed to respond in valid JSON or plaintext.
+        You are designed to put backticks on nested codeblocks.
+
 Here is the patch schema.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",

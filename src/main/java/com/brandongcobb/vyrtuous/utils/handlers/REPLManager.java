@@ -191,7 +191,6 @@ public class REPLManager {
             /*
              *  Null Checks
              */
-            userContextManager.printNewEntries(true, true, true, false, true, true, true, true);
             if (lastResults != null && !lastResults.isEmpty()) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 return completeESubStep(firstRun).thenCompose(v -> {
@@ -210,8 +209,9 @@ public class REPLManager {
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                 mem.completeSendResponse(rawChannel, newInput);
-                return CompletableFuture.completedFuture(null);
             }
+            userContextManager.printNewEntries(true, true, true, false, true, true, true, true);
+            return CompletableFuture.completedFuture(null);
         }).exceptionally(ex -> {
             LOGGER.severe("Tool call error: " + ex.getMessage());
             return null;
@@ -318,10 +318,9 @@ public class REPLManager {
                                 responseIdFuture = llamaUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
                                 if (!firstRun) {
-                                    
-                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, "[Tokens] " + tokensCount));
-                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, "[Tokens] " + tokensCount));
-                                    mem.completeSendResponse(rawChannel, tokensCount);
+                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                    mem.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
                                 }
                             }
                             case "openai" -> {
@@ -363,6 +362,7 @@ public class REPLManager {
                                 }
                                 lastResults = results;
                                 if (!validJson) {
+                                    lastResults = null;
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, content);
