@@ -161,15 +161,15 @@ public class REPLManager {
                 }
 
                 // 7) If there's a 'results' array, list each entry
-                JsonNode resultsNode = result.path("results");
-                if (resultsNode.isArray()) {
-                    for (JsonNode entry : resultsNode) {
-                        String path = entry.path("path").asText("<no-path>");
-                        JsonNode sn = entry.get("snippet");
-                        String snippet = (sn == null || sn.isNull()) ? "" : sn.asText();
-                        addToolOutput("  • " + path + (snippet.isBlank() ? "" : ": " + snippet));
-                    }
-                }
+//                JsonNode resultsNode = result.path("results");
+//                if (resultsNode.isArray()) {
+//                    for (JsonNode entry : resultsNode) {
+//                        String path = entry.path("path").asText("<no-path>");
+//                        JsonNode sn = entry.get("snippet");
+//                        String snippet = (sn == null || sn.isNull()) ? "" : sn.asText();
+//                        addToolOutput("  • " + path + (snippet.isBlank() ? "" : ": " + snippet));
+//                    }
+//                }
 
             } catch (Exception e) {
                 String err = "Exception executing tool '" + toolName + "': " + e.getMessage();
@@ -381,11 +381,11 @@ public class REPLManager {
                                             results.add(node);
                                             validJson = true;
                                         }
-                                        lastResults = results;
                                     } catch (Exception e) {
                                         System.err.println("Skipping invalid JSON block: " + e.getMessage());
                                     }
                                 }
+                                lastResults = results;
                                 if (!validJson) {
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));

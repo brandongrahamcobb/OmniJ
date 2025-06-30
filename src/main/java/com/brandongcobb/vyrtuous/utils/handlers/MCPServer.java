@@ -229,7 +229,7 @@ public class MCPServer {
             return CompletableFuture.completedFuture(createError(-32002, "Server not initialized"));
         }
         try {
-            String   toolName  = params.get("name").asText();
+            String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
             ToolWrapper tool   = tools.get(toolName);
             if (tool == null) {
