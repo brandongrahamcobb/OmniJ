@@ -38,6 +38,9 @@ public class SettingsManager {
     private static final String DEFAULT_MODEL = ModelRegistry.LLAMA_MODEL.toString();
     private static final String DEFAULT_SOURCE = "llama";
 
+    /*
+     *  Getters
+     */
     public static CompletableFuture<SettingsManager> completeGetSettingsInstance() {
         return CompletableFuture.completedFuture(settingsManager);
     }
@@ -54,8 +57,6 @@ public class SettingsManager {
         );
     }
 
-    // --- Combined async getter ---
-
     public CompletableFuture<String[]> completeGetUserSettings(Long userId) {
         return CompletableFuture.allOf(
             completeGetUserModel(userId),
@@ -68,8 +69,9 @@ public class SettingsManager {
         );
     }
 
-    // --- Individual async setters ---
-
+    /*
+     *  Setters
+     */
     public CompletableFuture<Void> completeSetUserModel(Long userId, String model) {
         return CompletableFuture.runAsync(() -> userModelPairs.put(userId, model));
     }
@@ -77,8 +79,6 @@ public class SettingsManager {
     public CompletableFuture<Void> completeSetUserSource(Long userId, String source) {
         return CompletableFuture.runAsync(() -> userSourcePairs.put(userId, source));
     }
-
-    // --- Batch map setters (not commonly needed) ---
 
     public CompletableFuture<Void> completeSetUserModelPair(Map<Long, String> newModelPairs) {
         return CompletableFuture.runAsync(() -> {
@@ -94,7 +94,9 @@ public class SettingsManager {
         });
     }
 
-    // Optional: Clear or reset individual users
+    /*
+     *  Helpers
+     */
     public CompletableFuture<Void> completeClearUserSettings(Long userId) {
         return CompletableFuture.runAsync(() -> {
             userModelPairs.remove(userId);

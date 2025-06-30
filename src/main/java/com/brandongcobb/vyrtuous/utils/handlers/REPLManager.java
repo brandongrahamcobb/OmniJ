@@ -99,6 +99,7 @@ public class REPLManager {
     private void addToolOutput(String content) {
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
+        mem.completeSendResponse(rawChannel, content);
     }
     /*
      *  E-Step
@@ -108,18 +109,14 @@ public class REPLManager {
         return CompletableFuture.runAsync(() -> {
             String toolName = toolCallNode.get("tool").asText();
             try {
-                // 1) Build the JSON-RPC 2.0 request
                 ObjectNode rpcRequest = mapper.createObjectNode();
                 rpcRequest.put("jsonrpc", "2.0");
                 rpcRequest.put("method", "tools/call");
                 ObjectNode params = rpcRequest.putObject("params");
                 params.put("name", toolName);
                 params.set("arguments", toolCallNode.get("input"));
-
                 String rpcText = rpcRequest.toString();
                 LOGGER.fine("[JSON-RPC →] " + rpcText);
-
-                // 2) Dispatch to the MCP server
                 StringWriter buffer = new StringWriter();
                 CountDownLatch latch = new CountDownLatch(1);
                 PrintWriter out = new PrintWriter(new Writer() {
@@ -128,30 +125,21 @@ public class REPLManager {
                     @Override public void close()     {}
                 }, true);
                 mcpServer.handleRequest(rpcText, out);
-
                 if (!latch.await(2, TimeUnit.SECONDS)) {
                     throw new TimeoutException("Tool execution timed out");
                 }
-
-                // 3) Read and log the raw response
                 String responseStr = buffer.toString().trim();
                 LOGGER.fine("[JSON-RPC ←] " + responseStr);
                 if (responseStr.isEmpty()) {
                     throw new IOException("Empty tool response");
                 }
-
-                // 4) Parse out the "result" object
                 JsonNode root   = mapper.readTree(responseStr);
                 JsonNode result = root.get("result");
                 if (result == null) {
                     throw new IllegalStateException("Missing 'result' in tool response");
                 }
-
-                // 5) Extract your flat status fields
                 String  message = result.path("message").asText("No message");
                 boolean success = result.path("success").asBoolean(false);
-
-                // 6) Emit the summary line
                 if (success) {
                     addToolOutput("[" + toolName + "] " + message);
                     LOGGER.fine(toolName + " succeeded: " + message);
@@ -159,18 +147,6 @@ public class REPLManager {
                     addToolOutput("[" + toolName + " ERROR] " + message);
                     LOGGER.severe(toolName + " failed: " + message);
                 }
-
-                // 7) If there's a 'results' array, list each entry
-//                JsonNode resultsNode = result.path("results");
-//                if (resultsNode.isArray()) {
-//                    for (JsonNode entry : resultsNode) {
-//                        String path = entry.path("path").asText("<no-path>");
-//                        JsonNode sn = entry.get("snippet");
-//                        String snippet = (sn == null || sn.isNull()) ? "" : sn.asText();
-//                        addToolOutput("  • " + path + (snippet.isBlank() ? "" : ": " + snippet));
-//                    }
-//                }
-
             } catch (Exception e) {
                 String err = "Exception executing tool '" + toolName + "': " + e.getMessage();
                 LOGGER.severe(err);
@@ -233,7 +209,7 @@ public class REPLManager {
                 String newInput = scanner.nextLine();
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-                mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                mem.completeSendResponse(rawChannel, newInput);
                 return CompletableFuture.completedFuture(null);
             }
         }).exceptionally(ex -> {
@@ -291,7 +267,7 @@ public class REPLManager {
                             userContextManager.clearModified();
                             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
                             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
-                            mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                            mem.completeSendResponse(rawChannel, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed.");
                             if (retries <= maxRetries) {
                                 LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
                                 replExecutor.submit(this);
@@ -345,7 +321,7 @@ public class REPLManager {
                                     
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
-                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                    mem.completeSendResponse(rawChannel, tokensCount);
                                 }
                             }
                             case "openai" -> {
@@ -389,7 +365,7 @@ public class REPLManager {
                                 if (!validJson) {
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                    mem.completeSendResponse(rawChannel, content);
                                     userContextManager.printNewEntries(false, true, true, true, true, true, true, true);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
@@ -399,14 +375,14 @@ public class REPLManager {
                                     if (cleanedText.equals("")) {
                                         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                        mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+                                        mem.completeSendResponse(rawChannel, content);
                                         metadataContainer.put(contentKey, content);
                                     } else {
                                         metadataContainer.put(contentKey, cleanedText);
                                         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                        mem.completeSendResponse(rawChannel, cleanedText);
                                     }
-                                    mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
                                 }
                             } catch (Exception e) {
                             }
@@ -447,7 +423,7 @@ public class REPLManager {
         originalDirective = userInput;
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));
+        mem.completeSendResponse(rawChannel, userInput);
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->

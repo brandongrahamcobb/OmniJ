@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 public class OllamaContainer extends MainContainer {
     
     public OllamaContainer(Map<String, Object> responseMap) {
+        
         List<Map<String, Object>> completionChoices = (List<Map<String, Object>>) responseMap.get("choices");
         if (completionChoices == null || completionChoices.isEmpty()) return;
         Map<String, Object> completionChoice = completionChoices.get(0);

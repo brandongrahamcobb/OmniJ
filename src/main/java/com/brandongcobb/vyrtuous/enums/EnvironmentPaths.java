@@ -89,7 +89,6 @@ public enum EnvironmentPaths {
     TOOL_UTILS(Helpers.PATH_TOOL_UTILS),
     VYRTUOUS(Helpers.PATH_VYRTUOUS);
 
-
     private final Path path;
 
     EnvironmentPaths(Path relativePath) {

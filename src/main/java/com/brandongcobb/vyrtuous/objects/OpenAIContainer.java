@@ -170,6 +170,7 @@ public class OpenAIContainer extends MainContainer {
                     if (responsesUsage != null) {
                         Integer responsesTotalTokens = (Integer) responsesUsage.get("total_tokens");
                         put(responsesTotalTokensKey, responsesTotalTokens);
+                    }
                     MetadataKey<String> responsesUserKey = new MetadataKey<>("user", Metadata.STRING);
                     String responsesUser = (String) responseMap.get("user");
                     put(responsesUserKey, responsesUser);
@@ -902,9 +903,4 @@ public class OpenAIContainer extends MainContainer {
             }
         }
     }
-        
-//        public Map<String, Object> getResponseMap() {
-//            return mapMap;
-//        }
-}
 }

@@ -91,7 +91,25 @@ public class MessageManager {
         this.jda = jda;
         this.tempDirectory = new File(System.getProperty("java.io.tmpdir"));
     }
-
+    
+    private CompletableFuture<Message> completeHandleCodeBlock(Message message, String content) {
+        Matcher matcher = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```").matcher(content);
+        while (matcher.find()) {
+            String lang = matcher.group(1) != null ? matcher.group(1) : "txt";
+            String code = matcher.group(2);
+            if (code.length() >= 1900) {
+                File file = new File(tempDirectory, "codeblock_" + System.currentTimeMillis() + "." + lang);
+                try {
+                    Files.writeString(file.toPath(), code);
+                    return completeSendDiscordMessage(message, "📄 Code block too long, uploaded as file:", file);
+                } catch (IOException e) {
+                    return completeEditDiscordMessage(message, "❌ Error: " + e.getMessage());
+                }
+            }
+        }
+        return completeEditDiscordMessage(message, content);
+    }
+    
     public CompletableFuture<List<String>> completeProcessAttachments(List<Attachment> attachments) {
         List<String> results = Collections.synchronizedList(new ArrayList<>());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -134,70 +152,76 @@ public class MessageManager {
                 return List.of("Error occurred");
             });
     }
-
-    private String encodeImage(byte[] imageBytes) {
-        return Base64.getEncoder().encodeToString(imageBytes);
-    }
-
-    private String getContentTypeFromFileName(String fileName) {
-        String lowerName = fileName.toLowerCase(Locale.ROOT);
-        if (lowerName.endsWith(".png")) return "image/png";
-        if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
-        if (lowerName.endsWith(".gif")) return "image/gif";
-        if (lowerName.endsWith(".bmp")) return "image/bmp";
-        if (lowerName.endsWith(".webp")) return "image/webp";
-        if (lowerName.endsWith(".svg")) return "image/svg+xml";
-        if (lowerName.endsWith(".txt")) return "text/plain";
-        if (lowerName.endsWith(".md")) return "text/markdown";
-        if (lowerName.endsWith(".csv")) return "text/csv";
-        if (lowerName.endsWith(".json")) return "application/json";
-        if (lowerName.endsWith(".xml")) return "application/xml";
-        if (lowerName.endsWith(".html") || lowerName.endsWith(".htm")) return "text/html";
-        return "application/octet-stream";
-    }
-
-    private List<CompletableFuture<Message>> sendInChunks(Message message, String text) {
-        List<CompletableFuture<Message>> chunks = new ArrayList<>();
-        int maxLength = 2000;
-        int index = 0;
-        while (index < text.length()) {
-            int end = Math.min(index + maxLength, text.length());
-            if (end < text.length()) {
-                int lastNewline = text.lastIndexOf("\n", end);
-                int lastSpace = text.lastIndexOf(" ", end);
-                if (lastNewline > index) end = lastNewline;
-                else if (lastSpace > index) end = lastSpace;
-            }
-            String chunk = text.substring(index, end).trim();
-            if (!chunk.isEmpty()) {
-                chunks.add(completeSendDiscordMessage(message, chunk));
-            }
-            index = end;
-        }
-        return chunks;
+    
+    /*
+     *  Overloaded completeSendDiscordMessage
+     */
+    public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content, MessageEmbed embed) {
+        return message.getGuildChannel()
+            .asTextChannel()
+            .sendMessage(content)
+            .addEmbeds(embed)
+            .submit();
     }
     
-    private List<CompletableFuture<Message>> sendInChunks(GuildChannel channel, String text) {
-        List<CompletableFuture<Message>> chunks = new ArrayList<>();
-        int maxLength = 2000;
-        int index = 0;
-        while (index < text.length()) {
-            int end = Math.min(index + maxLength, text.length());
-            if (end < text.length()) {
-                int lastNewline = text.lastIndexOf("\n", end);
-                int lastSpace = text.lastIndexOf(" ", end);
-                if (lastNewline > index) end = lastNewline;
-                else if (lastSpace > index) end = lastSpace;
-            }
-            String chunk = text.substring(index, end).trim();
-            if (!chunk.isEmpty()) {
-                chunks.add(completeSendDiscordMessage(channel, chunk));
-            }
-            index = end;
+    public CompletableFuture<Message> completeSendDiscordMessage(GuildChannel channel, String content) {
+        if (channel instanceof TextChannel textChannel) {
+            return textChannel.sendMessage(content).submit();
+        } else {
+            CompletableFuture<Message> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IllegalArgumentException("Channel is not a TextChannel: " + channel.getType()));
+            return failed;
         }
-        return chunks;
+    }
+
+    public CompletableFuture<Message> completeSendDiscordMessage(GuildChannel channel, String content, File file) {
+        if (channel instanceof TextChannel textChannel) {
+            return textChannel.sendMessage(content)
+                              .addFiles(FileUpload.fromData(file))
+                              .submit();
+        } else {
+            CompletableFuture<Message> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IllegalArgumentException("Channel is not a TextChannel: " + channel.getType()));
+            return failed;
+        }
+    }
+
+    public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content) {
+        return message.getGuildChannel()
+            .asTextChannel()
+            .sendMessage(content)
+            .submit();
+    }
+
+    public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content, File file) {
+        return message.getGuildChannel()
+            .asTextChannel()
+            .sendMessage(content)
+            .addFiles(FileUpload.fromData(file))
+            .submit();
+    }
+
+    public CompletableFuture<Message> completeSendDiscordMessage(PrivateChannel channel, String content, File file) {
+        return channel.sendMessage(content)
+            .addFiles(FileUpload.fromData(file))
+            .submit();
+    }
+
+    public CompletableFuture<Message> completeSendDiscordMessage(PrivateChannel channel, String content, MessageEmbed embed) {
+        return channel.sendMessage(content)
+            .addEmbeds(embed)
+            .submit();
     }
     
+    public CompletableFuture<Message> completeSendDM(User user, String content) {
+        return user.openPrivateChannel()
+            .submit()
+            .thenCompose(channel -> channel.sendMessage(content).submit());
+    }
+
+    /*
+     *  Overloaded completeSendResponse
+     */
     public CompletableFuture<Void> completeSendResponse(Message message, String response) {
         List<CompletableFuture<Message>> futures = new ArrayList<>();
         Pattern codeBlockPattern = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```");
@@ -276,26 +300,7 @@ public class MessageManager {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
     
-    private int lastIncompleteCodeBlockStartIndex(String text) {
-        int lastIndex = -1;
-        int count = 0;
-        Pattern pattern = Pattern.compile("```");
-        Matcher matcher = pattern.matcher(text);
-        while (matcher.find()) {
-            count++;
-            if (count % 2 != 0) {
-                lastIndex = matcher.start();
-            } else {
-                lastIndex = -1;
-            }
-        }
-        return lastIndex;
-    }
-    
-    public CompletableFuture<Void> completeStreamResponse(
-            Message originalMessage,
-            Supplier<Optional<String>> nextChunkSupplier
-    ) {
+    public CompletableFuture<Void> completeStreamResponse(Message originalMessage, Supplier<Optional<String>> nextChunkSupplier) {
         AtomicReference<Message> editingMessage = new AtomicReference<>(originalMessage);
         StringBuilder buffer = new StringBuilder();
         StringBuilder fullContent = new StringBuilder();
@@ -344,11 +349,16 @@ public class MessageManager {
         return done;
     }
     
-    private boolean isInsideIncompleteCodeBlock(String text) {
-        long count = Pattern.compile("```").matcher(text).results().count();
-        return count % 2 != 0;
+    /*
+     *  Helper methods
+     */
+    private boolean containsCodeBlock(String text) {
+        return text.contains("```");
     }
-
+    
+    private String encodeImage(byte[] imageBytes) {
+        return Base64.getEncoder().encodeToString(imageBytes);
+    }
 
     private CompletableFuture<Message> flushBuffer(StringBuilder buffer, AtomicReference<Message> editingMessage) {
         String content = buffer.toString();
@@ -359,105 +369,93 @@ public class MessageManager {
         if (lastMsg == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("No message to edit."));
         }
-        return handleCodeBlock(lastMsg, content).thenApply(sentMsg -> {
+        return completeHandleCodeBlock(lastMsg, content).thenApply(sentMsg -> {
             editingMessage.set(sentMsg);
             return sentMsg;
         });
     }
-
-    private boolean containsCodeBlock(String text) {
-        return text.contains("```");
+    
+    private String getContentTypeFromFileName(String fileName) {
+        String lowerName = fileName.toLowerCase(Locale.ROOT);
+        if (lowerName.endsWith(".png")) return "image/png";
+        if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
+        if (lowerName.endsWith(".gif")) return "image/gif";
+        if (lowerName.endsWith(".bmp")) return "image/bmp";
+        if (lowerName.endsWith(".webp")) return "image/webp";
+        if (lowerName.endsWith(".svg")) return "image/svg+xml";
+        if (lowerName.endsWith(".txt")) return "text/plain";
+        if (lowerName.endsWith(".md")) return "text/markdown";
+        if (lowerName.endsWith(".csv")) return "text/csv";
+        if (lowerName.endsWith(".json")) return "application/json";
+        if (lowerName.endsWith(".xml")) return "application/xml";
+        if (lowerName.endsWith(".html") || lowerName.endsWith(".htm")) return "text/html";
+        return "application/octet-stream";
     }
-
-
-    private CompletableFuture<Message> handleCodeBlock(Message message, String content) {
-        // Detect if there's an over-sized code block
-        Matcher matcher = Pattern.compile("```(\\w+)?\\n([\\s\\S]*?)```").matcher(content);
+    
+    private int lastIncompleteCodeBlockStartIndex(String text) {
+        int lastIndex = -1;
+        int count = 0;
+        Pattern pattern = Pattern.compile("```");
+        Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
-            String lang = matcher.group(1) != null ? matcher.group(1) : "txt";
-            String code = matcher.group(2);
-
-            if (code.length() >= 1900) {
-                // Too big — send as file
-                File file = new File(tempDirectory, "codeblock_" + System.currentTimeMillis() + "." + lang);
-                try {
-                    Files.writeString(file.toPath(), code);
-                    return completeSendDiscordMessage(message, "📄 Code block too long, uploaded as file:", file);
-                } catch (IOException e) {
-                    return completeEditDiscordMessage(message, "❌ Error: " + e.getMessage());
-                }
+            count++;
+            if (count % 2 != 0) {
+                lastIndex = matcher.start();
+            } else {
+                lastIndex = -1;
             }
         }
-
-        // No large code blocks — just update with full content
-        return completeEditDiscordMessage(message, content);
+        return lastIndex;
     }
-
+    
+    private boolean isInsideIncompleteCodeBlock(String text) {
+        long count = Pattern.compile("```").matcher(text).results().count();
+        return count % 2 != 0;
+    }
+    
+    private List<CompletableFuture<Message>> sendInChunks(GuildChannel channel, String text) {
+        List<CompletableFuture<Message>> chunks = new ArrayList<>();
+        int maxLength = 2000;
+        int index = 0;
+        while (index < text.length()) {
+            int end = Math.min(index + maxLength, text.length());
+            if (end < text.length()) {
+                int lastNewline = text.lastIndexOf("\n", end);
+                int lastSpace = text.lastIndexOf(" ", end);
+                if (lastNewline > index) end = lastNewline;
+                else if (lastSpace > index) end = lastSpace;
+            }
+            String chunk = text.substring(index, end).trim();
+            if (!chunk.isEmpty()) {
+                chunks.add(completeSendDiscordMessage(channel, chunk));
+            }
+            index = end;
+        }
+        return chunks;
+    }
+    
+    private List<CompletableFuture<Message>> sendInChunks(Message message, String text) {
+        List<CompletableFuture<Message>> chunks = new ArrayList<>();
+        int maxLength = 2000;
+        int index = 0;
+        while (index < text.length()) {
+            int end = Math.min(index + maxLength, text.length());
+            if (end < text.length()) {
+                int lastNewline = text.lastIndexOf("\n", end);
+                int lastSpace = text.lastIndexOf(" ", end);
+                if (lastNewline > index) end = lastNewline;
+                else if (lastSpace > index) end = lastSpace;
+            }
+            String chunk = text.substring(index, end).trim();
+            if (!chunk.isEmpty()) {
+                chunks.add(completeSendDiscordMessage(message, chunk));
+            }
+            index = end;
+        }
+        return chunks;
+    }
 
     private CompletableFuture<Message> completeEditDiscordMessage(Message message, String newContent) {
         return message.editMessage(newContent).submit();
-    }
-    
-    public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content, MessageEmbed embed) {
-        return message.getGuildChannel()
-            .asTextChannel()
-            .sendMessage(content)
-            .addEmbeds(embed)
-            .submit();
-    }
-    
-    public CompletableFuture<Message> completeSendDiscordMessage(GuildChannel channel, String content) {
-        if (channel instanceof TextChannel textChannel) {
-            return textChannel.sendMessage(content).submit();
-        } else {
-            CompletableFuture<Message> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new IllegalArgumentException("Channel is not a TextChannel: " + channel.getType()));
-            return failed;
-        }
-    }
-
-    public CompletableFuture<Message> completeSendDiscordMessage(GuildChannel channel, String content, File file) {
-        if (channel instanceof TextChannel textChannel) {
-            return textChannel.sendMessage(content)
-                              .addFiles(FileUpload.fromData(file))
-                              .submit();
-        } else {
-            CompletableFuture<Message> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new IllegalArgumentException("Channel is not a TextChannel: " + channel.getType()));
-            return failed;
-        }
-    }
-
-    public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content) {
-        return message.getGuildChannel()
-            .asTextChannel()
-            .sendMessage(content)
-            .submit();
-    }
-
-    public CompletableFuture<Message> completeSendDiscordMessage(Message message, String content, File file) {
-        return message.getGuildChannel()
-            .asTextChannel()
-            .sendMessage(content)
-            .addFiles(FileUpload.fromData(file))
-            .submit();
-    }
-
-    public CompletableFuture<Message> completeSendDiscordMessage(PrivateChannel channel, String content, File file) {
-        return channel.sendMessage(content)
-            .addFiles(FileUpload.fromData(file))
-            .submit();
-    }
-
-    public CompletableFuture<Message> completeSendDiscordMessage(PrivateChannel channel, String content, MessageEmbed embed) {
-        return channel.sendMessage(content)
-            .addEmbeds(embed)
-            .submit();
-    }
-    
-    public CompletableFuture<Message> completeSendDM(User user, String content) {
-        return user.openPrivateChannel()
-            .submit()
-            .thenCompose(channel -> channel.sendMessage(content).submit());
     }
 }

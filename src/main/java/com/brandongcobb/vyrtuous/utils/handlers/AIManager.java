@@ -505,7 +505,6 @@ public class AIManager {
                     : Maps.OPENROUTER_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
             }
         } else if ("twitch".equals(sourceOfRequest)) {
-            // Optional: Add Twitch logic here
         }
         if (endpoint == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(

@@ -23,6 +23,7 @@ public class ServerRequest {
     public String endpoint;
     
     public ServerRequest (String instructions, String prompt, String model, boolean store, boolean stream, List<String> history, String endpoint, String previousResponseId, String provider, String requestType) {
+        
         this.instructions = instructions;
         this.prompt = prompt;
         this.model = model;

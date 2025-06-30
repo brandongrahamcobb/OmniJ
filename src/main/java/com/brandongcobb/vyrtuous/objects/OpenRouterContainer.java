@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 public class OpenRouterContainer extends MainContainer {
     
     public OpenRouterContainer(Map<String, Object> responseMap) {
+        
         List<Map<String, Object>> completionChoices = (List<Map<String, Object>>) responseMap.get("choices");
         if (completionChoices == null || completionChoices.isEmpty()) return;
         Map<String, Object> completionChoice = completionChoices.get(0);
