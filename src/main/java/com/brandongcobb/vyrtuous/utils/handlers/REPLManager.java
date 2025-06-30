@@ -349,14 +349,12 @@ public class REPLManager {
                                             results.add(node);
                                             validJson = true;
                                         }
+                                        lastResults = results;
                                     } catch (Exception e) {
                                         System.err.println("Skipping invalid JSON block: " + e.getMessage());
                                     }
                                 }
-                                lastResults = results;
                                 if (!validJson) {
-                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    metadataContainer.put(contentKey, content);
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, userContextManager.generateNewEntry(true, true, true, true, true, true, true, true));

@@ -83,18 +83,18 @@ public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
             try {
                 Path filePath = Paths.get(input.getPath());
                 if (!Files.exists(filePath)) {
-                    return new ReadFileStatus("File not found: " + filePath, null, false);
+                    return new ReadFileStatus(null, "File not found: " + filePath, false);
                 }
 
                 String content = Files.readString(filePath, StandardCharsets.UTF_8);
                 
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
-                return new ReadFileStatus("File read successfully.", content, true);
+                return new ReadFileStatus(content, "File read successfully.", true);
             } catch (IOException e) {
-                return new ReadFileStatus("IO error: " + e.getMessage(), null, false);
+                return new ReadFileStatus(null, "IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new ReadFileStatus("Unexpected error: " + e.getMessage(), null, false);
+                return new ReadFileStatus(null, "Unexpected error: " + e.getMessage(), false);
             }
         });
     }
