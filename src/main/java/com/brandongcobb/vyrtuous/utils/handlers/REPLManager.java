@@ -267,7 +267,7 @@ public class REPLManager {
                             userContextManager.clearModified();
                             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
                             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
-                            mem.completeSendResponse(rawChannel, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed.");
+                            mem.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed.");
                             if (retries <= maxRetries) {
                                 LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
                                 replExecutor.submit(this);
@@ -319,8 +319,8 @@ public class REPLManager {
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
                                 if (!firstRun) {
                                     
-                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
-                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, "[Tokens] " + tokensCount));
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, "[Tokens] " + tokensCount));
                                     mem.completeSendResponse(rawChannel, tokensCount);
                                 }
                             }
@@ -423,7 +423,7 @@ public class REPLManager {
         originalDirective = userInput;
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        mem.completeSendResponse(rawChannel, userInput);
+        mem.completeSendResponse(rawChannel, "[User] " + userInput);
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->

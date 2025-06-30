@@ -47,12 +47,12 @@ public class ContextEntry {
     public String formatForPrompt() {
         switch(type) {
             case USER_MESSAGE: return "[User]: " + content;
-            case AI_RESPONSE: return "[AI]: " + content;
+            case AI_RESPONSE: return "[Gemma]: " + content;
             case TOOL: return "[Tool]: " + content;
             case TOOL_OUTPUT: return "[Output]: " + content;
             case TOKENS: return "[Tokens]: " + content;
             case SYSTEM_NOTE: return "[System]: " + content;
-            case PROGRESSIVE_SUMMARY: return "[Progressive Summary]: " + content;
+            case PROGRESSIVE_SUMMARY: return "[Summary]: " + content;
             case SHELL_OUTPUT: return "[Shell Output]: " + content;
             default: return content;
         }
