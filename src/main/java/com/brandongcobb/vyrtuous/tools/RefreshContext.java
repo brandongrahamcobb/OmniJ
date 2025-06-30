@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.CompletableFuture;
 
-public class RefreshContext implements Tool<RefreshContextInput, RefreshContextStatus> {
+public class RefreshContext implements Tool<RefreshContextInput, ToolStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();
     private final ContextManager modelContextManager;
@@ -74,7 +74,7 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
      * Tool
      */
     @Override
-    public CompletableFuture<RefreshContextStatus> run(RefreshContextInput input) {
+    public CompletableFuture<ToolStatus> run(RefreshContextInput input) {
         return CompletableFuture.supplyAsync(() -> {
            try {
                String summary = input.getProgressiveSummary();
@@ -84,9 +84,9 @@ public class RefreshContext implements Tool<RefreshContextInput, RefreshContextS
                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, summary));
                userContextManager.clearModified();
                userContextManager.printNewEntries(true, true, true, true, true, true, true, true);
-               return new RefreshContextStatus("Memory has been summarized and execution can continue.", true);
+               return new ToolStatusWrapper("Memory has been summarized and execution can continue.", true);
            } catch (Exception e) {
-               return new RefreshContextStatus("Failed to refresh context: " + e.getMessage(), false);
+               return new ToolStatusWrapper("Failed to refresh context: " + e.getMessage(), false);
            }
         });
     }

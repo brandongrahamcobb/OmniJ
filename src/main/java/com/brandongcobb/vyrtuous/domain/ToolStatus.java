@@ -18,10 +18,21 @@
  */
 package com.brandongcobb.vyrtuous.domain;
 
-public interface ToolStatus {
-    
-    String getMessage();
-    
-    boolean getSuccess();
-}
+public abstract class ToolStatus {
 
+    private final String message;
+    private final boolean success;
+
+    public ToolStatus(String message, boolean success) {
+        this.message = message;
+        this.success = success;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public boolean isSuccess() {
+        return success;
+    }
+}

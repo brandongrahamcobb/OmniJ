@@ -1,5 +1,5 @@
-/*  ToolStatus.java The primary purpose of this interface is to serve
- *  as the template for status classes for tools.
+/*  ToolInput.java The primary purpose of this interface is to serve
+ *  as the template for input classes for tools.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

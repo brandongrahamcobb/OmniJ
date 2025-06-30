@@ -30,7 +30,7 @@ import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-public class CountFileLines implements Tool<CountFileLinesInput, CountFileLinesStatus> {
+public class CountFileLines implements Tool<CountFileLinesInput, ToolStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();
     private final ContextManager modelContextManager;
@@ -79,27 +79,24 @@ public class CountFileLines implements Tool<CountFileLinesInput, CountFileLinesS
      * Tool
      */
     @Override
-    public CompletableFuture<CountFileLinesStatus> run(CountFileLinesInput input) {
+    public CompletableFuture<ToolStatus> run(CountFileLinesInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Paths.get(input.getPath());
-
                 if (!Files.exists(filePath)) {
-                    return new CountFileLinesStatus("File not found: " + filePath, false);
+                    return new ToolStatusWrapper("File not found: " + filePath, false);
                 }
-
                 long lineCount;
                 try (Stream<String> lines = Files.lines(filePath, StandardCharsets.UTF_8)) {
                     lineCount = lines.count();
                 }
-
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));gi
-                return new CountFileLinesStatus(String.valueOf(lineCount), true);
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
+                return new ToolStatusWrapper(String.valueOf(lineCount), true);
             } catch (IOException e) {
-                return new CountFileLinesStatus("IO error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new CountFileLinesStatus("Unexpected error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("Unexpected error: " + e.getMessage(), false);
             }
         });
     }

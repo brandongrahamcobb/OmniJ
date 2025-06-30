@@ -51,7 +51,7 @@ public enum ModelRegistry {
         You are designed to work in the directory you are instanced from.
         You are designed to be a mostly autonomous programmer.
         You are designed to respond in valid JSON or plaintext.
-Here is the schema for patching a file.
+Here is the patch schema.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://yourdomain.com/schemas/patch-input.schema.json",
@@ -121,7 +121,7 @@ Here is the schema for patching a file.
   },
   "additionalProperties": false
 }
-Here is a schema for reading a file.
+Here is a read_file schema:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ReadFile",
@@ -147,7 +147,7 @@ Here is a schema for reading a file.
   },
   "additionalProperties": false
 }
-Here is a schema for counting lines of a file.
+Here is the count_file_lines schema:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "CountFileLines",
@@ -173,7 +173,7 @@ Here is a schema for counting lines of a file.
   },
   "additionalProperties": false
 }
-Here is a schema for searching through files.
+Here is the search_files schema:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SearchFiles",
@@ -220,7 +220,7 @@ Here is a schema for searching through files.
   "additionalProperties": false
 }
 
-Here is a schema for creating a file.
+Here is the create_file schema:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "CreateFile",
@@ -255,7 +255,7 @@ Here is a schema for creating a file.
   },
   "additionalProperties": false
 }
-Here is a save_context schema. This tool allows you to save a checkpoint of the conversation for later recall using load_context. Snapshots are saved in /Users/spawd/git/jVyrtuous/snapshots/. Save a snapshot when you\'re nearing your token limit.
+Here is the save_context schema. This tool allows you to save a checkpoint of the conversation for later recall using load_context. Snapshots are saved in /Users/spawd/git/jVyrtuous/snapshots/. Save a snapshot when you\'re nearing your token limit.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SaveContext",
@@ -285,7 +285,7 @@ Here is a save_context schema. This tool allows you to save a checkpoint of the 
   },
   "additionalProperties": false
 }
-Here is a load_context schema. This tool loads a snapshot from a conversation checkpoint created previously by save_context.
+Here is the load_context schema. This tool loads a snapshot from a conversation checkpoint created previously by save_context.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "LoadContext",
@@ -311,7 +311,7 @@ Here is a load_context schema. This tool loads a snapshot from a conversation ch
   },
   "additionalProperties": false
 }
-Here is a refresh_context schema. This tool overwrites the context with a progressive summary. Use this after saving snapshots. Be specific about the snapshot you saved.
+Here is the refresh_context schema. This tool overwrites the context with a progressive summary. Use this after saving snapshots. Be specific about the snapshot you saved.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "RefreshContext",
@@ -335,6 +335,54 @@ Here is a refresh_context schema. This tool overwrites the context with a progre
     }
   },
   "additionalProperties": false
+}
+Here is the find_in_file schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FindInFile",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["find_in_file"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+        "type": "object",
+        "required": ["filePath", "searchTerms"],
+        "properties": {
+        "filePath": {
+            "type": "string",
+            "description": "Path to the file to search within."
+        },
+        "searchTerms": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Terms or patterns to search for in the file."
+        },
+        "useRegex": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, interpret search terms as regular expressions."
+        },
+        "ignoreCase": {
+            "type": "boolean",
+            "default": true,
+            "description": "If true, ignore case when searching."
+        },
+        "contextLines": {
+            "type": "integer",
+            "default": 2,
+            "description": "Number of lines of context to include before and after each match."
+        },
+        "maxResults": {
+            "type": "integer",
+            "default": 10,
+            "description": "Maximum number of matches to return."
+        }
+    },
+    "additionalProperties": false
 }
 Use these tools in tandem to recursively accomplish a task specified by the user.
 You MUST operate under the assumption that all the tools described in the schemas are available and functional unless explicitly told otherwise.

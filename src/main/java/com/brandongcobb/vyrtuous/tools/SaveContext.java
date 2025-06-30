@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.CompletableFuture;
 
-public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
+public class SaveContext implements Tool<SaveContextInput, ToolStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
@@ -78,16 +78,16 @@ public class SaveContext implements Tool<SaveContextInput, SaveContextStatus> {
      * Tool
      */
     @Override
-    public CompletableFuture<SaveContextStatus> run(SaveContextInput input) {
+    public CompletableFuture<ToolStatus> run(SaveContextInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 modelContextManager.saveSnapshot(input.getName(), input.getDescription());
                 String msg = "Context snapshot '" + input.getName() + "' saved successfully.";
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                return new SaveContextStatus(msg, true);
+                return new ToolStatusWrapper(msg, true);
             } catch (Exception e) {
-                return new SaveContextStatus("Failed to save context: " + e.getMessage(), false);
+                return new ToolStatusWrapper("Failed to save context: " + e.getMessage(), false);
             }
         });
     }

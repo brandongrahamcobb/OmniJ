@@ -29,7 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 
-public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
+public class ReadFile implements Tool<ReadFileInput, ToolStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();
     private final ContextManager modelContextManager;
@@ -78,22 +78,21 @@ public class ReadFile implements Tool<ReadFileInput, ReadFileStatus> {
      * Tool
      */
     @Override
-    public CompletableFuture<ReadFileStatus> run(ReadFileInput input) {
+    public CompletableFuture<ToolStatus> run(ReadFileInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Paths.get(input.getPath());
                 if (!Files.exists(filePath)) {
-                    return new ReadFileStatus("File not found: " + filePath, false);
+                    return new ToolStatusWrapper("File not found: " + filePath, false);
                 }
-
                 String content = Files.readString(filePath, StandardCharsets.UTF_8);
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                return new ReadFileStatus(content, true);
+                return new ToolStatusWrapper(content, true);
             } catch (IOException e) {
-                return new ReadFileStatus("IO error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new ReadFileStatus("Unexpected error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("Unexpected error: " + e.getMessage(), false);
             }
         });
     }

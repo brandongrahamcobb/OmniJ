@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.CompletableFuture;
 
-public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
+public class LoadContext implements Tool<LoadContextInput, ToolStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
@@ -74,16 +74,16 @@ public class LoadContext implements Tool<LoadContextInput, LoadContextStatus> {
      *  Tool
      */
     @Override
-    public CompletableFuture<LoadContextStatus> run(LoadContextInput input) {
+    public CompletableFuture<ToolStatus> run(LoadContextInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 modelContextManager.loadSnapshot(input.getName());
                 String msg = "Context snapshot '" + input.getName() + "' loaded successfully.";
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                return new LoadContextStatus(msg, true);
+                return new ToolStatusWrapper(msg, true);
             } catch (Exception e) {
-                return new LoadContextStatus("Failed to load context: " + e.getMessage(), false);
+                return new ToolStatusWrapper("Failed to load context: " + e.getMessage(), false);
             }
         });
     }

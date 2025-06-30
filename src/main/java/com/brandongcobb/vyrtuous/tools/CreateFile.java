@@ -30,7 +30,7 @@ import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
+public class CreateFile implements Tool<CreateFileInput, ToolStatus> {
     
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -90,14 +90,14 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
      * Tool
      */
     @Override
-    public CompletableFuture<CreateFileStatus> run(CreateFileInput input) {
+    public CompletableFuture<ToolStatus> run(CreateFileInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 LOGGER.fine(input.getPath());
                 Path filePath = Paths.get(input.getPath());
                 boolean fileExists = Files.exists(filePath);
                 if (fileExists && !input.getOverwrite()) {
-                    return new CreateFileStatus("File already exists and overwrite is false.", false);
+                    return new ToolStatusWrapper("File already exists and overwrite is false.", false);
                 }
                 Path parent = filePath.getParent();
                 if (parent != null) {
@@ -112,13 +112,13 @@ public class CreateFile implements Tool<CreateFileInput, CreateFileStatus> {
                 );
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                return new CreateFileStatus("File created successfully: " + filePath.toString(), true);
+                return new ToolStatusWrapper("File created successfully: " + filePath.toString(), true);
             } catch (FileAlreadyExistsException e) {
-                return new CreateFileStatus("File already exists and overwrite not allowed.", false);
+                return new ToolStatusWrapper("File already exists and overwrite not allowed.", false);
             } catch (IOException e) {
-                return new CreateFileStatus("IO error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new CreateFileStatus("Unexpected error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("Unexpected error: " + e.getMessage(), false);
             }
         });
     }

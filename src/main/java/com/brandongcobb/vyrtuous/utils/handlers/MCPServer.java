@@ -71,6 +71,17 @@ public class MCPServer {
                 return createFile.run(createFileInput).thenApply(result -> result);
             }
         ));
+        tools.put("find_in_file", new ToolWrapper(
+            "find_in_file",
+            "Provides context for found strings inside a file",
+            createFindInFileSchema(),
+            (input) -> {
+                FindInFileInput findInFileInput = mapper.treeToValue(input, FindInFileInput.class);
+                FindInFile findInFile = new FindInFile(modelContextManager, userContextManager);
+                findInFileInput.setOriginalJson(input);
+                return findInFile.run(findInFileInput).thenApply(result -> result);
+            }
+        ));
         tools.put("read_file", new ToolWrapper(
             "read_file",
             "Read the contents of a file",
@@ -231,7 +242,7 @@ public class MCPServer {
         try {
             String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
-            ToolWrapper tool   = tools.get(toolName);
+            ToolWrapper tool = tools.get(toolName);
             if (tool == null) {
                 return CompletableFuture.completedFuture(createError(-32602, "Tool not found: " + toolName));
             }
@@ -265,6 +276,52 @@ public class MCPServer {
         }
         response.set("error", createError(code, message));
         return response;
+    }
+    private JsonNode createFindInFileSchema() {
+        try {
+            String schemaJson = """
+            {
+              "type": "object",
+              "required": ["filePath", "searchTerms"],
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "Path to the file to search within."
+                },
+                "searchTerms": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Terms or patterns to search for in the file."
+                },
+                "useRegex": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If true, interpret search terms as regular expressions."
+                },
+                "ignoreCase": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "If true, ignore case when searching."
+                },
+                "contextLines": {
+                  "type": "integer",
+                  "default": 2,
+                  "description": "Number of lines of context to include before and after each match."
+                },
+                "maxResults": {
+                  "type": "integer",
+                  "default": 10,
+                  "description": "Maximum number of matches to return."
+                }
+              },
+              "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create count_file_lines schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
     }
     
     private JsonNode createCountFileLinesSchema() {
@@ -534,10 +591,10 @@ public class MCPServer {
             this.inputSchema = inputSchema;
             this.executor = executor;
         }
-    
-        public String getName() { return name; }
+        
         public String getDescription() { return description; }
         public JsonNode getInputSchema() { return inputSchema; }
+        public String getName() { return name; }
     
         public CompletableFuture<? extends ToolStatus> execute(JsonNode input) {
             try {
@@ -549,7 +606,6 @@ public class MCPServer {
             }
         }
     }
-
 
     @FunctionalInterface
     public interface ToolExecutor {

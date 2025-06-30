@@ -38,7 +38,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
+public class SearchFiles implements Tool<SearchFilesInput, ToolStatus> {
 
     private final ContextManager modelContextManager;
     private final ContextManager userContextManager;
@@ -107,9 +107,9 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
      * Tool
      */
     @Override
-    public CompletableFuture<SearchFilesStatus> run(SearchFilesInput input) {
+    public CompletableFuture<ToolStatus> run(SearchFilesInput input) {
         return CompletableFuture.supplyAsync(() -> {
-            List<SearchFilesStatus.Result> results = new ArrayList<>();
+            List<Result> results = new ArrayList<>();
             Set<Path> forbidden = Set.of(
                 Paths.get("/System"),
                 Paths.get("/usr/sbin"),
@@ -161,7 +161,7 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                                 snippet = content.substring(start, end).replaceAll("\\s+", " ");
                             } catch (IOException ignored) {}
                         }
-                        results.add(new SearchFilesStatus.Result(path.toString(), snippet));
+                        results.add(new Result(path.toString(), snippet));
                     });
                 String summary;
                 if (results.isEmpty()) {
@@ -175,11 +175,24 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                 }
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
-                return new SearchFilesStatus(summary, results, true);
+                return new ToolStatusWrapper(summary, true);
             } catch (IOException e) {
-                return new SearchFilesStatus("IO error: " + e.getMessage(), null, false);
+                return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
             }
         });
     }
 
+    /*
+     *  Nested class
+     */
+    public static class Result {
+    
+        public String path;
+        public String snippet;
+        
+        public Result(String path, String snippet) {
+            this.path = path;
+            this.snippet = snippet;
+        }
+    }
 }

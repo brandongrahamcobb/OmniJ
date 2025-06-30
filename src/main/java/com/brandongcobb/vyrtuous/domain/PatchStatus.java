@@ -18,26 +18,9 @@
  */
 package com.brandongcobb.vyrtuous.domain;
 
-public class PatchStatus implements ToolStatus {
-    
-    private final String message;
-    private final boolean success;
+public class PatchStatus extends ToolStatus {
 
     public PatchStatus(String message, boolean success) {
-        this.message = message;
-        this.success = success;
-    }
-
-    /*
-     *  Getters
-     */
-    @Override
-    public String getMessage() {
-        return message;
-    }
-    
-    @Override
-    public boolean getSuccess() {
-        return success;
+        super(message, success);
     }
 }

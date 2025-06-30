@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-public class Patch implements Tool<PatchInput, PatchStatus> {
+public class Patch implements Tool<PatchInput, ToolStatus> {
     
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -126,25 +126,25 @@ public class Patch implements Tool<PatchInput, PatchStatus> {
      *  Tool
      */
     @Override
-    public CompletableFuture<PatchStatus> run(PatchInput input) {
+    public CompletableFuture<ToolStatus> run(PatchInput input) {
         return CompletableFuture.supplyAsync(() -> {
             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\", \"input\":" + input.getOriginalJson().toString() + "\""));
             String targetFile = input.getTargetFile();
             List<PatchOperation> operations = input.getPatches();
             if (targetFile == null || operations == null || operations.isEmpty()) {
-                return new PatchStatus("Invalid patch input.", false);
+                return new ToolStatusWrapper("Invalid patch input.", false);
             }
             try {
                 Path filePath = Path.of(targetFile);
                 List<String> originalLines = Files.readAllLines(filePath);
                 List<String> patchedLines = applyOperations(originalLines, operations);
                 Files.write(filePath, patchedLines);
-                return new PatchStatus("Patch applied successfully.", true);
+                return new ToolStatusWrapper("Patch applied successfully.", true);
             } catch (IOException e) {
-                return new PatchStatus("IO error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new PatchStatus("Unexpected error: " + e.getMessage(), false);
+                return new ToolStatusWrapper("Unexpected error: " + e.getMessage(), false);
             }
         });
     }

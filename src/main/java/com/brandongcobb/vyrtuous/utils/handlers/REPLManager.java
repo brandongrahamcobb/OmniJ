@@ -360,8 +360,8 @@ public class REPLManager {
                                     } catch (Exception e) {
                                         System.err.println("Skipping invalid JSON block: " + e.getMessage());
                                     }
+                                    lastResults = results;
                                 }
-                                lastResults = results;
                                 if (!validJson) {
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
