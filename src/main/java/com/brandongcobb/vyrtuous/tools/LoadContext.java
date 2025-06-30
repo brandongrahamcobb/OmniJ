@@ -79,8 +79,8 @@ public class LoadContext implements Tool<LoadContextInput, ToolStatus> {
             try {
                 modelContextManager.loadSnapshot(input.getName());
                 String msg = "Context snapshot '" + input.getName() + "' loaded successfully.";
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "\""));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "\""));
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
                 return new ToolStatusWrapper(msg, true);
             } catch (Exception e) {
                 return new ToolStatusWrapper("Failed to load context: " + e.getMessage(), false);

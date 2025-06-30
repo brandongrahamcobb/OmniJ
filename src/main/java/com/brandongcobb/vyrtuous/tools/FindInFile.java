@@ -108,11 +108,9 @@ public class FindInFile implements Tool<FindInFileInput, ToolStatus> {
             if (!Files.exists(filePath)) {
                 return new ToolStatusWrapper("File not found: " + filePath, false);
             }
-
             try {
                 List<String> lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
                 List<Match> matches = new ArrayList<>();
-
                 for (int i = 0; i < lines.size(); i++) {
                     String line = lines.get(i);
                     for (String term : input.getSearchTerms()) {
@@ -125,7 +123,6 @@ public class FindInFile implements Tool<FindInFileInput, ToolStatus> {
                                 ? line.toLowerCase().contains(term.toLowerCase())
                                 : line.contains(term);
                         }
-
                         if (isMatch) {
                             int start = Math.max(0, i - input.getContextLines());
                             int end = Math.min(lines.size(), i + input.getContextLines() + 1);
@@ -136,7 +133,6 @@ public class FindInFile implements Tool<FindInFileInput, ToolStatus> {
                     }
                     if (matches.size() >= input.getMaxResults()) break;
                 }
-
                 String summary;
                 if (matches.isEmpty()) {
                     summary = "No matches found in file.";
@@ -146,24 +142,14 @@ public class FindInFile implements Tool<FindInFileInput, ToolStatus> {
                         .append(" match(es) in ")
                         .append(filePath)
                         .append(":\n\n");
-
                     for (Match match : matches) {
                         sb.append("Line ").append(match.getLineNumber()).append(":\n")
                           .append(match.getContextSnippet()).append("\n\n");
                     }
-
                     summary = sb.toString().trim();
                 }
-
-                modelContextManager.addEntry(new ContextEntry(
-                    ContextEntry.Type.TOOL,
-                    "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"
-                ));
-                userContextManager.addEntry(new ContextEntry(
-                    ContextEntry.Type.TOOL,
-                    "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"
-                ));
-
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\":\"find_in_file\",\"input\":" + input.getOriginalJson().toString() + "}"));
                 return new ToolStatusWrapper(summary, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
