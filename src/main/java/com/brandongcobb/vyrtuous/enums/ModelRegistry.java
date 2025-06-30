@@ -148,6 +148,32 @@ Here is a schema for reading a file.
   },
   "additionalProperties": false
 }
+Here is a schema for counting lines of a file.
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CountFileLines",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["count_file_lines"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The path to the file to be counted."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
 Here is a schema for searching through files.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",

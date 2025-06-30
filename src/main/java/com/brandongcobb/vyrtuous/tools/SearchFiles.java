@@ -177,7 +177,7 @@ public class SearchFiles implements Tool<SearchFilesInput, SearchFilesStatus> {
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"name\": " + "\"" + getName()+ "\"," + input.getOriginalJson().toString() + "\""));
                 return new SearchFilesStatus(summary, results, true);
             } catch (IOException e) {
-                return new SearchFilesStatus("IO error: " + e.getMessage(), null, false);
+                return new SearchFilesStatus("IO error: " + e.getMessage(), results, false);
             }
         });
     }

@@ -59,14 +59,14 @@ public class CountFileLines implements Tool<CountFileLinesInput, CountFileLinesS
               "properties": {
                 "path": {
                   "type": "string",
-                  "description": "The path to the file to be read."
+                  "description": "The path to the file to be counted."
                 }
               },
               "additionalProperties": false
             }
             """);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to build read_file schema", e);
+            throw new RuntimeException("Failed to build count_file_lines schema", e);
         }
     }
 
@@ -85,7 +85,7 @@ public class CountFileLines implements Tool<CountFileLinesInput, CountFileLinesS
                 Path filePath = Paths.get(input.getPath());
 
                 if (!Files.exists(filePath)) {
-                    return new CountFileLinesStatus(null, "File not found: " + filePath, false);
+                    return new CountFileLinesStatus("File not found: " + filePath, false);
                 }
 
                 long lineCount;
@@ -97,11 +97,11 @@ public class CountFileLines implements Tool<CountFileLinesInput, CountFileLinesS
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, toolCallJson));
                 userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, toolCallJson));
 
-                return new CountFileLinesStatus(String.valueOf(lineCount), "Counted lines successfully.", true);
+                return new CountFileLinesStatus(String.valueOf(lineCount), true);
             } catch (IOException e) {
-                return new CountFileLinesStatus(null, "IO error: " + e.getMessage(), false);
+                return new CountFileLinesStatus("IO error: " + e.getMessage(), false);
             } catch (Exception e) {
-                return new CountFileLinesStatus(null, "Unexpected error: " + e.getMessage(), false);
+                return new CountFileLinesStatus("Unexpected error: " + e.getMessage(), false);
             }
         });
     }

@@ -20,12 +20,10 @@ package com.brandongcobb.vyrtuous.domain;
 
 public class ReadFileStatus implements ToolStatus {
     
-    private final String content;
     private final String message;
     private final boolean success;
 
-    public ReadFileStatus(String content, String message, boolean success) {
-        this.content = content;
+    public ReadFileStatus(String message, boolean success) {
         this.message = message;
         this.success = success;
     }
@@ -33,10 +31,6 @@ public class ReadFileStatus implements ToolStatus {
     /*
      *  Getters
      */
-    public String getContent() {
-        return content;
-    }
-
     @Override
     public String getMessage() {
         return message;

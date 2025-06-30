@@ -126,27 +126,33 @@ public class REPLManager {
                     throw new TimeoutException("Tool execution timed out");
                 }
                 String responseStr = toolBuffer.toString().trim();
-                if (responseStr.isEmpty()) throw new IOException("Empty tool response");
+                if (responseStr.isEmpty()) {
+                    throw new IOException("Empty tool response");
+                }
                 JsonNode resultNode = mapper.readTree(responseStr).get("result");
-                if (resultNode == null) throw new IllegalStateException("Missing 'result' node");
-                if (resultNode.has("error")) {
-                    String msg = resultNode.get("error").get("message").asText();
-                    addToolOutput("Error executing " + toolName + ": " + msg);
-                    LOGGER.severe(msg);
-                } else if (resultNode.has("content") && resultNode.get("content").isArray()) {
-                    String output = resultNode.get("content").get(0).get("text").asText();
-                    addToolOutput(output);
-                    LOGGER.fine("Tool output: " + output);
+                if (resultNode == null) {
+                    throw new IllegalStateException("Missing 'result' node");
+                }
+                String message = resultNode.has("message")
+                    ? resultNode.get("message").asText()
+                    : "No message provided";
+                boolean success = resultNode.has("success")
+                    ? resultNode.get("success").asBoolean()
+                    : false;
+                if (!success) {
+                    addToolOutput("[" + toolName + " ERROR] " + message);
+                    LOGGER.severe(toolName + " failed: " + message);
                 } else {
-                    LOGGER.warning("Tool '" + toolName + "' returned unexpected result format");
+                    addToolOutput("[" + toolName + "] " + message);
+                    LOGGER.fine(toolName + " succeeded: " + message);
                 }
             } catch (Exception e) {
-                String msg = "Exception executing tool '" + toolName + "': " + e.getMessage();
-                LOGGER.severe(msg);
-                addToolOutput(msg);
+                String err = "Exception executing tool '" + toolName + "': " + e.getMessage();
+                LOGGER.severe(err);
+                addToolOutput(err);
             }
         }).exceptionally(ex -> {
-            LOGGER.severe("Exception executing tool: " + ex.getMessage());
+            LOGGER.severe("Exception in E-substep thread: " + ex.getMessage());
             return null;
         });
     }
@@ -183,7 +189,7 @@ public class REPLManager {
             /*
              *  Null Checks
              */
-            if ((contentStr == null || contentStr.isBlank()) && lastResults != null && !lastResults.isEmpty()) {
+            if (lastResults != null && !lastResults.isEmpty()) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 return completeESubStep(firstRun).thenCompose(v -> {
                     for (JsonNode toolCallNode : lastResults) {
