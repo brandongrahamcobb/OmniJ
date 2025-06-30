@@ -117,7 +117,7 @@ public class AIManager {
                     }
                     if (onContentChunk == null) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        LOGGER.fine(respBody);
+                        LOGGER.finer(respBody);
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         LlamaContainer llamaContainer = new LlamaContainer(outer);
                         return llamaContainer;
@@ -184,7 +184,7 @@ public class AIManager {
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
                         if (onContentChunk == null) {
-                            LOGGER.fine(respBody);
+                            LOGGER.finer(respBody);
                             Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             LMStudioContainer lmStudioContainer = new LMStudioContainer(outer);
                             return (MetadataContainer) lmStudioContainer;
@@ -262,7 +262,7 @@ public class AIManager {
                     if (statusCode >= 200 && statusCode < 300) {
                         
                         if (onContentChunk == null) {
-                            LOGGER.fine(responseBody);
+                            LOGGER.finer(responseBody);
                             Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
                             OpenAIContainer openaiContainer = new OpenAIContainer(outer);
                             return (MetadataContainer) openaiContainer;
@@ -332,7 +332,7 @@ public class AIManager {
                     String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code >= 200 && code < 300) {
                         if (onContentChunk == null) {
-                            LOGGER.fine(respBody);
+                            LOGGER.finer(respBody);
                             Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                             OpenRouterContainer openRouterContainer = new OpenRouterContainer(outer);
                             return (MetadataContainer) openRouterContainer;

@@ -159,7 +159,7 @@ public class Patch implements Tool<PatchInput, ToolStatus> {
                     String replacement = op.getReplacement();
                     for (int i = 0; i < result.size(); i++) {
                         if (result.get(i).contains(match)) {
-                            LOGGER.fine("Matched line: " + result.get(i));
+                            LOGGER.finer("Matched line: " + result.get(i));
                             result.set(i, result.get(i).replace(match, replacement));
                         }
                     }

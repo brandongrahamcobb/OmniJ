@@ -105,7 +105,7 @@ public class REPLManager {
      *  E-Step
      */
     private CompletableFuture<Void> completeESubStep(JsonNode toolCallNode) {
-        LOGGER.fine("Starting E-substep for tool calls...");
+        LOGGER.finer("Starting E-substep for tool calls...");
         return CompletableFuture.runAsync(() -> {
             String toolName = toolCallNode.get("tool").asText();
             try {
@@ -116,7 +116,7 @@ public class REPLManager {
                 params.put("name", toolName);
                 params.set("arguments", toolCallNode.get("input"));
                 String rpcText = rpcRequest.toString();
-                LOGGER.fine("[JSON-RPC →] " + rpcText);
+                LOGGER.finer("[JSON-RPC →] " + rpcText);
                 StringWriter buffer = new StringWriter();
                 CountDownLatch latch = new CountDownLatch(1);
                 PrintWriter out = new PrintWriter(new Writer() {
@@ -129,7 +129,7 @@ public class REPLManager {
                     throw new TimeoutException("Tool execution timed out");
                 }
                 String responseStr = buffer.toString().trim();
-                LOGGER.fine("[JSON-RPC ←] " + responseStr);
+                LOGGER.finer("[JSON-RPC ←] " + responseStr);
                 if (responseStr.isEmpty()) {
                     throw new IOException("Empty tool response");
                 }
@@ -142,7 +142,7 @@ public class REPLManager {
                 boolean success = result.path("success").asBoolean(false);
                 if (success) {
                     addToolOutput("[" + toolName + "] " + message);
-                    LOGGER.fine(toolName + " succeeded: " + message);
+                    LOGGER.finer(toolName + " succeeded: " + message);
                 } else {
                     addToolOutput("[" + toolName + " ERROR] " + message);
                     LOGGER.severe(toolName + " failed: " + message);
@@ -160,7 +160,7 @@ public class REPLManager {
 
 
     private CompletableFuture<Void> completeESubStep(boolean firstRun) {
-        LOGGER.fine("Starting E-substep for first run...");
+        LOGGER.finer("Starting E-substep for first run...");
         if (!firstRun) return CompletableFuture.completedFuture(null);
         return CompletableFuture.runAsync(() -> {
             try {
@@ -175,7 +175,7 @@ public class REPLManager {
                 String responseStr = initBuffer.toString().trim();
                 if (responseStr.isEmpty()) throw new IOException("Empty initialization response");
                 JsonNode responseJson = mapper.readTree(responseStr);
-                LOGGER.fine("Initialization completed: " + responseJson.toString());
+                LOGGER.finer("Initialization completed: " + responseJson.toString());
             } catch (Exception e) {
                 LOGGER.severe("Initialization error: " + e.getMessage());
             }
@@ -191,20 +191,20 @@ public class REPLManager {
             /*
              *  Null Checks
              */
+            userContextManager.printNewEntries(true, true, true, true, true, true, true, true);
             if (lastResults != null && !lastResults.isEmpty()) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 return completeESubStep(firstRun).thenCompose(v -> {
                     for (JsonNode toolCallNode : lastResults) {
                         futures.add(completeESubStep(toolCallNode));
                     }
-                    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                            .exceptionally(ex -> {
-                                LOGGER.severe("One or more tool executions failed: " + ex.getMessage());
-                                return null;
-                            });
+                    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+                }).exceptionally(ex -> {
+                    LOGGER.severe("One or more tool executions failed: " + ex.getMessage());
+                    return null;
                 });
             } else {
-                LOGGER.fine("No tools to run, falling back to user input");
+                LOGGER.finer("No tools to run, falling back to user input.");
                 System.out.print("> ");
                 String newInput = scanner.nextLine();
                 modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
@@ -372,17 +372,10 @@ public class REPLManager {
                                     String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
                                     String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
                                     String cleanedText = before + after;
-                                    if (cleanedText.equals("")) {
-                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                        mem.completeSendResponse(rawChannel, content);
-                                        metadataContainer.put(contentKey, content);
-                                    } else {
-                                        metadataContainer.put(contentKey, cleanedText);
-                                        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-                                        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-                                        mem.completeSendResponse(rawChannel, cleanedText);
-                                    }
+                                    metadataContainer.put(contentKey, cleanedText);
+                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                    mem.completeSendResponse(rawChannel, cleanedText);
                                 }
                             } catch (Exception e) {
                             }

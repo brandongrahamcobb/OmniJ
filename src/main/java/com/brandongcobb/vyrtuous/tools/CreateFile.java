@@ -93,7 +93,7 @@ public class CreateFile implements Tool<CreateFileInput, ToolStatus> {
     public CompletableFuture<ToolStatus> run(CreateFileInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                LOGGER.fine(input.getPath());
+                LOGGER.finer(input.getPath());
                 Path filePath = Paths.get(input.getPath());
                 boolean fileExists = Files.exists(filePath);
                 if (fileExists && !input.getOverwrite()) {

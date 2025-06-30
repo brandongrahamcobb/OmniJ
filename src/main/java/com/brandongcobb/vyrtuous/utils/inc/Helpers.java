@@ -252,7 +252,7 @@ public class Helpers {
         // List of commands considered dangerous
         List<String> dangerous = List.of("rm", "mv", "git", "patch", "shutdown", "reboot", "mvn compile");
         boolean isDangerous = dangerous.stream().anyMatch(command::contains);
-        LOGGER.fine("Checked command for danger: '" + command + "' => " + isDangerous);
+        LOGGER.finer("Checked command for danger: '" + command + "' => " + isDangerous);
         return isDangerous;
     }
 

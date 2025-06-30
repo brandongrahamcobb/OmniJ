@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -82,15 +83,15 @@ public class MCPServer {
                 return findInFile.run(findInFileInput).thenApply(result -> result);
             }
         ));
-        tools.put("read_file", new ToolWrapper(
-            "read_file",
-            "Read the contents of a file",
-            createReadFileSchema(),
+        tools.put("load_context", new ToolWrapper(
+            "load_context",
+            "Load context from a source",
+            createLoadContextSchema(),
             (input) -> {
-                ReadFileInput readFileInput = mapper.treeToValue(input, ReadFileInput.class);
-                ReadFile readFile = new ReadFile(modelContextManager, userContextManager);
-                readFileInput.setOriginalJson(input);
-                return readFile.run(readFileInput).thenApply(result -> result);
+                LoadContextInput loadContextInput = mapper.treeToValue(input, LoadContextInput.class);
+                LoadContext loadContext = new LoadContext(modelContextManager, userContextManager);
+                loadContextInput.setOriginalJson(input);
+                return loadContext.run(loadContextInput).thenApply(result -> result);
             }
         ));
         tools.put("patch", new ToolWrapper(
@@ -104,15 +105,15 @@ public class MCPServer {
                 return patch.run(patchInput).thenApply(result -> result);
             }
         ));
-        tools.put("load_context", new ToolWrapper(
-            "load_context",
-            "Load context from a source",
-            createLoadContextSchema(),
+        tools.put("read_file", new ToolWrapper(
+            "read_file",
+            "Read the contents of a file",
+            createReadFileSchema(),
             (input) -> {
-                LoadContextInput loadContextInput = mapper.treeToValue(input, LoadContextInput.class);
-                LoadContext loadContext = new LoadContext(modelContextManager, userContextManager);
-                loadContextInput.setOriginalJson(input);
-                return loadContext.run(loadContextInput).thenApply(result -> result);
+                ReadFileInput readFileInput = mapper.treeToValue(input, ReadFileInput.class);
+                ReadFile readFile = new ReadFile(modelContextManager, userContextManager);
+                readFileInput.setOriginalJson(input);
+                return readFile.run(readFileInput).thenApply(result -> result);
             }
         ));
         tools.put("refresh_context", new ToolWrapper(
@@ -153,7 +154,7 @@ public class MCPServer {
     public void start() {
         LOGGER.info("Starting MCP Server");
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-             PrintWriter writer = new PrintWriter(System.out, true)) {
+            PrintWriter writer = new PrintWriter(System.out, true)) {
             String line;
             while ((line = reader.readLine()) != null) {
                 handleRequest(line, writer);
@@ -165,7 +166,7 @@ public class MCPServer {
 
     public void handleRequest(String requestLine, PrintWriter writer) {
         try {
-            LOGGER.fine("[JSON-RPC →] " + requestLine);
+            LOGGER.finer("[JSON-RPC →] " + requestLine);
             JsonNode request = mapper.readTree(requestLine);
             String method = request.get("method").asText();
             String id = request.has("id") ? request.get("id").asText() : null;
@@ -179,15 +180,9 @@ public class MCPServer {
             responseFuture.thenAccept(result -> {
                 ObjectNode response = mapper.createObjectNode();
                 response.put("jsonrpc", "2.0");
-                if (id != null) {
-                    response.put("id", id);
-                }
-                if (result.has("error")) {
-                    response.set("error", result);
-                } else {
-                    response.set("result", result);
-                }
-                LOGGER.fine("[JSON-RPC ←] " + response.toString());
+                if (id != null) response.put("id", id);
+                response.set("result", result);
+                LOGGER.finer("[JSON-RPC ←] " + response);
                 writer.println(response.toString());
                 writer.flush();
             }).exceptionally(ex -> {
@@ -237,29 +232,23 @@ public class MCPServer {
 
     private CompletableFuture<JsonNode> handleToolCall(JsonNode params) {
         if (!initialized) {
-            return CompletableFuture.completedFuture(createError(-32002, "Server not initialized"));
+            throw new IllegalStateException("Server not initialized");
         }
         try {
             String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
             ToolWrapper tool = tools.get(toolName);
             if (tool == null) {
-                return CompletableFuture.completedFuture(createError(-32602, "Tool not found: " + toolName));
+                throw new IllegalArgumentException("Tool not found: " + toolName);
             }
 
             return tool.execute(arguments)
-                .<JsonNode>thenApply(statusObj -> mapper.valueToTree(statusObj))
-                .exceptionally(ex -> {
-                    LOGGER.severe("Tool execution failed: " + ex.getMessage());
-                    return createError(-32603, "Tool execution failed: " + ex.getMessage());
-                });
-
+                .thenApply(statusObj -> mapper.valueToTree(statusObj));
 
         } catch (Exception e) {
-            return CompletableFuture.completedFuture(createError(-32602, "Invalid parameters"));
+            throw new CompletionException(e);
         }
     }
-
 
     private ObjectNode createError(int code, String message) {
         ObjectNode error = mapper.createObjectNode();
@@ -276,52 +265,6 @@ public class MCPServer {
         }
         response.set("error", createError(code, message));
         return response;
-    }
-    private JsonNode createFindInFileSchema() {
-        try {
-            String schemaJson = """
-            {
-              "type": "object",
-              "required": ["filePath", "searchTerms"],
-              "properties": {
-                "filePath": {
-                  "type": "string",
-                  "description": "Path to the file to search within."
-                },
-                "searchTerms": {
-                  "type": "array",
-                  "items": { "type": "string" },
-                  "description": "Terms or patterns to search for in the file."
-                },
-                "useRegex": {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "If true, interpret search terms as regular expressions."
-                },
-                "ignoreCase": {
-                  "type": "boolean",
-                  "default": true,
-                  "description": "If true, ignore case when searching."
-                },
-                "contextLines": {
-                  "type": "integer",
-                  "default": 2,
-                  "description": "Number of lines of context to include before and after each match."
-                },
-                "maxResults": {
-                  "type": "integer",
-                  "default": 10,
-                  "description": "Maximum number of matches to return."
-                }
-              },
-              "additionalProperties": false
-            }
-            """;
-            return mapper.readTree(schemaJson);
-        } catch (Exception e) {
-            LOGGER.severe("Failed to create count_file_lines schema: " + e.getMessage());
-            return mapper.createObjectNode();
-        }
     }
     
     private JsonNode createCountFileLinesSchema() {
@@ -377,16 +320,41 @@ public class MCPServer {
         }
     }
 
-    private JsonNode createReadFileSchema() {
+    private JsonNode createFindInFileSchema() {
         try {
             String schemaJson = """
             {
               "type": "object",
-              "required": ["path"],
+              "required": ["filePath", "searchTerms"],
               "properties": {
-                "path": {
+                "filePath": {
                   "type": "string",
-                  "description": "The path to the file to be read."
+                  "description": "Path to the file to search within."
+                },
+                "searchTerms": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Terms or patterns to search for in the file."
+                },
+                "useRegex": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If true, interpret search terms as regular expressions."
+                },
+                "ignoreCase": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "If true, ignore case when searching."
+                },
+                "contextLines": {
+                  "type": "integer",
+                  "default": 2,
+                  "description": "Number of lines of context to include before and after each match."
+                },
+                "maxResults": {
+                  "type": "integer",
+                  "default": 10,
+                  "description": "Maximum number of matches to return."
                 }
               },
               "additionalProperties": false
@@ -394,7 +362,29 @@ public class MCPServer {
             """;
             return mapper.readTree(schemaJson);
         } catch (Exception e) {
-            LOGGER.severe("Failed to create read_file schema: " + e.getMessage());
+            LOGGER.severe("Failed to create count_file_lines schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+    }
+    
+    private JsonNode createLoadContextSchema() {
+        try {
+            String schemaJson = """
+            {
+              "type": "object",
+              "required": ["name"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The name of the previously saved snapshot to load."
+                }
+              },
+              "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create load_context schema: " + e.getMessage());
             return mapper.createObjectNode();
         }
     }
@@ -465,16 +455,16 @@ public class MCPServer {
         }
     }
 
-    private JsonNode createLoadContextSchema() {
+    private JsonNode createReadFileSchema() {
         try {
             String schemaJson = """
             {
               "type": "object",
-              "required": ["name"],
+              "required": ["path"],
               "properties": {
-                "name": {
+                "path": {
                   "type": "string",
-                  "description": "The name of the previously saved snapshot to load."
+                  "description": "The path to the file to be read."
                 }
               },
               "additionalProperties": false
@@ -482,7 +472,28 @@ public class MCPServer {
             """;
             return mapper.readTree(schemaJson);
         } catch (Exception e) {
-            LOGGER.severe("Failed to create load_context schema: " + e.getMessage());
+            LOGGER.severe("Failed to create read_file schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+    }
+
+    private JsonNode createRefreshContextSchema() {
+        try {
+            String schemaJson = """
+            {
+                "type": "object",
+                "properties": {
+                    "progressiveSummary": {
+                        "type": "string",
+                        "description": "Optional summary content to inject into memory context."
+                    }
+                },
+                "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create refresh context schema: " + e.getMessage());
             return mapper.createObjectNode();
         }
     }
@@ -555,26 +566,7 @@ public class MCPServer {
         }
     }
 
-    private JsonNode createRefreshContextSchema() {
-        try {
-            String schemaJson = """
-            {
-                "type": "object",
-                "properties": {
-                    "progressiveSummary": {
-                        "type": "string",
-                        "description": "Optional summary content to inject into memory context."
-                    }
-                },
-                "additionalProperties": false
-            }
-            """;
-            return mapper.readTree(schemaJson);
-        } catch (Exception e) {
-            LOGGER.severe("Failed to create refresh context schema: " + e.getMessage());
-            return mapper.createObjectNode();
-        }
-    }
+
 
     public static class ToolWrapper {
     
