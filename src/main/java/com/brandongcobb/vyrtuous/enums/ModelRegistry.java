@@ -53,6 +53,9 @@ public enum ModelRegistry {
         You are designed to respond in valid JSON or plaintext.
         You are designed to put backticks on nested codeblocks.
         You are designed to only submit commands once.
+        You MUST escape all backticks nested inside the JSON.
+        You MUST escape all backslashes inside the JSON,
+        You MUST escape all double quotes inside the JSON,
 Here is the patch schema.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",

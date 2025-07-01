@@ -118,7 +118,18 @@ public class AIManager {
                     if (onContentChunk == null) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         LOGGER.finer(respBody);
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        Pattern pattern = Pattern.compile("(?s)(```json\\s*)(.*?)(\\s*```)");
+                        Matcher matcher = pattern.matcher(respBody);
+                        StringBuffer sb = new StringBuffer();
+                        while (matcher.find()) {
+                            String start = matcher.group(1);
+                            String content = matcher.group(2);
+                            String end = matcher.group(3);
+                            String escapedContent = content.replace("`", "\\`");
+                            matcher.appendReplacement(sb, Matcher.quoteReplacement(start + escapedContent + end));
+                        }
+                        matcher.appendTail(sb);
+                        Map<String, Object> outer = mapper.readValue(sb.toString(), new TypeReference<>() {});
                         LlamaContainer llamaContainer = new LlamaContainer(outer);
                         return llamaContainer;
                     } else {
