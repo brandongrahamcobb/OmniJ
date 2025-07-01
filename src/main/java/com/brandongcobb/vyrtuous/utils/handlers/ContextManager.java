@@ -76,6 +76,14 @@ public class ContextManager {
         lastBuildIndex = entries.size();
     }
 
+    public synchronized boolean deleteEntry() {
+        if (entries.isEmpty()) {
+            return false; // nothing to delete
+        }
+        entries.remove(entries.size() - 1);
+        return true; // successfully removed last entry
+    }
+    
     public String extractOriginalGoal() {
         return entries.stream()
             .filter(e -> e.getType() == ContextEntry.Type.USER_MESSAGE)

@@ -38,9 +38,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Method;
-import java.text.Normalizer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -67,10 +67,7 @@ import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.*;
-import java.util.regex.Pattern;
+
 
 public class REPLManager {
 
@@ -105,8 +102,9 @@ public class REPLManager {
      */
     private void addToolOutput(String content) {
         modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
-        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
-        mem.completeSendResponse(rawChannel, content);
+        String input = content.length() <= 2000 ? content : content.substring(0, 2000) + "...";
+        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, input));
+        mem.completeSendResponse(rawChannel, input);
     }
     /*
      *  E-Step
@@ -148,15 +146,7 @@ public class REPLManager {
                 String  message = result.path("message").asText("No message");
                 boolean success = result.path("success").asBoolean(false);
                 if (success) {
-                    byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
-                    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
-                        .onMalformedInput(CodingErrorAction.REPLACE)
-                        .onUnmappableCharacter(CodingErrorAction.REPLACE);
-
-                    CharBuffer decodedChars = decoder.decode(ByteBuffer.wrap(bytes));
-                    String sanitized = decodedChars.toString();
-                    sanitized = Normalizer.normalize(sanitized, Normalizer.Form.NFKC);
-                    addToolOutput("[" + toolName + "] " + sanitized);
+                    addToolOutput(message);
                     LOGGER.finer(toolName + " succeeded: " + message);
                 } else {
                     addToolOutput("[" + toolName + " ERROR] " + message);
@@ -280,9 +270,10 @@ public class REPLManager {
                          */
                         if (err != null || resp == null) {
                             userContextManager.clearModified();
-                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
-                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed."));
-                            mem.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed.");
+                            modelContextManager.deleteEntry();
+                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
+                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
+                            mem.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
                             if (retries <= maxRetries) {
                                 LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
                                 replExecutor.submit(this);
@@ -290,6 +281,7 @@ public class REPLManager {
                                 LOGGER.severe("R-step permanently failed after " + retries + " attempts.");
                                 result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
                             }
+                            userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                         } else {
                             userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                             result.complete(resp);

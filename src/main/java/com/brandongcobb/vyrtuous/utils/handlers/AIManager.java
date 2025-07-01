@@ -118,8 +118,6 @@ public class AIManager {
                     if (onContentChunk == null) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                         LOGGER.finer(respBody);
-                        // Serialize and escape as JSON string (adds outer quotes and escapes all internal issues)
-
                         Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
                         LlamaContainer llamaContainer = new LlamaContainer(outer);
                         return llamaContainer;
