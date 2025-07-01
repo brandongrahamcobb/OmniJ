@@ -204,7 +204,7 @@ public class MCPServer {
                 return null;
             });
         } catch (Exception e) {
-            ObjectNode errorResponse = createErrorResponse(null, -32700, "Parse error");
+            ObjectNode errorResponse = createErrorResponse(null, -32700, "Parse error" + e.getMessage());
             LOGGER.severe("[JSON-RPC PARSE ERROR] " + errorResponse.toString());
             writer.flush();
         }

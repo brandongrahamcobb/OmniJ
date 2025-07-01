@@ -82,9 +82,9 @@ public class Vyrtuous {
     
     public static void main(String[] args) {
         app = new Vyrtuous();
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.FINER);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.FINER);
         }
         DiscordBot bot = new DiscordBot();
         boolean isInputThreadRunning = false;

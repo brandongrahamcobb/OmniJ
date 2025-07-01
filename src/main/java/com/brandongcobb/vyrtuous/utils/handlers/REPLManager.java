@@ -146,8 +146,8 @@ public class REPLManager {
                 String  message = result.path("message").asText("No message");
                 boolean success = result.path("success").asBoolean(false);
                 if (success) {
-                    addToolOutput(message);
-                    LOGGER.finer(toolName + " succeeded: " + message);
+                    addToolOutput("[" + toolName + "] " + message);
+                    LOGGER.finer("[" + toolName + "] succeeded: " + message);
                 } else {
                     addToolOutput("[" + toolName + " ERROR] " + message);
                     LOGGER.severe(toolName + " failed: " + message);

@@ -18,6 +18,8 @@
  */
 package com.brandongcobb.vyrtuous.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class SearchWebInput {
@@ -27,9 +29,11 @@ public class SearchWebInput {
     private transient JsonNode originalJson;
     private final String query;
 
-    public SearchWebInput(String query) {
+    @JsonCreator
+    public SearchWebInput(@JsonProperty("query") String query) {
         this.query = query;
     }
+    
     public JsonNode getOriginalJson() {
         return originalJson;
     }
