@@ -269,7 +269,6 @@ public class REPLManager {
                          *  Null Checks
                          */
                         if (err != null || resp == null) {
-                            userContextManager.clearModified();
                             modelContextManager.deleteEntry();
                             modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
                             userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
