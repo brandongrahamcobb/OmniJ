@@ -22,7 +22,7 @@ This project aims to provide a unified interface for interacting with various AI
 *   **Concurrent Data Structures:** `HashMap`, `ConcurrentHashMap`, etc., for efficient data management.
 *   **Asynchronous Programming:** `CompletableFuture` for non-blocking operations.
 
-## MCPServer Class Details (for Employers)
+## MCPServer Class Details
 
 The `MCPServer` class is a core component of Vyrtuous, responsible for managing model contexts and providing a central interface for interacting with various AI tools. It acts as a server that handles requests and orchestrates the execution of different tools.
 
