@@ -38,6 +38,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Method;
+import java.text.Normalizer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,10 +67,16 @@ import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.*;
+import java.util.regex.Pattern;
 
 public class REPLManager {
 
     private AIManager aim = new AIManager();
+    
+    private static final Pattern ALREADY_ESCAPED = Pattern.compile("\\\\([\\\\\"`])");
     private JDA api;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
@@ -141,7 +148,15 @@ public class REPLManager {
                 String  message = result.path("message").asText("No message");
                 boolean success = result.path("success").asBoolean(false);
                 if (success) {
-                    addToolOutput("[" + toolName + "] " + message);
+                    byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
+                    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                        .onMalformedInput(CodingErrorAction.REPLACE)
+                        .onUnmappableCharacter(CodingErrorAction.REPLACE);
+
+                    CharBuffer decodedChars = decoder.decode(ByteBuffer.wrap(bytes));
+                    String sanitized = decodedChars.toString();
+                    sanitized = Normalizer.normalize(sanitized, Normalizer.Form.NFKC);
+                    addToolOutput("[" + toolName + "] " + sanitized);
                     LOGGER.finer(toolName + " succeeded: " + message);
                 } else {
                     addToolOutput("[" + toolName + " ERROR] " + message);
@@ -276,6 +291,7 @@ public class REPLManager {
                                 result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
                             }
                         } else {
+                            userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                             result.complete(resp);
                         }
                     });
@@ -365,7 +381,6 @@ public class REPLManager {
                                     modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, content);
-                                    userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
@@ -376,6 +391,7 @@ public class REPLManager {
                                     userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                     mem.completeSendResponse(rawChannel, cleanedText);
                                 }
+                                userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                             } catch (Exception e) {
                             }
                             return metadataContainer;
