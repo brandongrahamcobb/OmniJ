@@ -23,25 +23,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
 
-@Component
-public class SearchWeb implements CustomTool<SearchWebInput, ToolStatus> {
+
+public class SearchWebDeprecated implements CustomTool<SearchWebInput, ToolStatus> {
 
     private static final int MAX_QUERY_LENGTH = 500;
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ChatMemory chatMemory;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
     
-    @Autowired
-    public SearchWeb(ChatMemory replChatMemory) {
-        this.chatMemory = replChatMemory;
+    public SearchWebDeprecated(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
     
     @Override
@@ -74,7 +67,7 @@ public class SearchWeb implements CustomTool<SearchWebInput, ToolStatus> {
     public String getName() {
         return "search_web";
     }
-
+    
     @Override
     public CompletableFuture<ToolStatus> run(SearchWebInput input) {
         return CompletableFuture.supplyAsync(() -> {
@@ -94,9 +87,9 @@ public class SearchWeb implements CustomTool<SearchWebInput, ToolStatus> {
                 String content = results.isEmpty()
                 ? "No results found."
                 : "Search results:\n" + String.join("\n", results);
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
+                
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
                 return new ToolStatusWrapper(content, true);
             } catch (Exception e) {
                 return new ToolStatusWrapper("Search failed: " + e.getMessage(), false);

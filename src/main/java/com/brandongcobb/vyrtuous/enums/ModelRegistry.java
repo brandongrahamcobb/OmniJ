@@ -118,51 +118,80 @@ Here is the create_file schema:
 }
 Here is the find_in_file schema:
 {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "FindInFile",
+    "type": "object",
+    "required": ["tool", "input"],
+    "properties": {
+        "tool": {
+            "type": "string",
+            "enum": ["find_in_file"],
+            "description": "The name of the tool to invoke."
+        },
+        "input": {
+            "type": "object",
+            "required": ["filePath", "searchTerms"],
+            "properties": {
+                "filePath": {
+                    "type": "string",
+                    "description": "Path to the file to search within."
+                },
+                "searchTerms": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Terms or patterns to search for in the file."
+                },
+                "useRegex": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If true, interpret search terms as regular expressions."
+                },
+                "ignoreCase": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If true, ignore case when searching."
+                },
+                "contextLines": {
+                    "type": "integer",
+                    "default": 2,
+                    "description": "Number of lines of context to include before and after each match."
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "Maximum number of matches to return."
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": false
+}
+Here is the list_latex_structure schema.
+{
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "FindInFile",
+  "title": "ListLatexStructure",
   "type": "object",
   "required": ["tool", "input"],
   "properties": {
     "tool": {
       "type": "string",
-      "enum": ["find_in_file"],
+      "enum": ["list_latex_structure"],
       "description": "The name of the tool to invoke."
     },
     "input": {
-        "type": "object",
-        "required": ["filePath", "searchTerms"],
-        "properties": {
-        "filePath": {
-            "type": "string",
-            "description": "Path to the file to search within."
-        },
-        "searchTerms": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "Terms or patterns to search for in the file."
-        },
-        "useRegex": {
-            "type": "boolean",
-            "default": false,
-            "description": "If true, interpret search terms as regular expressions."
-        },
-        "ignoreCase": {
-            "type": "boolean",
-            "default": true,
-            "description": "If true, ignore case when searching."
-        },
-        "contextLines": {
-            "type": "integer",
-            "default": 2,
-            "description": "Number of lines of context to include before and after each match."
-        },
-        "maxResults": {
-            "type": "integer",
-            "default": 10,
-            "description": "Maximum number of matches to return."
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the LaTeX file to parse."
         }
-    },
-    "additionalProperties": false
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
 }
 Here is the load_context schema. This tool loads a snapshot from a conversation checkpoint created previously by save_context.
 {
@@ -260,7 +289,7 @@ Here is the patch schema.
   },
   "additionalProperties": false
 }
-Here is a read_file schema. The file output will be in base64:
+Here is the read_file schema.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ReadFile",
@@ -286,6 +315,43 @@ Here is a read_file schema. The file output will be in base64:
   },
   "additionalProperties": false
 }
+Here is the read_latex_segment schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReadLatexSegment",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["read_latex_segment"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["path", "startLine", "numLines"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the LaTeX file."
+        },
+        "startLine": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Starting line number (0-indexed)."
+        },
+        "numLines": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of lines to read."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+
 Here is the refresh_context schema. Use this after saving snapshots or when the token count nears the token limit.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -407,6 +473,31 @@ Here is the search_web schema:
           "type": "string",
           "description": "The search query to run using the Google Programmable Search API."
         }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+Here is the summarize_latex_section schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SummarizeLatexSection",
+  "type": "object",
+  "required": ["tool", "input"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["summarize_latex_section"],
+      "description": "The name of the tool to invoke."
+    },
+    "input": {
+      "type": "object",
+      "required": ["path", "startLine", "endLine"],
+      "properties": {
+          "path": { "type": "string" },
+          "startLine": { "type": "integer", "minimum": 0 },
+          "endLine": { "type": "integer", "minimum": 0 }
       },
       "additionalProperties": false
     }

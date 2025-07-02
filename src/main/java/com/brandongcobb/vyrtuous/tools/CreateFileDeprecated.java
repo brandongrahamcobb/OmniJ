@@ -29,29 +29,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
-import java.util.ArrayList;
-import java.util.List;
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
-
-@Component
-public class CreateFile implements CustomTool<CreateFileInput, ToolStatus> {
+public class CreateFileDeprecated implements CustomTool<CreateFileInput, ToolStatus> {
     
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ChatMemory chatMemory;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
     
-    @Autowired
-    public CreateFile(ChatMemory replChatMemory) {
-        this.chatMemory = replChatMemory;
+    public CreateFileDeprecated(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
+    
     /*
      *  Getters
      */
@@ -120,9 +110,8 @@ public class CreateFile implements CustomTool<CreateFileInput, ToolStatus> {
                     input.getOverwrite() ? StandardOpenOption.CREATE : StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.TRUNCATE_EXISTING
                 );
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
                 return new ToolStatusWrapper("File created successfully: " + filePath.toString(), true);
             } catch (FileAlreadyExistsException e) {
                 return new ToolStatusWrapper("File already exists and overwrite not allowed.", false);

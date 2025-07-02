@@ -24,6 +24,7 @@ import com.brandongcobb.vyrtuous.objects.ContextEntry;
 import com.brandongcobb.vyrtuous.utils.handlers.ContextManager;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.io.IOException;
@@ -32,24 +33,16 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
 
-@Component
-public class FindInFile implements CustomTool<FindInFileInput, ToolStatus> {
+public class FindInFileDeprecated implements CustomTool<FindInFileInput, ToolStatus> {
 
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ChatMemory chatMemory;
-    
-    @Autowired
-    public FindInFile(ChatMemory replChatMemory) {
-        this.chatMemory = replChatMemory;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
+
+    public FindInFileDeprecated(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     @Override
@@ -155,9 +148,9 @@ public class FindInFile implements CustomTool<FindInFileInput, ToolStatus> {
                     }
                     summary = sb.toString().trim();
                 }
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
+        
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
                 return new ToolStatusWrapper(summary, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

@@ -31,26 +31,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
 
-@Component
-public class Patch implements CustomTool<PatchInput, ToolStatus> {
+public class PatchDeprecated implements CustomTool<PatchInput, ToolStatus> {
     
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ChatMemory chatMemory;
-
-    @Autowired
-    public Patch(ChatMemory replChatMemory) {
-        this.chatMemory = replChatMemory;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
+    
+    public PatchDeprecated(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
+    
     /*
      *  Getters
      */
@@ -135,6 +128,8 @@ public class Patch implements CustomTool<PatchInput, ToolStatus> {
     @Override
     public CompletableFuture<ToolStatus> run(PatchInput input) {
         return CompletableFuture.supplyAsync(() -> {
+            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
             String targetFile = input.getTargetFile();
             List<PatchOperation> operations = input.getPatches();
             if (targetFile == null || operations == null || operations.isEmpty()) {
@@ -145,10 +140,6 @@ public class Patch implements CustomTool<PatchInput, ToolStatus> {
                 List<String> originalLines = Files.readAllLines(filePath);
                 List<String> patchedLines = applyOperations(originalLines, operations);
                 Files.write(filePath, patchedLines);
-
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
                 return new ToolStatusWrapper("Patch applied successfully.", true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

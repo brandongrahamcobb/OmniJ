@@ -45,7 +45,7 @@ public class ToolDefinition {
     public String getDescription() { return description; }
     
     public String getName() { return name; }
-
+    
     public JsonNode getParameters() { return parameters; }
     
     /*

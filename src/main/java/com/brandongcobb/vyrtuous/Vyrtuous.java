@@ -51,12 +51,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.NoSuchElementException;
 import net.dv8tion.jda.api.JDA;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+
+@SpringBootApplication
 public class Vyrtuous {
 
     private static Vyrtuous app;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static Boolean isInputThreadRunning = false;
+    private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
     public Map<Long, String> userModelPairs = new HashMap<>();
     public Map<Long, String> userSourcePairs = new HashMap<>();
     public static final String BLURPLE = "\033[38;5;61m";
@@ -81,6 +88,7 @@ public class Vyrtuous {
     public static final String YELLOW = "\u001B[33m";
     
     public static void main(String[] args) {
+        SpringApplication.run(Vyrtuous.class, args);
         app = new Vyrtuous();
         LOGGER.setLevel(Level.FINER);
         for (Handler h : LOGGER.getParent().getHandlers()) {
@@ -89,10 +97,8 @@ public class Vyrtuous {
         DiscordBot bot = new DiscordBot();
         boolean isInputThreadRunning = false;
         if (!isInputThreadRunning) {
-            ContextManager userContextManager = new ContextManager(3200);
-            ContextManager modelContextManager = new ContextManager(3200);
-            MCPServer server = new MCPServer(modelContextManager, userContextManager);
-            REPLManager repl = new REPLManager(bot, server, modelContextManager, userContextManager);
+            CustomMCPServer server = new CustomMCPServer(replChatMemory);
+            REPLManager repl = new REPLManager(bot, server, replChatMemory);
             repl.startResponseInputThread();
             isInputThreadRunning = true;
         }
@@ -106,6 +112,5 @@ public class Vyrtuous {
     public static CompletableFuture<Vyrtuous> completeGetAppInstance() {
         return CompletableFuture.completedFuture(app);
     }
-
 
 }

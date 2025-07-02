@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.enums;
+package com.brandongcobb.vyrtuous.utils.handlers;
 
 import com.brandongcobb.vyrtuous.tools.*;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,41 +26,41 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.Collection;
 
 public class ToolRegistry {
-    
+
     private final ObjectMapper mapper = new ObjectMapper();
-    private final Map<String, Tool> tools = new HashMap<>();
-    
+    private final Map<String, CustomTool<?, ?>> tools = new HashMap<>();
+
     public CompletableFuture<JsonNode> callTool(String name, JsonNode arguments) {
-        Tool<?, ?> tool = tools.get(name);
+        CustomTool<?, ?> tool = tools.get(name);
         if (tool == null) {
             CompletableFuture<JsonNode> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalArgumentException("Tool not found: " + name));
             return failed;
         }
         try {
-            return ((Tool<JsonNode, ?>) tool)
-                .run(arguments)
-                .thenApply(result -> mapper.valueToTree(result));
+            CustomTool<JsonNode, ?> typedTool = (CustomTool<JsonNode, ?>) tool;
+            return typedTool.run(arguments).thenApply(result -> {
+                if (result instanceof ToolResult tr) {
+                    return tr.getOutput();
+                } else {
+                    return mapper.valueToTree(result);
+                }
+            });
         } catch (Exception e) {
             CompletableFuture<JsonNode> failed = new CompletableFuture<>();
             failed.completeExceptionally(e);
             return failed;
         }
     }
-    
-    private ToolDefinition convertToMCPFormat(Tool tool) {
-        return ToolDefinition.builder()
-            .name(tool.getName())
-            .description(tool.getDescription())
-            .inputSchema(tool.getJsonSchema())
-            .build();
+
+    public Collection<CustomTool<?, ?>> getTools() {
+        return (Collection<CustomTool<?, ?>>) (Collection<?>) tools.values();
     }
     
-    public List<ToolDefinition> listTools() {
-        return tools.values().stream()
-            .map(this::convertToMCPFormat)
-            .collect(Collectors.toList());
+    public void registerTool(CustomTool<?, ?> tool) {
+        tools.put(tool.getName(), tool);
     }
 }

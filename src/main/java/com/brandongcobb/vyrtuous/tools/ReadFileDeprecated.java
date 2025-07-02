@@ -27,25 +27,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
+import java.text.Normalizer;
+import java.util.regex.Pattern;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
-
-public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatus> {
+public class ReadFileDeprecated implements CustomTool<ReadFileInput, ToolStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ChatMemory chatMemory;
-
-    @Autowired
-    public CountFileLines(ChatMemory replChatMemory) {
-        this.chatMemory = replChatMemory;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
+    
+    public ReadFileDeprecated(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     /*
@@ -53,7 +50,7 @@ public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatu
      */
     @Override
     public String getDescription() {
-        return "Reads and returns the number of lines in a file.";
+        return "Reads and returns the contents of a file.";
     }
 
     @Override
@@ -66,41 +63,51 @@ public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatu
               "properties": {
                 "path": {
                   "type": "string",
-                  "description": "The path to the file to be counted."
+                  "description": "The path to the file to be read."
                 }
               },
               "additionalProperties": false
             }
             """);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to build count_file_lines schema", e);
+            throw new RuntimeException("Failed to build read_file schema", e);
         }
     }
 
     @Override
     public String getName() {
-        return "count_file_lines";
+        return "read_file";
     }
     
     /*
      * Tool
      */
     @Override
-    public CompletableFuture<ToolStatus> run(CountFileLinesInput input) {
+    public CompletableFuture<ToolStatus> run(ReadFileInput input) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Paths.get(input.getPath());
                 if (!Files.exists(filePath)) {
                     return new ToolStatusWrapper("File not found: " + filePath, false);
                 }
-                long lineCount;
-                try (Stream<String> lines = Files.lines(filePath, StandardCharsets.UTF_8)) {
-                    lineCount = lines.count();
-                }
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
-                return new ToolStatusWrapper(String.valueOf(lineCount), true);
+                byte[] rawBytes = Files.readAllBytes(filePath);
+
+                // Step 2: Decode safely with UTF-8 and replace invalid characters
+                CharsetDecoder decoder = StandardCharsets.UTF_8
+                        .newDecoder()
+                        .onMalformedInput(CodingErrorAction.REPLACE)
+                        .onUnmappableCharacter(CodingErrorAction.REPLACE);
+
+                CharBuffer decodedBuffer = decoder.decode(ByteBuffer.wrap(rawBytes));
+                String safeContent = decodedBuffer.toString();
+
+                // Step 3: Normalize Unicode to NFC form
+                safeContent = Normalizer.normalize(safeContent, Normalizer.Form.NFC);
+
+                // Step 4: Escape for JSON (minimalist version)
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                return new ToolStatusWrapper(safeContent, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
             } catch (Exception e) {

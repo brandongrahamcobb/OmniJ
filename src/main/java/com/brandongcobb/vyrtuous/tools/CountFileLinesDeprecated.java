@@ -30,22 +30,15 @@ import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
-
-public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatus> {
+public class CountFileLinesDeprecated implements CustomTool<CountFileLinesInput, ToolStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ChatMemory chatMemory;
-
-    @Autowired
-    public CountFileLines(ChatMemory replChatMemory) {
-        this.chatMemory = replChatMemory;
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
+    
+    public CountFileLinesDeprecated(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
 
     /*
@@ -97,9 +90,8 @@ public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatu
                 try (Stream<String> lines = Files.lines(filePath, StandardCharsets.UTF_8)) {
                     lineCount = lines.count();
                 }
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
                 return new ToolStatusWrapper(String.valueOf(lineCount), true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

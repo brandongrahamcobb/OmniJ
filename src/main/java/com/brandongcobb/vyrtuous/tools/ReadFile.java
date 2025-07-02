@@ -33,16 +33,24 @@ import java.nio.charset.*;
 import java.util.concurrent.CompletableFuture;
 import java.text.Normalizer;
 import java.util.regex.Pattern;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.Message;
+import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
 
-public class ReadFile implements Tool<ReadFileInput, ToolStatus> {
+@Component
+public class ReadFile implements CustomTool<ReadFileInput, ToolStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ContextManager modelContextManager;
-    private final ContextManager userContextManager;
-    
-    public ReadFile(ContextManager modelContextManager, ContextManager userContextManager) {
-        this.modelContextManager = modelContextManager;
-        this.userContextManager = userContextManager;
+    private final ChatMemory chatMemory;
+
+    @Autowired
+    public ReadFile(ChatMemory replChatMemory) {
+        this.chatMemory = replChatMemory;
     }
 
     /*
@@ -105,8 +113,10 @@ public class ReadFile implements Tool<ReadFileInput, ToolStatus> {
                 safeContent = Normalizer.normalize(safeContent, Normalizer.Form.NFC);
 
                 // Step 4: Escape for JSON (minimalist version)
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                printIt();
                 return new ToolStatusWrapper(safeContent, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

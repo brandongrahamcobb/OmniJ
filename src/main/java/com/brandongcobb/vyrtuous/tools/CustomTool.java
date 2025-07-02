@@ -20,7 +20,7 @@ package com.brandongcobb.vyrtuous.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.concurrent.CompletableFuture;
 
-public interface Tool<I, O> {
+public interface CustomTool<I, O> {
     String getDescription();
     String getName();
     JsonNode getJsonSchema();

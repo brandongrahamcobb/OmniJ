@@ -59,7 +59,6 @@ import java.util.regex.Pattern;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -67,7 +66,18 @@ import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
-
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.Message;
+import java.util.stream.Collectors;
+import java.util.UUID;
 
 public class REPLManager {
 
@@ -80,31 +90,66 @@ public class REPLManager {
     private List<JsonNode> lastResults;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private ObjectMapper mapper = new ObjectMapper();
-    private MCPServer mcpServer;
+    private CustomMCPServer mcpServer;
     private MessageManager mem;
-    private final ContextManager modelContextManager;
     private String originalDirective;
     private GuildChannel rawChannel;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
-    private final ContextManager userContextManager;
+    private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
     
-    public REPLManager(DiscordBot discordBot, MCPServer server, ContextManager modelContextManager, ContextManager userContextManager) {
+    public REPLManager(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory) {
         this.api = discordBot.getJDA();
+        this.replChatMemory = chatMemory;
         this.mcpServer = server;
         this.mem = new MessageManager(this.api);
-        this.modelContextManager = modelContextManager;
         this.rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
-        this.userContextManager = userContextManager;
     }
     
+    public static void printIt() {
+        List<Message> messages = replChatMemory.get("user");
+        Message lastMessage = messages.get(messages.size() - 1);
+        String content  = "";
+        if (lastMessage instanceof UserMessage userMsg) {
+            content = userMsg.getText();
+        } else if (lastMessage instanceof AssistantMessage assistantMsg) {
+            content = assistantMsg.getText();
+        } else if (lastMessage instanceof SystemMessage systemMsg) {
+            content = systemMsg.getText();
+        } else if (lastMessage instanceof ToolResponseMessage toolResponseMsg) {
+            var responses = toolResponseMsg.getResponses();
+            if (!responses.isEmpty()) {
+                content = responses.get(0).responseData(); // or getName() / getId()
+            }
+        }
+        System.out.println(content);
+    }
     /*
      *  Helpers
      */
     private void addToolOutput(String content) {
-        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
-        String input = content.length() <= 2000 ? content : content.substring(0, 2000) + "...";
-        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, input));
-        mem.completeSendResponse(rawChannel, input);
+        String uuid = UUID.randomUUID().toString();
+        ToolResponseMessage.ToolResponse response =
+            new ToolResponseMessage.ToolResponse(uuid, "tool", content);
+
+        ToolResponseMessage toolMsg = new ToolResponseMessage(List.of(response));
+        replChatMemory.add("assistant", toolMsg);
+        replChatMemory.add("user", toolMsg);
+
+        printIt();
+//
+//        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
+//        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, input));
+        mem.completeSendResponse(rawChannel, content);
+    }
+    
+    public String buildContext() {
+        List<Message> messages = replChatMemory.get("user");
+        if (messages.isEmpty()) {
+            return "No conversation context available.";
+        }
+        return messages.stream()
+                .map(msg -> msg.getMessageType() + ": " + msg.getText())
+                .collect(Collectors.joining("\n"));
     }
     /*
      *  E-Step
@@ -163,7 +208,6 @@ public class REPLManager {
         });
     }
 
-
     private CompletableFuture<Void> completeESubStep(boolean firstRun) {
         LOGGER.finer("Starting E-substep for first run...");
         if (!firstRun) return CompletableFuture.completedFuture(null);
@@ -211,11 +255,14 @@ public class REPLManager {
                 LOGGER.finer("No tools to run, falling back to user input.");
                 System.out.print("> ");
                 String newInput = scanner.nextLine();
-                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+                replChatMemory.add("assistant", new UserMessage(newInput));
+                replChatMemory.add("user", new UserMessage(newInput));
+                printIt();
+//                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
+//                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                 mem.completeSendResponse(rawChannel, newInput);
             }
-            userContextManager.printNewEntries(true, true, true, false, true, true, true, true);
+            //userContextManager.printNewEntries(true, true, true, false, true, true, true, true);
             return CompletableFuture.completedFuture(null);
         }).exceptionally(ex -> {
             LOGGER.severe("Tool call error: " + ex.getMessage());
@@ -246,10 +293,8 @@ public class REPLManager {
      */
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Starting P-step");
-        userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
         return CompletableFuture.completedFuture(null); // <-- NO looping here!
     }
-
     /*
      *  R-Step
      */
@@ -269,9 +314,13 @@ public class REPLManager {
                          *  Null Checks
                          */
                         if (err != null || resp == null) {
-                            modelContextManager.deleteEntry();
-                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
-                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
+                           // modelContextManager.deleteEntry();
+                            //deleteLastEntry(replChatMemory, "assistant"); // TODO: TeST
+                            addToolOutput("The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
+                            
+                            printIt();
+//                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
+//                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
                             mem.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
                             if (retries <= maxRetries) {
                                 LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
@@ -280,9 +329,12 @@ public class REPLManager {
                                 LOGGER.severe("R-step permanently failed after " + retries + " attempts.");
                                 result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
                             }
-                            userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
+//                            userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                         } else {
-                            userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
+                            //userContextManager.printNewEntries(false, true, true, false, true, true, true, true);                            ChatMemoryId "model" = ChatMemoryId.from("model");
+                            
+                            
+                            printIt();
                             result.complete(resp);
                         }
                     });
@@ -294,7 +346,7 @@ public class REPLManager {
     
     private CompletableFuture<MetadataContainer> completeRStep(Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting R-step, firstRun=" + firstRun);
-        String prompt = firstRun ? originalDirective : modelContextManager.buildPromptContext();
+        String prompt = firstRun ? originalDirective : buildContext();
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
@@ -325,8 +377,13 @@ public class REPLManager {
                                 responseIdFuture = llamaUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
                                 if (!firstRun) {
-                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
-                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+//                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+//                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
+                                    
+                                    replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
+                                    replChatMemory.add("user", new AssistantMessage("[Tokens]: " + tokensCount));
+                                    
+                                    printIt();
                                     mem.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
                                 }
                             }
@@ -369,8 +426,13 @@ public class REPLManager {
                                 }
                                 lastResults = results;
                                 if (!validJson) {
-                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+                                    
+                                    replChatMemory.add("assistant", new AssistantMessage(content));
+                                    replChatMemory.add("user", new AssistantMessage(content));
+                                    
+                                    printIt();
+//                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
+//                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, content);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
@@ -378,11 +440,15 @@ public class REPLManager {
                                     String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
                                     String cleanedText = before + after;
                                     metadataContainer.put(contentKey, cleanedText);
-                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+                                    
+                                    replChatMemory.add("assistant", new AssistantMessage(cleanedText));
+                                    replChatMemory.add("user", new AssistantMessage(cleanedText));
+                                    
+                                    printIt();
+//                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
+//                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                     mem.completeSendResponse(rawChannel, cleanedText);
                                 }
-                                userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                             } catch (Exception e) {
                             }
                             return metadataContainer;
@@ -399,9 +465,6 @@ public class REPLManager {
         });
     }
 
-    
- 
-    
     /*
      * Full-REPL
      */
@@ -418,10 +481,15 @@ public class REPLManager {
         if (userInput == null || userInput.isBlank()) {
             return CompletableFuture.completedFuture(null);
         }
-        userContextManager.clear();
+        // TODO: CLEAR THE MEMORY
         originalDirective = userInput;
-        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
+        
+        replChatMemory.add("assistant", new AssistantMessage(userInput));
+        replChatMemory.add("user", new AssistantMessage(userInput));
+        
+        printIt();
+//        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
+//        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         mem.completeSendResponse(rawChannel, "[User]: " + userInput);
         userInput = null;
         return completeRStepWithTimeout(scanner, true)

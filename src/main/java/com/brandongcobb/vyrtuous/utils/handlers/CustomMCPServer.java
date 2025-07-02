@@ -18,6 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.vyrtuous.*;
 import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.enums.*;
 import com.brandongcobb.vyrtuous.tools.*;
@@ -33,134 +34,177 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Bean;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.ToolCallbacks;
 
-public class MCPServer {
+@Component
+public class CustomMCPServer {
     
-    private static final Logger LOGGER = Logger.getLogger(MCPServer.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private final ObjectMapper mapper = new ObjectMapper();
-    private final Map<String, ToolWrapper> tools = new ConcurrentHashMap<>();
-    private final ContextManager modelContextManager;
-    private final ContextManager userContextManager;
+    //private final Map<String, ToolWrapper> tools = new ConcurrentHashMap<>();
     private boolean initialized = false;
+    private final ChatMemory replChatMemory;
+    private ToolService toolService;
+    private ToolRegistry toolRegistry = new ToolRegistry();
 
-    public MCPServer(ContextManager modelContextManager, ContextManager userContextManager) {
-        this.modelContextManager = modelContextManager;
-        this.userContextManager = userContextManager;
-        registerTools();
+    @Autowired
+    public CustomMCPServer(ChatMemory replChatMemory) {
+        this.toolService = new ToolService(replChatMemory);
+        this.replChatMemory = replChatMemory;
+        //registerTools();
     }
 
-    private void registerTools() {
-        tools.put("count_file_lines", new ToolWrapper(
-            "count_file_lines",
-            "Count the number of lines in a file",
-            createCountFileLinesSchema(),
-            (input) -> {
-                CountFileLinesInput countFileLinesInput = mapper.treeToValue(input, CountFileLinesInput.class);
-                CountFileLines countFileLines = new CountFileLines(modelContextManager, userContextManager);
-                countFileLinesInput.setOriginalJson(input);
-                return countFileLines.run(countFileLinesInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("create_file", new ToolWrapper(
-            "create_file",
-            "Create a new file with specified content",
-            createCreateFileSchema(),
-            (input) -> {
-                CreateFileInput createFileInput = mapper.treeToValue(input, CreateFileInput.class);
-                CreateFile createFile = new CreateFile(modelContextManager, userContextManager);
-                createFileInput.setOriginalJson(input);
-                return createFile.run(createFileInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("find_in_file", new ToolWrapper(
-            "find_in_file",
-            "Provides context for found strings inside a file",
-            createFindInFileSchema(),
-            (input) -> {
-                FindInFileInput findInFileInput = mapper.treeToValue(input, FindInFileInput.class);
-                FindInFile findInFile = new FindInFile(modelContextManager, userContextManager);
-                findInFileInput.setOriginalJson(input);
-                return findInFile.run(findInFileInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("load_context", new ToolWrapper(
-            "load_context",
-            "Load context from a source",
-            createLoadContextSchema(),
-            (input) -> {
-                LoadContextInput loadContextInput = mapper.treeToValue(input, LoadContextInput.class);
-                LoadContext loadContext = new LoadContext(modelContextManager, userContextManager);
-                loadContextInput.setOriginalJson(input);
-                return loadContext.run(loadContextInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("patch", new ToolWrapper(
-            "patch",
-            "Apply patches to files",
-            createPatchSchema(),
-            (input) -> {
-                PatchInput patchInput = mapper.treeToValue(input, PatchInput.class);
-                Patch patch = new Patch(modelContextManager, userContextManager);
-                patchInput.setOriginalJson(input);
-                return patch.run(patchInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("read_file", new ToolWrapper(
-            "read_file",
-            "Read the contents of a file",
-            createReadFileSchema(),
-            (input) -> {
-                ReadFileInput readFileInput = mapper.treeToValue(input, ReadFileInput.class);
-                ReadFile readFile = new ReadFile(modelContextManager, userContextManager);
-                readFileInput.setOriginalJson(input);
-                return readFile.run(readFileInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("refresh_context", new ToolWrapper(
-            "refresh_context",
-            "Summarize the context",
-            createRefreshContextSchema(),
-            (input) -> {
-                RefreshContextInput refreshContextInput = mapper.treeToValue(input, RefreshContextInput.class);
-                RefreshContext refreshContext = new RefreshContext(modelContextManager, userContextManager);
-                refreshContextInput.setOriginalJson(input);
-                return refreshContext.run(refreshContextInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("save_context", new ToolWrapper(
-            "save_context",
-            "Save current context",
-            createSaveContextSchema(),
-            (input) -> {
-                SaveContextInput saveContextInput = mapper.treeToValue(input, SaveContextInput.class);
-                SaveContext saveContext = new SaveContext(modelContextManager, userContextManager);
-                saveContextInput.setOriginalJson(input);
-                return saveContext.run(saveContextInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("search_files", new ToolWrapper(
-            "search_files",
-            "Search for files matching criteria",
-            createSearchFilesSchema(),
-            (input) -> {
-                SearchFilesInput searchFilesInput = mapper.treeToValue(input, SearchFilesInput.class);
-                SearchFiles searchFiles = new SearchFiles(modelContextManager, userContextManager);
-                searchFilesInput.setOriginalJson(input);
-                return searchFiles.run(searchFilesInput).thenApply(result -> result);
-            }
-        ));
-        tools.put("search_web", new ToolWrapper(
-            "search_web",
-            "Search the web for matching criteria",
-            createSearchWebSchema(),
-            (input) -> {
-                SearchWebInput searchWebInput = mapper.treeToValue(input, SearchWebInput.class);
-                SearchWeb searchWeb = new SearchWeb(modelContextManager, userContextManager);
-                searchWebInput.setOriginalJson(input);
-                return searchWeb.run(searchWebInput).thenApply(result -> result);
-            }
-        ));
-    }
+//    private void registerTools() {
+//        tools.put("count_file_lines", new ToolWrapper(
+//            "count_file_lines",
+//            "Count the number of lines in a file",
+//            createCountFileLinesSchema(),
+//            (input) -> {
+//                CountFileLinesInput countFileLinesInput = mapper.treeToValue(input, CountFileLinesInput.class);
+//                CountFileLines countFileLines = new CountFileLines(replChatMemory);
+//                countFileLinesInput.setOriginalJson(input);
+//                return countFileLines.run(countFileLinesInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("create_file", new ToolWrapper(
+//            "create_file",
+//            "Create a new file with specified content",
+//            createCreateFileSchema(),
+//            (input) -> {
+//                CreateFileInput createFileInput = mapper.treeToValue(input, CreateFileInput.class);
+//                CreateFile createFile = new CreateFile(replChatMemory);
+//                createFileInput.setOriginalJson(input);
+//                return createFile.run(createFileInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("find_in_file", new ToolWrapper(
+//            "find_in_file",
+//            "Provides context for found strings inside a file",
+//            createFindInFileSchema(),
+//            (input) -> {
+//                FindInFileInput findInFileInput = mapper.treeToValue(input, FindInFileInput.class);
+//                FindInFile findInFile = new FindInFile(replChatMemory);
+//                findInFileInput.setOriginalJson(input);
+//                return findInFile.run(findInFileInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("list_latex_structure", new ToolWrapper(
+//            "list_latex_structure",
+//            "List the latex structure of a a .tex file",
+//            createListLatexStructureSchema(),
+//            (input) -> {
+//                ListLatexStructureInput listLatexStructureInput = mapper.treeToValue(input, ListLatexStructureInput.class);
+//                ListLatexStructure listLatexStructure = new ListLatexStructure(replChatMemory);
+//                listLatexStructureInput.setOriginalJson(input);
+//                return listLatexStructure.run(listLatexStructureInput).thenApply(result -> result);
+//            }
+//        ));
+////        tools.put("load_context", new ToolWrapper(
+////            "load_context",
+////            "Load context from a source",
+////            createLoadContextSchema(),
+////            (input) -> {
+////                LoadContextInput loadContextInput = mapper.treeToValue(input, LoadContextInput.class);
+////                LoadContext loadContext = new LoadContext(replChatMemory);
+////                loadContextInput.setOriginalJson(input);
+////                return loadContext.run(loadContextInput).thenApply(result -> result);
+////            }
+////        ));
+//        tools.put("patch", new ToolWrapper(
+//            "patch",
+//            "Apply patches to files",
+//            createPatchSchema(),
+//            (input) -> {
+//                PatchInput patchInput = mapper.treeToValue(input, PatchInput.class);
+//                Patch patch = new Patch(replChatMemory);
+//                patchInput.setOriginalJson(input);
+//                return patch.run(patchInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("read_file", new ToolWrapper(
+//            "read_file",
+//            "Read the contents of a file",
+//            createReadFileSchema(),
+//            (input) -> {
+//                ReadFileInput readFileInput = mapper.treeToValue(input, ReadFileInput.class);
+//                ReadFile readFile = new ReadFile(replChatMemory);
+//                readFileInput.setOriginalJson(input);
+//                return readFile.run(readFileInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("read_latex_segment", new ToolWrapper(
+//            "read_latex_segment",
+//            "Read a segment of LaTeXe in a .tex file",
+//            createReadLatexSegmentSchema(),
+//            (input) -> {
+//                ReadLatexSegmentInput readLatexSegmentInput = mapper.treeToValue(input, ReadLatexSegmentInput.class);
+//                ReadLatexSegment readLatexSegment = new ReadLatexSegment(replChatMemory);
+//                readLatexSegmentInput.setOriginalJson(input);
+//                return readLatexSegment.run(readLatexSegmentInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("refresh_context", new ToolWrapper(
+//            "refresh_context",
+//            "Summarize the context",
+//            createRefreshContextSchema(),
+//            (input) -> {
+//                RefreshContextInput refreshContextInput = mapper.treeToValue(input, RefreshContextInput.class);
+//                RefreshContext refreshContext = new RefreshContext(replChatMemory);
+//                refreshContextInput.setOriginalJson(input);
+//                return refreshContext.run(refreshContextInput).thenApply(result -> result);
+//            }
+//        ));
+////        tools.put("save_context", new ToolWrapper(
+////            "save_context",
+////            "Save current context",
+////            createSaveContextSchema(),
+////            (input) -> {
+////                SaveContextInput saveContextInput = mapper.treeToValue(input, SaveContextInput.class);
+////                SaveContext saveContext = new SaveContext(replChatMemory);
+////                saveContextInput.setOriginalJson(input);
+////                return saveContext.run(saveContextInput).thenApply(result -> result);
+////            }
+////        ));
+//        tools.put("search_files", new ToolWrapper(
+//            "search_files",
+//            "Search for files matching criteria",
+//            createSearchFilesSchema(),
+//            (input) -> {
+//                SearchFilesInput searchFilesInput = mapper.treeToValue(input, SearchFilesInput.class);
+//                SearchFiles searchFiles = new SearchFiles(replChatMemory);
+//                searchFilesInput.setOriginalJson(input);
+//                return searchFiles.run(searchFilesInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("search_web", new ToolWrapper(
+//            "search_web",
+//            "Search the web for matching criteria",
+//            createSearchWebSchema(),
+//            (input) -> {
+//                SearchWebInput searchWebInput = mapper.treeToValue(input, SearchWebInput.class);
+//                SearchWeb searchWeb = new SearchWeb(replChatMemory);
+//                searchWebInput.setOriginalJson(input);
+//                return searchWeb.run(searchWebInput).thenApply(result -> result);
+//            }
+//        ));
+//        tools.put("summarize_latex_section", new ToolWrapper(
+//            "summarize_latex_section",
+//            "Summarize a section in a LaTeXe document",
+//            createSummarizeLatexSectionSchema(),
+//            (input) -> {
+//                SummarizeLatexSectionInput summarizeLatexSectionInput = mapper.treeToValue(input, SummarizeLatexSectionInput.class);
+//                SummarizeLatexSection summarizeLatexSection = new SummarizeLatexSection(replChatMemory);
+//                summarizeLatexSectionInput.setOriginalJson(input);
+//                return summarizeLatexSection.run(summarizeLatexSectionInput).thenApply(result -> result);
+//            }
+//        ));
+//    }
 
     public void start() {
         LOGGER.info("Starting MCP Server");
@@ -228,18 +272,22 @@ public class MCPServer {
         if (!initialized) {
             return CompletableFuture.completedFuture(createError(-32002, "Server not initialized"));
         }
+
         ObjectNode result = mapper.createObjectNode();
         ArrayNode toolsArray = mapper.createArrayNode();
-        for (ToolWrapper tool : tools.values()) {
+
+        for (CustomTool<?, ?> tool : toolRegistry.getTools()) {
             ObjectNode toolDef = mapper.createObjectNode();
             toolDef.put("name", tool.getName());
             toolDef.put("description", tool.getDescription());
-            toolDef.set("inputSchema", tool.getInputSchema());
-            ((com.fasterxml.jackson.databind.node.ArrayNode) toolsArray).add(toolDef);
+            toolDef.set("inputSchema", tool.getJsonSchema());
+            toolsArray.add(toolDef);
         }
+
         result.set("tools", toolsArray);
         return CompletableFuture.completedFuture(result);
     }
+
 
     private CompletableFuture<JsonNode> handleToolCall(JsonNode params) {
         if (!initialized) {
@@ -248,14 +296,7 @@ public class MCPServer {
         try {
             String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
-            ToolWrapper tool = tools.get(toolName);
-            if (tool == null) {
-                throw new IllegalArgumentException("Tool not found: " + toolName);
-            }
-
-            return tool.execute(arguments)
-                .thenApply(statusObj -> mapper.valueToTree(statusObj));
-
+            return toolRegistry.callTool(toolName, arguments);
         } catch (Exception e) {
             throw new CompletionException(e);
         }
@@ -299,6 +340,7 @@ public class MCPServer {
             return mapper.createObjectNode();
         }
     }
+    
     
     private JsonNode createCreateFileSchema() {
         try {
@@ -374,6 +416,28 @@ public class MCPServer {
             return mapper.readTree(schemaJson);
         } catch (Exception e) {
             LOGGER.severe("Failed to create count_file_lines schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+    }
+    
+    private JsonNode createListLatexStructureSchema() {
+        try {
+            String schemaJson = """
+            {
+              "type": "object",
+              "required": ["file_path"],
+              "properties": {
+                "file_path": {
+                  "type": "string",
+                  "description": "Path to the LaTeX file to parse."
+                }
+              },
+              "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create list_latex_structure schema: " + e.getMessage());
             return mapper.createObjectNode();
         }
     }
@@ -488,6 +552,38 @@ public class MCPServer {
         }
     }
 
+    private JsonNode createReadLatexSegmentSchema() {
+        try {
+            String schemaJson = """
+            {
+              "type": "object",
+              "required": ["file_path", "start_line", "num_lines"],
+              "properties": {
+                "file_path": {
+                  "type": "string",
+                  "description": "Path to the LaTeX file."
+                },
+                "start_line": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Starting line number (0-indexed)."
+                },
+                "num_lines": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of lines to read."
+                }
+              },
+              "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create read_latex_segment schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+    }
+
     private JsonNode createRefreshContextSchema() {
         try {
             String schemaJson = """
@@ -533,7 +629,6 @@ public class MCPServer {
             LOGGER.severe("Failed to create save_context schema: " + e.getMessage());
             return mapper.createObjectNode();
         }
-
     }
 
     private JsonNode createSearchWebSchema() {
@@ -600,7 +695,26 @@ public class MCPServer {
         }
     }
 
-
+    private JsonNode createSummarizeLatexSectionSchema() {
+        try {
+            String schemaJson = """
+            {
+              "type": "object",
+              "required": ["file_path", "start_line", "end_line"],
+              "properties": {
+                  "file_path": { "type": "string" },
+                  "start_line": { "type": "integer", "minimum": 0 },
+                  "end_line": { "type": "integer", "minimum": 0 }
+              },
+              "additionalProperties": false
+            }
+            """;
+            return mapper.readTree(schemaJson);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to create save_context schema: " + e.getMessage());
+            return mapper.createObjectNode();
+        }
+    }
 
     public static class ToolWrapper {
     
@@ -638,5 +752,9 @@ public class MCPServer {
         CompletableFuture<? extends ToolStatus> execute(JsonNode input) throws Exception;
     }
 
+    @Bean
+    public List<ToolCallback> tools(ToolService service) {
+        return List.of(ToolCallbacks.from(service));
+    }
 }
 

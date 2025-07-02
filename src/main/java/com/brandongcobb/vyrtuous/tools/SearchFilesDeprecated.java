@@ -37,24 +37,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
 
-@Component
-public class SearchFiles implements CustomTool<SearchFilesInput, ToolStatus> {
+public class SearchFilesDeprecated implements CustomTool<SearchFilesInput, ToolStatus> {
 
+    private final ContextManager modelContextManager;
+    private final ContextManager userContextManager;
     private static final ObjectMapper mapper = new ObjectMapper();
-    private final ChatMemory chatMemory;
     
-    @Autowired
-    public SearchFiles(ChatMemory replChatMemory) {
-        this.chatMemory = replChatMemory;
+    public SearchFilesDeprecated(ContextManager modelContextManager, ContextManager userContextManager) {
+        this.modelContextManager = modelContextManager;
+        this.userContextManager = userContextManager;
     }
     
     /*
@@ -189,9 +181,8 @@ public class SearchFiles implements CustomTool<SearchFilesInput, ToolStatus> {
                     results.forEach(r -> sb.append("• ").append(r.path).append("\n"));
                     summary = sb.toString().trim();
                 }
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
+                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL, "{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
                 return new ToolStatusWrapper(summary, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);
