@@ -20,5 +20,4 @@ public class ToolConfig {
     public List<ToolCallback> toolCallbacks(ToolService toolService) {
         return List.of(ToolCallbacks.from(toolService));
     }
-    
 }

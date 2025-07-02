@@ -90,9 +90,9 @@ public class Vyrtuous {
     public static void main(String[] args) {
         SpringApplication.run(Vyrtuous.class, args);
         app = new Vyrtuous();
-        LOGGER.setLevel(Level.FINER);
+        LOGGER.setLevel(Level.OFF);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINER);
+            h.setLevel(Level.OFF);
         }
         DiscordBot bot = new DiscordBot();
         boolean isInputThreadRunning = false;

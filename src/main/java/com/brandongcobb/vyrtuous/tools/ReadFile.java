@@ -60,6 +60,11 @@ public class ReadFile implements CustomTool<ReadFileInput, ToolStatus> {
     public String getDescription() {
         return "Reads and returns the contents of a file.";
     }
+    
+    @Override
+    public Class<ReadFileInput> getInputClass() {
+        return ReadFileInput.class;
+    }
 
     @Override
     public JsonNode getJsonSchema() {

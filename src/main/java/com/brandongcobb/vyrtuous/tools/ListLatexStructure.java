@@ -48,6 +48,11 @@ public class ListLatexStructure implements CustomTool<ListLatexStructureInput, T
     }
 
     @Override
+    public Class<ListLatexStructureInput> getInputClass() {
+        return ListLatexStructureInput.class;
+    }
+    
+    @Override
     public String getDescription() {
         return "Parses the LaTeX file for sectioning commands and returns their structure with line numbers.";
     }

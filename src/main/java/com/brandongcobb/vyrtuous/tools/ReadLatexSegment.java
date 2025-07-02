@@ -50,6 +50,11 @@ public class ReadLatexSegment implements CustomTool<ReadLatexSegmentInput, ToolS
     public String getDescription() {
         return "Reads a segment of a LaTeX file without loading the full document.";
     }
+    
+    @Override
+    public Class<ReadLatexSegmentInput> getInputClass() {
+        return ReadLatexSegmentInput.class;
+    }
 
     @Override
     public JsonNode getJsonSchema() {

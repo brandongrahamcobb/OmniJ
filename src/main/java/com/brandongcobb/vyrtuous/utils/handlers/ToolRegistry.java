@@ -18,6 +18,7 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.vyrtuous.domain.*;
 import com.brandongcobb.vyrtuous.tools.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,27 +35,36 @@ public class ToolRegistry {
     private final Map<String, CustomTool<?, ?>> tools = new HashMap<>();
 
     public CompletableFuture<JsonNode> callTool(String name, JsonNode arguments) {
-        CustomTool<?, ?> tool = tools.get(name);
-        if (tool == null) {
+        CustomTool<?, ?> customTool = tools.get(name);
+        if (customTool == null) {
             CompletableFuture<JsonNode> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalArgumentException("Tool not found: " + name));
             return failed;
         }
         try {
-            CustomTool<JsonNode, ?> typedTool = (CustomTool<JsonNode, ?>) tool;
-            return typedTool.run(arguments).thenApply(result -> {
-                if (result instanceof ToolResult tr) {
-                    return tr.getOutput();
-                } else {
-                    return mapper.valueToTree(result);
-                }
-            });
+            Object inputObj = mapper.treeToValue(arguments, customTool.getInputClass()); // Deserialize
+            
+            // If your input object has setOriginalJson method, call it here:
+            if (inputObj instanceof ToolInput toolInput) {
+                toolInput.setOriginalJson(arguments);
+            }
+
+            CustomTool<Object, ?> typedTool = (CustomTool<Object, ?>) customTool;
+            return typedTool.run(inputObj)
+                .thenApply(result -> {
+                    if (result instanceof ToolResult tr) {
+                        return tr.getOutput();
+                    } else {
+                        return mapper.valueToTree(result);
+                    }
+                });
         } catch (Exception e) {
             CompletableFuture<JsonNode> failed = new CompletableFuture<>();
             failed.completeExceptionally(e);
             return failed;
         }
     }
+
 
     public Collection<CustomTool<?, ?>> getTools() {
         return (Collection<CustomTool<?, ?>>) (Collection<?>) tools.values();

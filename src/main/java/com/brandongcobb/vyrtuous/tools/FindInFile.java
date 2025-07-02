@@ -51,7 +51,12 @@ public class FindInFile implements CustomTool<FindInFileInput, ToolStatus> {
     public FindInFile(ChatMemory replChatMemory) {
         this.chatMemory = replChatMemory;
     }
-
+    
+    @Override
+    public Class<FindInFileInput> getInputClass() {
+        return FindInFileInput.class;
+    }
+    
     @Override
     public String getName() {
         return "find_in_file";

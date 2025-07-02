@@ -107,6 +107,11 @@ public class SearchFiles implements CustomTool<SearchFilesInput, ToolStatus> {
     }
     
     @Override
+    public Class<SearchFilesInput> getInputClass() {
+        return SearchFilesInput.class;
+    }
+    
+    @Override
     public String getName() {
         return "search_files";
     }

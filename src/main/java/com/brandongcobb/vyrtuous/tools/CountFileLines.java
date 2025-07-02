@@ -78,6 +78,11 @@ public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatu
     }
 
     @Override
+    public Class<CountFileLinesInput> getInputClass() {
+        return CountFileLinesInput.class;
+    }
+    
+    @Override
     public String getName() {
         return "count_file_lines";
     }

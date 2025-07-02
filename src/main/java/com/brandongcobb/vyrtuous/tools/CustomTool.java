@@ -24,6 +24,7 @@ public interface CustomTool<I, O> {
     String getDescription();
     String getName();
     JsonNode getJsonSchema();
+    Class<I> getInputClass();
     CompletableFuture<O> run(I input) throws Exception;
 }
 

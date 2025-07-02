@@ -57,9 +57,21 @@ public class CustomMCPServer {
     public CustomMCPServer(ChatMemory replChatMemory) {
         this.toolService = new ToolService(replChatMemory);
         this.replChatMemory = replChatMemory;
-        //registerTools();
+        initializeTools();
     }
 
+    public void initializeTools() {
+        toolRegistry.registerTool(new CountFileLines(replChatMemory));
+        toolRegistry.registerTool(new CreateFile(replChatMemory));
+        toolRegistry.registerTool(new FindInFile(replChatMemory));
+        toolRegistry.registerTool(new ListLatexStructure(replChatMemory));
+        toolRegistry.registerTool(new Patch(replChatMemory));
+        toolRegistry.registerTool(new ReadFile(replChatMemory));
+        toolRegistry.registerTool(new ReadLatexSegment(replChatMemory));
+        toolRegistry.registerTool(new SearchFiles(replChatMemory));
+        toolRegistry.registerTool(new SearchWeb(replChatMemory));
+        toolRegistry.registerTool(new SummarizeLatexSection(replChatMemory));
+    }
 //    private void registerTools() {
 //        tools.put("count_file_lines", new ToolWrapper(
 //            "count_file_lines",
@@ -226,6 +238,7 @@ public class CustomMCPServer {
             String method = request.get("method").asText();
             String id = request.has("id") ? request.get("id").asText() : null;
             JsonNode params = request.get("params");
+            handleInitialize(params); // TODO: This is bad practice.
             CompletableFuture<JsonNode> responseFuture = switch (method) {
                 case "initialize" -> handleInitialize(params);
                 case "tools/list" -> handleToolsList();

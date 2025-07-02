@@ -42,6 +42,11 @@ public class SummarizeLatexSection implements CustomTool<SummarizeLatexSectionIn
     }
     
     @Override
+    public Class<SummarizeLatexSectionInput> getInputClass() {
+        return SummarizeLatexSectionInput.class;
+    }
+    
+    @Override
     public String getName() {
         return "summarize_latex_section";
     }

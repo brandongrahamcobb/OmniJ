@@ -71,6 +71,11 @@ public class SearchWeb implements CustomTool<SearchWebInput, ToolStatus> {
     }
     
     @Override
+    public Class<SearchWebInput> getInputClass() {
+        return SearchWebInput.class;
+    }
+    
+    @Override
     public String getName() {
         return "search_web";
     }

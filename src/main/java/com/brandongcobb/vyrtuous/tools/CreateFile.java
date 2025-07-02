@@ -92,6 +92,11 @@ public class CreateFile implements CustomTool<CreateFileInput, ToolStatus> {
     }
     
     @Override
+    public Class<CreateFileInput> getInputClass() {
+        return CreateFileInput.class;
+    }
+    
+    @Override
     public String getName() {
         return "create_file";
     }

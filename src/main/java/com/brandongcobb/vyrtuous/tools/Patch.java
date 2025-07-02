@@ -58,6 +58,11 @@ public class Patch implements CustomTool<PatchInput, ToolStatus> {
     public String getDescription() {
         return "Applies a patch to a file using match and replace/insert rules.";
     }
+    
+    @Override
+    public Class<PatchInput> getInputClass() {
+        return PatchInput.class;
+    }
 
     @Override
     public JsonNode getJsonSchema() {
