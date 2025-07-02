@@ -19,31 +19,27 @@
  */
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.domain.*;
-import com.brandongcobb.vyrtuous.objects.ContextEntry;
-import com.brandongcobb.vyrtuous.utils.handlers.ContextManager;
-
+import com.brandongcobb.vyrtuous.domain.SearchFilesInput;
+import com.brandongcobb.vyrtuous.domain.ToolStatus;
+import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
-import java.util.Set;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.util.ArrayList;
-import java.util.List;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+
 import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
 
 @Component

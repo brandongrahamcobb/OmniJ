@@ -17,7 +17,7 @@
  */
 package com.brandongcobb.vyrtuous.enums;
 
-import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.brandongcobb.vyrtuous.utils.inc.Helpers;
 
 public enum Source {
 

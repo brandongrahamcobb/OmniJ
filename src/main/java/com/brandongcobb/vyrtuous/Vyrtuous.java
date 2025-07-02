@@ -19,43 +19,20 @@
 package com.brandongcobb.vyrtuous;
 
 import com.brandongcobb.vyrtuous.bots.DiscordBot;
-import com.brandongcobb.metadata.MetadataContainer;
-import com.brandongcobb.vyrtuous.enums.*;
-import com.brandongcobb.vyrtuous.utils.handlers.*;
-import com.brandongcobb.vyrtuous.utils.inc.*;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.Executor;
-import java.util.function.Consumer;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CompletionException;
-import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.*;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.Timer;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.NoSuchElementException;
-import net.dv8tion.jda.api.JDA;
+import com.brandongcobb.vyrtuous.utils.handlers.CustomMCPServer;
+import com.brandongcobb.vyrtuous.utils.handlers.REPLManager;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @SpringBootApplication
 public class Vyrtuous {

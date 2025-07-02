@@ -18,11 +18,11 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
-import com.brandongcobb.vyrtuous.enums.*;
-import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.brandongcobb.vyrtuous.enums.StructuredOutput;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
@@ -44,10 +44,7 @@ public class SchemaMerger {
         return CompletableFuture.supplyAsync(() -> {
             String baseSchema = StructuredOutput.RESPONSE.asString();
             try {
-                String mergedSchemas = mergeModeration(
-                    baseSchema,
-                    StructuredOutput.MODERATION.asString()
-                );
+                String mergedSchemas = mergeModeration(baseSchema, StructuredOutput.MODERATION.asString());
                 return mergedSchemas;
             } catch (IOException ioe) {
                 ioe.printStackTrace();

@@ -18,26 +18,13 @@
  */
 package com.brandongcobb.vyrtuous.objects;
 
-import com.brandongcobb.metadata.*;
+import com.brandongcobb.metadata.Metadata;
+import com.brandongcobb.metadata.MetadataKey;
+import com.brandongcobb.metadata.MetadataList;
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.utils.handlers.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.logging.*;
-import java.util.stream.Collectors;
+
+import java.util.*;
+import java.util.logging.Logger;
 
 public class OpenAIContainer extends MainContainer {
     

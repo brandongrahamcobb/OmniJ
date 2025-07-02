@@ -6,12 +6,16 @@
 //
 package com.brandongcobb.vyrtuous.utils.secure;
 
-import javax.crypto.*;
-import javax.crypto.spec.*;
-import java.security.*;
-import java.util.Base64;
-import java.io.*;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.nio.file.Files;
+import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 
 public class Encryption {

@@ -8,11 +8,16 @@
 
 package com.brandongcobb.vyrtuous.tools;
 
+import com.brandongcobb.vyrtuous.domain.SearchWebInput;
+import com.brandongcobb.vyrtuous.domain.ToolStatus;
+import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.brandongcobb.vyrtuous.domain.*;
-import com.brandongcobb.vyrtuous.objects.*;
-import com.brandongcobb.vyrtuous.utils.handlers.*;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -23,13 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
+
 import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
 
 @Component

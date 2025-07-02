@@ -15,6 +15,7 @@
 package com.brandongcobb.vyrtuous.domain;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
 public class SummarizeLatexSectionInput  implements ToolInput {
     private int endLine;
     private String filePath;

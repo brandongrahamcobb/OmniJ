@@ -18,20 +18,19 @@
  */
 package com.brandongcobb.vyrtuous.bots;
 
-import com.brandongcobb.vyrtuous.cogs.*;
-import com.brandongcobb.vyrtuous.Vyrtuous;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Logger;
-import java.util.logging.Level;
+import com.brandongcobb.vyrtuous.cogs.Cog;
+import com.brandongcobb.vyrtuous.cogs.EventListeners;
+import com.brandongcobb.vyrtuous.cogs.HybridCommands;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class DiscordBot {
 

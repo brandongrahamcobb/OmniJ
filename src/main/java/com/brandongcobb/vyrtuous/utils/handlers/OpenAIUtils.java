@@ -18,23 +18,19 @@
  */
 package com.brandongcobb.vyrtuous.utils.handlers;
 
+import com.brandongcobb.metadata.Metadata;
+import com.brandongcobb.metadata.MetadataContainer;
+import com.brandongcobb.metadata.MetadataKey;
+import com.brandongcobb.metadata.MetadataList;
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.metadata.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
+
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class OpenAIUtils {
     

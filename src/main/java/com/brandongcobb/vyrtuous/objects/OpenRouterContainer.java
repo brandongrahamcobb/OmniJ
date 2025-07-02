@@ -19,19 +19,11 @@
 package com.brandongcobb.vyrtuous.objects;
 
 
-import com.brandongcobb.vyrtuous.utils.handlers.*;
-import com.brandongcobb.metadata.*;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import com.brandongcobb.metadata.Metadata;
+import com.brandongcobb.metadata.MetadataKey;
+
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
 public class OpenRouterContainer extends MainContainer {
     

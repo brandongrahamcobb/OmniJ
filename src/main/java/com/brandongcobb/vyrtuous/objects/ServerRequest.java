@@ -6,7 +6,6 @@
 //
 package com.brandongcobb.vyrtuous.objects;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class ServerRequest {

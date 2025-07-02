@@ -20,22 +20,21 @@ package com.brandongcobb.vyrtuous.cogs;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.bots.DiscordBot;
-import com.brandongcobb.vyrtuous.utils.handlers.*;
-import com.brandongcobb.vyrtuous.utils.inc.*;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import com.brandongcobb.vyrtuous.utils.handlers.SettingsManager;
+import com.brandongcobb.vyrtuous.utils.inc.Helpers;
+import com.brandongcobb.vyrtuous.utils.inc.Maps;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageHistory;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
-import java.util.concurrent.CompletionException;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class HybridCommands extends ListenerAdapter implements Cog {
 

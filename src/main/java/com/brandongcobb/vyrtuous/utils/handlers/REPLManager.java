@@ -1,4 +1,3 @@
-
 /* REPLManager.java The purpose of this class is to serve as the local
  * CLI interface for a variety of AI endpoints.
  *
@@ -20,69 +19,35 @@
 
 package com.brandongcobb.vyrtuous.utils.handlers;
 
-import com.brandongcobb.metadata.*;
+import com.brandongcobb.metadata.Metadata;
+import com.brandongcobb.metadata.MetadataContainer;
+import com.brandongcobb.metadata.MetadataKey;
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.bots.*;
-import com.brandongcobb.vyrtuous.domain.*;
-import com.brandongcobb.vyrtuous.enums.*;
-import com.brandongcobb.vyrtuous.objects.*;
-import com.brandongcobb.vyrtuous.tools.*;
-import com.brandongcobb.vyrtuous.utils.inc.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.brandongcobb.vyrtuous.bots.DiscordBot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.messages.*;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.lang.reflect.Method;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
-import java.util.logging.*;
-import java.util.function.Function;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.api.events.session.ReadyEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
-import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.ToolResponseMessage;
-import org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.Message;
 import java.util.stream.Collectors;
-import java.util.UUID;
 
 public class REPLManager {
 
     private AIManager aim = new AIManager();
-    
     private static final Pattern ALREADY_ESCAPED = Pattern.compile("\\\\([\\\\\"`])");
     private JDA api;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
@@ -118,7 +83,7 @@ public class REPLManager {
         } else if (lastMessage instanceof ToolResponseMessage toolResponseMsg) {
             var responses = toolResponseMsg.getResponses();
             if (!responses.isEmpty()) {
-                content = responses.get(0).responseData(); // or getName() / getId()
+                content = responses.get(0).responseData();
             }
         }
         System.out.println(content);
@@ -128,17 +93,11 @@ public class REPLManager {
      */
     private void addToolOutput(String content) {
         String uuid = UUID.randomUUID().toString();
-        ToolResponseMessage.ToolResponse response =
-            new ToolResponseMessage.ToolResponse(uuid, "tool", content);
-
+        ToolResponseMessage.ToolResponse response = new ToolResponseMessage.ToolResponse(uuid, "tool", content);
         ToolResponseMessage toolMsg = new ToolResponseMessage(List.of(response));
         replChatMemory.add("assistant", toolMsg);
         replChatMemory.add("user", toolMsg);
-
         printIt();
-//
-//        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, content));
-//        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOOL_OUTPUT, input));
         mem.completeSendResponse(rawChannel, content);
     }
     
@@ -170,9 +129,13 @@ public class REPLManager {
                 StringWriter buffer = new StringWriter();
                 CountDownLatch latch = new CountDownLatch(1);
                 PrintWriter out = new PrintWriter(new Writer() {
-                    @Override public void write(char[] cbuf, int off, int len)  { buffer.write(cbuf, off, len); }
-                    @Override public void flush()     { latch.countDown(); }
-                    @Override public void close()     {}
+                    @Override public void write(char[] cbuf, int off, int len)  {
+                        buffer.write(cbuf, off, len);
+                    }
+                    @Override public void flush() {
+                        latch.countDown();
+                    }
+                    @Override public void close() {}
                 }, true);
                 mcpServer.handleRequest(rpcText, out);
                 if (!latch.await(2, TimeUnit.SECONDS)) {
@@ -237,9 +200,6 @@ public class REPLManager {
     private CompletableFuture<Void> completeEStep(MetadataContainer response, Scanner scanner, boolean firstRun) {
         LOGGER.fine("Starting E-step...");
         return new MetadataUtils(response).completeGetContent().thenCompose(contentStr -> {
-            /*
-             *  Null Checks
-             */
             if (lastResults != null && !lastResults.isEmpty()) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 return completeESubStep(firstRun).thenCompose(v -> {
@@ -258,11 +218,8 @@ public class REPLManager {
                 replChatMemory.add("assistant", new UserMessage(newInput));
                 replChatMemory.add("user", new UserMessage(newInput));
                 printIt();
-//                modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
-//                userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, newInput));
                 mem.completeSendResponse(rawChannel, newInput);
             }
-            //userContextManager.printNewEntries(true, true, true, false, true, true, true, true);
             return CompletableFuture.completedFuture(null);
         }).exceptionally(ex -> {
             LOGGER.severe("Tool call error: " + ex.getMessage());
@@ -293,7 +250,7 @@ public class REPLManager {
      */
     private CompletableFuture<Void> completePStep(Scanner scanner) {
         LOGGER.fine("Starting P-step");
-        return CompletableFuture.completedFuture(null); // <-- NO looping here!
+        return CompletableFuture.completedFuture(null);
     }
     /*
      *  R-Step
@@ -314,13 +271,9 @@ public class REPLManager {
                          *  Null Checks
                          */
                         if (err != null || resp == null) {
-                           // modelContextManager.deleteEntry();
-                            //deleteLastEntry(replChatMemory, "assistant"); // TODO: TeST
+                            //deleteLastEntry(replChatMemory, "assistant"); // TODO: Context deletion to prevent overflow.
                             addToolOutput("The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
-                            
                             printIt();
-//                            modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
-//                            userContextManager.addEntry(new ContextEntry(ContextEntry.Type.PROGRESSIVE_SUMMARY, "The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context."));
                             mem.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
                             if (retries <= maxRetries) {
                                 LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
@@ -329,11 +282,7 @@ public class REPLManager {
                                 LOGGER.severe("R-step permanently failed after " + retries + " attempts.");
                                 result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
                             }
-//                            userContextManager.printNewEntries(false, true, true, false, true, true, true, true);
                         } else {
-                            //userContextManager.printNewEntries(false, true, true, false, true, true, true, true);                            ChatMemoryId "model" = ChatMemoryId.from("model");
-                            
-                            
                             printIt();
                             result.complete(resp);
                         }
@@ -377,12 +326,8 @@ public class REPLManager {
                                 responseIdFuture = llamaUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
                                 if (!firstRun) {
-//                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
-//                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.TOKENS, tokensCount));
-                                    
                                     replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
                                     replChatMemory.add("user", new AssistantMessage("[Tokens]: " + tokensCount));
-                                    
                                     printIt();
                                     mem.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
                                 }
@@ -426,13 +371,8 @@ public class REPLManager {
                                 }
                                 lastResults = results;
                                 if (!validJson) {
-                                    
                                     replChatMemory.add("assistant", new AssistantMessage(content));
                                     replChatMemory.add("user", new AssistantMessage(content));
-                                    
-                                    printIt();
-//                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
-//                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, content));
                                     mem.completeSendResponse(rawChannel, content);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
@@ -440,13 +380,9 @@ public class REPLManager {
                                     String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
                                     String cleanedText = before + after;
                                     metadataContainer.put(contentKey, cleanedText);
-                                    
                                     replChatMemory.add("assistant", new AssistantMessage(cleanedText));
                                     replChatMemory.add("user", new AssistantMessage(cleanedText));
-                                    
                                     printIt();
-//                                    modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
-//                                    userContextManager.addEntry(new ContextEntry(ContextEntry.Type.AI_RESPONSE, cleanedText));
                                     mem.completeSendResponse(rawChannel, cleanedText);
                                 }
                             } catch (Exception e) {
@@ -470,9 +406,6 @@ public class REPLManager {
      */
     private CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
         System.out.println(Vyrtuous.BLURPLE + "Thinking..." + Vyrtuous.RESET);
-        /*
-         *  Null Checks
-         */
         if (scanner == null) {
             CompletableFuture<Void> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalArgumentException("Scanner cannot be null"));
@@ -481,15 +414,11 @@ public class REPLManager {
         if (userInput == null || userInput.isBlank()) {
             return CompletableFuture.completedFuture(null);
         }
-        // TODO: CLEAR THE MEMORY
+        replChatMemory.clear("assistant");
+        replChatMemory.clear("user");
         originalDirective = userInput;
-        
         replChatMemory.add("assistant", new AssistantMessage(userInput));
         replChatMemory.add("user", new AssistantMessage(userInput));
-        
-        printIt();
-//        modelContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
-//        userContextManager.addEntry(new ContextEntry(ContextEntry.Type.USER_MESSAGE, userInput));
         mem.completeSendResponse(rawChannel, "[User]: " + userInput);
         userInput = null;
         return completeRStepWithTimeout(scanner, true)

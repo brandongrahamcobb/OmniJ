@@ -18,8 +18,6 @@
  */
 package com.brandongcobb.vyrtuous.enums;
 
-import com.brandongcobb.vyrtuous.utils.inc.*;
-
 public enum StructuredOutput {
 
     MODERATION("""

@@ -18,9 +18,9 @@
  */
 package com.brandongcobb.vyrtuous.enums;
 
-import com.brandongcobb.vyrtuous.utils.inc.*;
+import com.brandongcobb.vyrtuous.utils.inc.Helpers;
+
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public enum EnvironmentPaths {
     
