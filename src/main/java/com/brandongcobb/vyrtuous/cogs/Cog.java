@@ -17,7 +17,7 @@
  */
 package com.brandongcobb.vyrtuous.cogs;
 
-import com.brandongcobb.vyrtuous.bots.DiscordBot;
+import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
 import net.dv8tion.jda.api.JDA;
 
 public interface Cog {

@@ -17,21 +17,27 @@
  * aInteger with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.service;
 
 import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataContainer;
 import com.brandongcobb.metadata.MetadataKey;
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.bots.DiscordBot;
+import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
+import com.brandongcobb.vyrtuous.component.server.CustomMCPServer;
+import com.brandongcobb.vyrtuous.utils.handlers.LlamaUtils;
+import com.brandongcobb.vyrtuous.utils.handlers.MetadataUtils;
+import com.brandongcobb.vyrtuous.utils.handlers.OpenAIUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.annotation.PostConstruct;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.messages.*;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -45,9 +51,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class REPLManager {
+@Service
+public class REPLService {
 
-    private AIManager aim = new AIManager();
+    private AIService ais = new AIService();
     private static final Pattern ALREADY_ESCAPED = Pattern.compile("\\\\([\\\\\"`])");
     private JDA api;
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
@@ -56,17 +63,17 @@ public class REPLManager {
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private ObjectMapper mapper = new ObjectMapper();
     private CustomMCPServer mcpServer;
-    private MessageManager mem;
+    private MessageService mess;
     private String originalDirective;
     private GuildChannel rawChannel;
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
     
-    public REPLManager(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory) {
+    public REPLService(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory) {
         this.api = discordBot.getJDA();
         this.replChatMemory = chatMemory;
         this.mcpServer = server;
-        this.mem = new MessageManager(this.api);
+        this.mess = new MessageService(this.api);
         this.rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
     }
     
@@ -98,7 +105,7 @@ public class REPLManager {
         replChatMemory.add("assistant", toolMsg);
         replChatMemory.add("user", toolMsg);
         printIt();
-        mem.completeSendResponse(rawChannel, content);
+        mess.completeSendResponse(rawChannel, content);
     }
     
     public String buildContext() {
@@ -218,7 +225,7 @@ public class REPLManager {
                 replChatMemory.add("assistant", new UserMessage(newInput));
                 replChatMemory.add("user", new UserMessage(newInput));
                 printIt();
-                mem.completeSendResponse(rawChannel, newInput);
+                mess.completeSendResponse(rawChannel, newInput);
             }
             return CompletableFuture.completedFuture(null);
         }).exceptionally(ex -> {
@@ -274,7 +281,7 @@ public class REPLManager {
                             //deleteLastEntry(replChatMemory, "assistant"); // TODO: Context deletion to prevent overflow.
                             addToolOutput("The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
                             printIt();
-                            mem.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
+                            mess.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
                             if (retries <= maxRetries) {
                                 LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
                                 replExecutor.submit(this);
@@ -299,8 +306,8 @@ public class REPLManager {
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
-        CompletableFuture<String> endpointFuture = aim.completeGetAIEndpoint(false, provider, "cli", requestType);
-        CompletableFuture<String> instructionsFuture = aim.completeGetInstructions(false, provider, "cli");
+        CompletableFuture<String> endpointFuture = ais.completeGetAIEndpoint(false, provider, "cli", requestType);
+        CompletableFuture<String> instructionsFuture = ais.completeGetInstructions(false, provider, "cli");
         return endpointFuture.thenCombine(instructionsFuture, AbstractMap.SimpleEntry::new).thenCompose(pair -> {
             String endpoint = pair.getKey();
             String instructions = pair.getValue();
@@ -310,9 +317,7 @@ public class REPLManager {
                 prevId = (String) lastAIResponseContainer.get(previousResponseIdKey);
             }
             try {
-                return aim
-                    .completeRequest(instructions, prompt, prevId, model, requestType, endpoint,
-                        Boolean.parseBoolean(System.getenv("CLI_STREAM")), null, provider)
+                return ais.completeRequest(instructions, prompt, prevId, model, requestType, endpoint, Boolean.parseBoolean(System.getenv("CLI_STREAM")), null, provider)
                     .thenCompose(resp -> {
                         if (resp == null) {
                             return CompletableFuture.failedFuture(new IllegalStateException("AI returned null"));
@@ -329,7 +334,7 @@ public class REPLManager {
                                     replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
                                     replChatMemory.add("user", new AssistantMessage("[Tokens]: " + tokensCount));
                                     printIt();
-                                    mem.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
+                                    mess.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
                                 }
                             }
                             case "openai" -> {
@@ -373,7 +378,7 @@ public class REPLManager {
                                 if (!validJson) {
                                     replChatMemory.add("assistant", new AssistantMessage(content));
                                     replChatMemory.add("user", new AssistantMessage(content));
-                                    mem.completeSendResponse(rawChannel, content);
+                                    mess.completeSendResponse(rawChannel, content);
                                 } else {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
@@ -383,7 +388,7 @@ public class REPLManager {
                                     replChatMemory.add("assistant", new AssistantMessage(cleanedText));
                                     replChatMemory.add("user", new AssistantMessage(cleanedText));
                                     printIt();
-                                    mem.completeSendResponse(rawChannel, cleanedText);
+                                    mess.completeSendResponse(rawChannel, cleanedText);
                                 }
                             } catch (Exception e) {
                             }
@@ -419,7 +424,7 @@ public class REPLManager {
         originalDirective = userInput;
         replChatMemory.add("assistant", new AssistantMessage(userInput));
         replChatMemory.add("user", new AssistantMessage(userInput));
-        mem.completeSendResponse(rawChannel, "[User]: " + userInput);
+        mess.completeSendResponse(rawChannel, "[User]: " + userInput);
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->
@@ -432,7 +437,8 @@ public class REPLManager {
                     )
             );
     }
-    
+
+    @PostConstruct
     public void startResponseInputThread() {
         inputExecutor.submit(() -> {
             try (Scanner scanner = new Scanner(System.in)) {

@@ -19,7 +19,7 @@
  */
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.domain.ReadFileInput;
+import com.brandongcobb.vyrtuous.domain.input.ReadFileInput;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,7 +41,7 @@ import java.nio.file.Paths;
 import java.text.Normalizer;
 import java.util.concurrent.CompletableFuture;
 
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
+import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class ReadFile implements CustomTool<ReadFileInput, ToolStatus> {

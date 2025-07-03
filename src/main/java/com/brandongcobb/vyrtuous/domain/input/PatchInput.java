@@ -1,5 +1,5 @@
-/*  ReadFileInput.java The primary purpose of this class is to
- *  provide input information about the ReadFile.java tool call.
+/*  PatchInput.java The primary purpose of this class is to
+ *  provide input information about the Patch.java tool call.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -16,14 +16,18 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.domain;
+package com.brandongcobb.vyrtuous.domain.input;
 
+import com.brandongcobb.vyrtuous.domain.PatchOperation;
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class ReadFileInput implements ToolInput {
+import java.util.List;
 
+public class PatchInput implements ToolInput {
+    
     private transient JsonNode originalJson;
-    private String path;
+    private List<PatchOperation> patches;
+    private String targetFile;
     
     /*
      *  Getters
@@ -32,20 +36,20 @@ public class ReadFileInput implements ToolInput {
     public JsonNode getOriginalJson() {
         return originalJson;
     }
-
-    public String getPath() {
-        return path;
+    
+    public List<PatchOperation> getPatches() {
+        return patches;
     }
-
+    
+    public String getTargetFile() {
+        return targetFile;
+    }
+    
     /*
      *  Setters
      */
     @Override
     public void setOriginalJson(JsonNode originalJson) {
         this.originalJson = originalJson;
-    }
-    
-    public void setPath(String path) {
-        this.path = path;
     }
 }

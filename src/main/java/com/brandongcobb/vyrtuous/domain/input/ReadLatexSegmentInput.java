@@ -5,30 +5,24 @@
 //  Created by Brandon Cobb on 7/1/25.
 //
 
-
-//
-//  ReadLatexSegmentInput.swift
-//  
-//
-//  Created by Brandon Cobb on 7/1/25.
-//
-package com.brandongcobb.vyrtuous.domain;
+package com.brandongcobb.vyrtuous.domain.input;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class SummarizeLatexSectionInput  implements ToolInput {
-    private int endLine;
-    private String filePath;
+public class ReadLatexSegmentInput implements ToolInput {
+    
+    private String path;
+    private int numLines;
     private int startLine;
     private transient JsonNode originalJson;
 
     
-    public int getEndLine() {
-        return this.endLine;
+    public int getNumLines() {
+        return this.numLines;
     }
     
     public String getPath() {
-        return this.filePath;
+        return this.path;
     }
     
     public int getStartLine() {
@@ -43,12 +37,12 @@ public class SummarizeLatexSectionInput  implements ToolInput {
     /*
      *  Setters
      */
-    public void setEndLine(int endLine) {
-        this.endLine = endLine;
+    public void setNumLines(int numLines) {
+        this.numLines = numLines;
     }
     
-    public void setPath(String filePath) {
-        this.filePath = filePath;
+    public void setPath(String path) {
+        this.path = path;
     }
     
     public void setStartLine() {

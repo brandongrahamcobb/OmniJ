@@ -19,8 +19,8 @@
 package com.brandongcobb.vyrtuous.cogs;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.bots.DiscordBot;
-import com.brandongcobb.vyrtuous.utils.handlers.SettingsManager;
+import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
+import com.brandongcobb.vyrtuous.service.SettingsService;
 import com.brandongcobb.vyrtuous.utils.inc.Helpers;
 import com.brandongcobb.vyrtuous.utils.inc.Maps;
 import net.dv8tion.jda.api.JDA;
@@ -62,7 +62,7 @@ public class HybridCommands extends ListenerAdapter implements Cog {
         User sender = event.getAuthor();
         if (command.equals("llama")) {
             if (args.length > 2 && "model".equalsIgnoreCase(args[1])) {
-                SettingsManager.completeGetSettingsInstance()
+                SettingsService.completeGetSettingsInstance()
                     .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(sender.getIdLong())
                         .thenCompose(userSettingsObj -> {
                             String[] userSettings = (String[]) userSettingsObj;
@@ -82,7 +82,7 @@ public class HybridCommands extends ListenerAdapter implements Cog {
             }
         } else if (command.equals("openai")) {
             if (args.length > 2 && "model".equalsIgnoreCase(args[1])) {
-                SettingsManager.completeGetSettingsInstance()
+                SettingsService.completeGetSettingsInstance()
                     .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(sender.getIdLong())
                         .thenCompose(userSettingsObj -> {
                             String[] userSettings = (String[]) userSettingsObj;

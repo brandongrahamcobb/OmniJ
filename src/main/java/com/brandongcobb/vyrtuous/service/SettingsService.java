@@ -16,17 +16,19 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.service;
 
 import com.brandongcobb.vyrtuous.enums.ModelRegistry;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class SettingsManager {
+@Service
+public class SettingsService {
 
-    private static SettingsManager settingsManager = new SettingsManager();
+    private static SettingsService settingsService = new SettingsService();
     private final Map<Long, String> userModelPairs = new ConcurrentHashMap<>();
     private final Map<Long, String> userSourcePairs = new ConcurrentHashMap<>();
     private static final String DEFAULT_MODEL = ModelRegistry.LLAMA_MODEL.toString();
@@ -35,8 +37,8 @@ public class SettingsManager {
     /*
      *  Getters
      */
-    public static CompletableFuture<SettingsManager> completeGetSettingsInstance() {
-        return CompletableFuture.completedFuture(settingsManager);
+    public static CompletableFuture<SettingsService> completeGetSettingsInstance() {
+        return CompletableFuture.completedFuture(settingsService);
     }
 
     public CompletableFuture<String> completeGetUserModel(Long userId) {

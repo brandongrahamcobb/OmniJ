@@ -6,7 +6,7 @@
 //
 package com.brandongcobb.vyrtuous.config;
 
-import com.brandongcobb.vyrtuous.utils.handlers.ToolService;
+import com.brandongcobb.vyrtuous.service.ToolService;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbacks;
 import org.springframework.context.annotation.Bean;

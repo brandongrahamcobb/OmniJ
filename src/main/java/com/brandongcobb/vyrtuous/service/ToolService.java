@@ -16,23 +16,23 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.service;
 
-import com.brandongcobb.vyrtuous.*;
-import com.brandongcobb.vyrtuous.domain.*;
+import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.domain.ToolStatus;
+import com.brandongcobb.vyrtuous.domain.input.*;
 import com.brandongcobb.vyrtuous.tools.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
-import org.springframework.stereotype.Service;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.annotation.Tool;
-import java.lang.reflect.Method;
+import org.springframework.stereotype.Service;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.springframework.ai.chat.memory.ChatMemory;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 @Service
 public class ToolService {

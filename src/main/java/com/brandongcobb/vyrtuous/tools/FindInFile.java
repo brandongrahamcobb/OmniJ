@@ -19,9 +19,9 @@
  */
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.domain.FindInFileInput;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
+import com.brandongcobb.vyrtuous.domain.input.FindInFileInput;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
+import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class FindInFile implements CustomTool<FindInFileInput, ToolStatus> {

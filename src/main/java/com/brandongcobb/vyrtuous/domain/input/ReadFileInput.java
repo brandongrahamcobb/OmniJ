@@ -1,5 +1,5 @@
-/*  CreateFileInput.java The primary purpose of this class is to
- *  provide input information about the CreateFile.java tool call.
+/*  ReadFileInput.java The primary purpose of this class is to
+ *  provide input information about the ReadFile.java tool call.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -16,32 +16,23 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.domain;
+package com.brandongcobb.vyrtuous.domain.input;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class CreateFileInput {
+public class ReadFileInput implements ToolInput {
 
-    private String content;
     private transient JsonNode originalJson;
-    private boolean overwrite = false;
     private String path;
     
     /*
      *  Getters
      */
-    public String getContent() {
-        return content;
-    }
-    
+    @Override
     public JsonNode getOriginalJson() {
         return originalJson;
     }
 
-    public boolean getOverwrite() {
-        return overwrite;
-    }
-    
     public String getPath() {
         return path;
     }
@@ -49,20 +40,12 @@ public class CreateFileInput {
     /*
      *  Setters
      */
-    public void setContent(String content) {
-        this.content = content;
-    }
-    
+    @Override
     public void setOriginalJson(JsonNode originalJson) {
         this.originalJson = originalJson;
-    }
-
-    public void setOverwrite(boolean overwrite) {
-        this.overwrite = overwrite;
     }
     
     public void setPath(String path) {
         this.path = path;
     }
 }
-

@@ -7,7 +7,7 @@
 
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.domain.ListLatexStructureInput;
+import com.brandongcobb.vyrtuous.domain.input.ListLatexStructureInput;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
+import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class ListLatexStructure implements CustomTool<ListLatexStructureInput, ToolStatus> {

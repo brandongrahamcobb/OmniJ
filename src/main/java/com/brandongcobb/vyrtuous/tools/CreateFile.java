@@ -19,7 +19,7 @@
 package com.brandongcobb.vyrtuous.tools;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.domain.CreateFileInput;
+import com.brandongcobb.vyrtuous.domain.input.CreateFileInput;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,7 +35,7 @@ import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
+import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class CreateFile implements CustomTool<CreateFileInput, ToolStatus> {

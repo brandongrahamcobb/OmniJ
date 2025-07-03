@@ -16,10 +16,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -28,6 +29,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.utils.FileUpload;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,14 +49,15 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MessageManager {
+@Service
+public class MessageService {
 
     private Lock lock;
     private ObjectMapper mapper = new ObjectMapper();
     private File tempDirectory;
     private JDA jda;
     
-    public MessageManager(JDA jda) {
+    public MessageService(JDA jda) {
         this.jda = jda;
         this.tempDirectory = new File(System.getProperty("java.io.tmpdir"));
     }
@@ -118,6 +121,20 @@ public class MessageManager {
                 ex.printStackTrace();
                 return List.of("Error occurred");
             });
+    }
+    
+    /*
+     *  Getters
+     */
+    public CompletableFuture<Guild> completeGetGuildById(long guildId) {
+        return CompletableFuture.supplyAsync(() -> {
+            for (Guild guild : jda.getGuilds()) {
+                if (Long.parseLong(guild.getId()) == guildId) {
+                    return guild;
+                }
+            }
+            return null;
+        });
     }
     
     /*
@@ -425,4 +442,6 @@ public class MessageManager {
     private CompletableFuture<Message> completeEditDiscordMessage(Message message, String newContent) {
         return message.editMessage(newContent).submit();
     }
+    
+
 }

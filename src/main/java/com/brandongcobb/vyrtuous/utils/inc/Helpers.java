@@ -20,6 +20,10 @@
 package com.brandongcobb.vyrtuous.utils.inc;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.enums.StructuredOutput;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,14 +32,16 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class Helpers {
     
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public static String FILE_AI_MANAGER;
+    public static String FILE_AI_SERVICE;
     public static String FILE_CHAT_CONTAINER;
     public static String FILE_CONTEXT_ENTRY;
     public static String FILE_CONTEXT_MANAGER;
@@ -57,10 +63,10 @@ public class Helpers {
     public static String FILE_MAIN_CONTAINER;
     public static String FILE_MARKDOWN_CONTAINER;
     public static String FILE_MARKDOWN_UTILS;
-    public static String FILE_MESSAGE_MANAGER;
+    public static String FILE_MESSAGE_SERVICE;
     public static String FILE_MODEL_INFO;
     public static String FILE_MODEL_REGISTRY;
-    public static String FILE_MODERATION_MANAGER;
+    public static String FILE_MODERATION_SERVICE;
     public static String FILE_OLLAMA_CONTAINER;
     public static String FILE_OLLAMA_UTILS;
     public static String FILE_OPENAI_CONTAINER;
@@ -106,7 +112,7 @@ public class Helpers {
 
     public static final Path DIR_BASE = Paths.get("/app/source").toAbsolutePath();
     public static final Path DIR_TEMP = Paths.get(DIR_BASE.toString(), "vyrtuous", "temp");
-    public static final Path PATH_AI_MANAGER                = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "AIManager.java");
+    public static final Path PATH_AI_SERVICE                = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "AIService.java");
     public static final Path PATH_COG                       = Paths.get(DIR_BASE.toString(), "vyrtuous", "cogs", "Cog.java");
     public static final Path PATH_CONTEXT_ENTRY             = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "ContextEntry.java");
     public static final Path PATH_CONTEXT_MANAGER           = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ContextManager.java");
@@ -126,10 +132,10 @@ public class Helpers {
     public static final Path PATH_MAIN_CONTAINER            = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "MainContainer.java");
     public static final Path PATH_MARKDOWN_CONTAINER        = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "MarkdownContainer.java");
     public static final Path PATH_MARKDOWN_UTILS            = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MarkdownUtils.java");
-    public static final Path PATH_MESSAGE_MANAGER           = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MessageManager.java");
+    public static final Path PATH_MESSAGE_SERVICE           = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "MessageService.java");
     public static final Path PATH_MODEL_INFO                = Paths.get(DIR_BASE.toString(), "vyrtuous", "records", "ModelInfo.java");
     public static final Path PATH_MODEL_REGISTRY            = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "inc", "ModelRegistry.java");
-    public static final Path PATH_MODERATION_MANAGER        = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ModerationManager.java");
+    public static final Path PATH_MODERATION_SERVICE        = Paths.get(DIR_BASE.toString(), "vyrtuous", "utils", "handlers", "ModerationService.java");
     public static final Path PATH_OLLAMA_CONTAINER          = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OllamaContainer.java");
     public static final Path PATH_OLLAMA_UTILS              = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OllamaUtils.java");
     public static final Path PATH_OPENAI_CONTAINER          = Paths.get(DIR_BASE.toString(), "vyrtuous", "objects", "OpenAIContainer.java");
@@ -185,7 +191,20 @@ public class Helpers {
             .map(entry -> entry.getKey() + "=" + entry.getValue())
             .collect(Collectors.joining(", ", "{", "}"));
     }
-
+    
+    public CompletableFuture<String> completeGetModerationSchemaNestResponse() {
+        return CompletableFuture.supplyAsync(() -> {
+            String baseSchema = StructuredOutput.RESPONSE.asString();
+            try {
+                String mergedSchemas = mergeModeration(baseSchema, StructuredOutput.MODERATION.asString());
+                return mergedSchemas;
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+                return ioe.getMessage();
+            }
+        });
+    }
+    
     public static <T> T convertValue(Object value, Class<T> type) {
         if (type.isInstance(value)) {
             return (T) value;
@@ -244,13 +263,42 @@ public class Helpers {
     
     public static boolean isDangerousCommand(String command) {
         if (command == null) return false;
-        // List of commands considered dangerous
         List<String> dangerous = List.of("rm", "mv", "git", "patch", "shutdown", "reboot", "mvn compile");
         boolean isDangerous = dangerous.stream().anyMatch(command::contains);
         LOGGER.finer("Checked command for danger: '" + command + "' => " + isDangerous);
         return isDangerous;
     }
+    
+    public static String loadProjectSource() {
+        Path sourceRoot = Paths.get("/app/src");
+        try {
+            return Files.walk(sourceRoot)
+                .filter(p -> !Files.isDirectory(p))
+                .filter(p -> p.toString().endsWith(".java"))
+                .map(p -> {
+                    try {
+                        return Files.readString(p);
+                    } catch (IOException e) {
+                        return "";
+                    }
+                })
+                .collect(Collectors.joining("\n\n"));
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
 
+    public static String mergeModeration(String baseSchemaString, String outputItemSnippet) throws IOException {
+        JsonNode baseSchema = objectMapper.readTree(baseSchemaString);
+        JsonNode outputItemsNode = baseSchema.path("properties").path("output").path("items").path("properties");
+        if (outputItemsNode instanceof ObjectNode) {
+            JsonNode outputItemToAdd = objectMapper.readTree(outputItemSnippet);
+            ((ObjectNode) outputItemsNode).setAll((ObjectNode) outputItemToAdd);
+        }
+        return objectMapper.writeValueAsString(baseSchema);
+    }
+    
     public static Long parseCommaNumber(String number) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < number.length(); i++) {
@@ -267,7 +315,7 @@ public class Helpers {
             return Long.parseLong(cleanedNumber);
         }
     }
-    
+
     private static String safeRead(Path path) {
         try {
             return Files.readString(path);

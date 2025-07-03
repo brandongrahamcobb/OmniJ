@@ -5,7 +5,7 @@
 //  Created by Brandon Cobb on 7/1/25.
 //
 
-package com.brandongcobb.vyrtuous.domain;
+package com.brandongcobb.vyrtuous.domain.input;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

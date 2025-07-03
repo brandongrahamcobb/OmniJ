@@ -1,5 +1,5 @@
-/*  ReadFileInput.java The primary purpose of this class is to
- *  provide input information about the ReadFile.java tool call.
+/*  ToolInput.java The primary purpose of this interface is to serve
+ *  as the template for input classes for tools.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -16,36 +16,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.domain;
+package com.brandongcobb.vyrtuous.domain.input;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class CountFileLinesInput implements ToolInput {
-
-    private transient JsonNode originalJson;
-    private String path;
+public interface ToolInput {
     
-    /*
-     *  Getters
-     */
-    @Override
-    public JsonNode getOriginalJson() {
-        return originalJson;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
-    /*
-     *  Setters
-     */
-    @Override
-    public void setOriginalJson(JsonNode originalJson) {
-        this.originalJson = originalJson;
-    }
+    JsonNode getOriginalJson();
     
-    public void setPath(String path) {
-        this.path = path;
-    }
+    void setOriginalJson(JsonNode originalJson);
 }
+

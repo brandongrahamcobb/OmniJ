@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.bots;
+package com.brandongcobb.vyrtuous.component.bot;
 
 import com.brandongcobb.vyrtuous.cogs.Cog;
 import com.brandongcobb.vyrtuous.cogs.EventListeners;
@@ -25,6 +25,8 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@Component
 public class DiscordBot {
 
     private JDA api;
@@ -68,7 +71,8 @@ public class DiscordBot {
     public DiscordBot completeGetBot() {
         return this.bot;
     }
-    
+
+    @Bean
     public JDA getJDA() {
         return this.api;
     }

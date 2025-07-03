@@ -16,10 +16,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.component.server;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
+import com.brandongcobb.vyrtuous.service.ToolService;
 import com.brandongcobb.vyrtuous.tools.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

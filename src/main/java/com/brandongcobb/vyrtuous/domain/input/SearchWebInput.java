@@ -1,5 +1,5 @@
-/*  PatchInput.java The primary purpose of this class is to
- *  provide input information about the Patch.java tool call.
+/*  SearchWebInput.java The primary purpose of this class is to
+ *  provide input information about the SearchFiles.java tool call.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -16,38 +16,31 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.domain;
+package com.brandongcobb.vyrtuous.domain.input;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import java.util.List;
-
-public class PatchInput implements ToolInput {
+public class SearchWebInput {
     
+    private String description;
+    private String name;
     private transient JsonNode originalJson;
-    private List<PatchOperation> patches;
-    private String targetFile;
+    private final String query;
+
+    @JsonCreator
+    public SearchWebInput(@JsonProperty("query") String query) {
+        this.query = query;
+    }
     
-    /*
-     *  Getters
-     */
-    @Override
     public JsonNode getOriginalJson() {
         return originalJson;
     }
-    
-    public List<PatchOperation> getPatches() {
-        return patches;
+    public String getQuery() {
+        return query;
     }
     
-    public String getTargetFile() {
-        return targetFile;
-    }
-    
-    /*
-     *  Setters
-     */
-    @Override
     public void setOriginalJson(JsonNode originalJson) {
         this.originalJson = originalJson;
     }

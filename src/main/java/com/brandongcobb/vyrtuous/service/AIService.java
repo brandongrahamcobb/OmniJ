@@ -17,7 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.service;
 
 import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataContainer;
@@ -42,6 +42,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -57,7 +58,8 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
-public class AIManager {
+@Service
+public class AIService {
     
     private EncodingRegistry registry = Encodings.newDefaultEncodingRegistry();
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()

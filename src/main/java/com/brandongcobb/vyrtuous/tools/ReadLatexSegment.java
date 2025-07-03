@@ -7,9 +7,9 @@
 
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.domain.ReadLatexSegmentInput;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
+import com.brandongcobb.vyrtuous.domain.input.ReadLatexSegmentInput;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
+import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class ReadLatexSegment implements CustomTool<ReadLatexSegmentInput, ToolStatus> {

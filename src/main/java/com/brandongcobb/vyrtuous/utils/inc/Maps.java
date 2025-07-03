@@ -19,7 +19,6 @@ package com.brandongcobb.vyrtuous.utils.inc;
 
 import com.brandongcobb.vyrtuous.enums.ModelRegistry;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
-import com.brandongcobb.vyrtuous.utils.handlers.SchemaMerger;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -27,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 
 public class Maps {
-
-    private static SchemaMerger sm = new SchemaMerger();
     
     public static final Map<String, ModelInfo> OPENROUTER_RESPONSE_MODEL_CONTEXT_LIMITS = Map.ofEntries(
         Map.entry("deepseek/deepseek-r1-0528:free", new ModelInfo(Helpers.parseCommaNumber("128,000"), true))

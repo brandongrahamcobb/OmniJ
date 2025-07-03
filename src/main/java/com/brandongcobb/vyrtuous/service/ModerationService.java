@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package com.brandongcobb.vyrtuous.utils.handlers;
+package com.brandongcobb.vyrtuous.service;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.enums.ModelRegistry;
@@ -25,6 +25,7 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.time.Duration;
@@ -34,7 +35,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.logging.Logger;
 
-public class ModerationManager {
+@Service
+public class ModerationService {
 
     private Vyrtuous app;
     private final Object fileLock = new Object();
@@ -45,12 +47,12 @@ public class ModerationManager {
     private Map<Long, Integer> userCounts;
     private JDA jda;
     
-    public ModerationManager(JDA jda) {
+    public ModerationService(JDA jda) {
         this.jda = jda;
     }
     
     public CompletableFuture<Void> completeHandleModeration(Message message, String reasonStr) {
-        MessageManager mem = new MessageManager(jda);
+        MessageService mess = new MessageService(jda);
         User author = message.getAuthor();
         Guild guild = message.getGuild();
         if (guild == null || author == null) {
@@ -102,10 +104,10 @@ public class ModerationManager {
                 return CompletableFuture.completedFuture(null);
             }
             message.delete().queue();
-            return mem.completeSendDiscordMessage(message, warningMsg)
+            return mess.completeSendDiscordMessage(message, warningMsg)
                 .thenCompose(msg -> {
                     if (flaggedCount >= 5) {
-                        CompletableFuture<Void> timeoutFuture = mem.completeSendDiscordMessage(message,
+                        CompletableFuture<Void> timeoutFuture = mess.completeSendDiscordMessage(message,
                                 "You have been timed out for 5 minutes due to repeated violations.")
                             .thenRun(() -> {
                                 member.timeoutFor(Duration.ofSeconds(300)).queue();

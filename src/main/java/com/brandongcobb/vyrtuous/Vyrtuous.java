@@ -18,9 +18,7 @@
  */
 package com.brandongcobb.vyrtuous;
 
-import com.brandongcobb.vyrtuous.bots.DiscordBot;
-import com.brandongcobb.vyrtuous.utils.handlers.CustomMCPServer;
-import com.brandongcobb.vyrtuous.utils.handlers.REPLManager;
+import com.brandongcobb.vyrtuous.component.server.CustomMCPServer;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.boot.SpringApplication;
@@ -67,16 +65,15 @@ public class Vyrtuous {
     public static void main(String[] args) {
         SpringApplication.run(Vyrtuous.class, args);
         app = new Vyrtuous();
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINER);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINER);
         }
-        DiscordBot bot = new DiscordBot();
+        //DiscordBot bot = new DiscordBot();
         boolean isInputThreadRunning = false;
         if (!isInputThreadRunning) {
             CustomMCPServer server = new CustomMCPServer(replChatMemory);
-            REPLManager repl = new REPLManager(bot, server, replChatMemory);
-            repl.startResponseInputThread();
+            //REPLService repl = new REPLService(bot, server, replChatMemory);
             isInputThreadRunning = true;
         }
         try {

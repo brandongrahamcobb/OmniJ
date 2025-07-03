@@ -19,8 +19,9 @@
 package com.brandongcobb.vyrtuous.cogs;
 
 import com.brandongcobb.metadata.MetadataContainer;
-import com.brandongcobb.vyrtuous.bots.DiscordBot;
+import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
 import com.brandongcobb.vyrtuous.objects.*;
+import com.brandongcobb.vyrtuous.service.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
@@ -42,12 +43,12 @@ import java.util.function.Supplier;
 
 public class EventListeners extends ListenerAdapter implements Cog {
 
-    public static AIManager aim = new AIManager();
+    public static AIService ais = new AIService();
     private JDA api;
     private DiscordBot bot;
     private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
-    private MessageManager mem = new MessageManager(api);
+    private MessageService mess = new MessageService(api);
     
     @Override
     public void register(JDA api, DiscordBot bot) {
@@ -81,7 +82,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
         MetadataContainer previousResponse = genericUserResponseMap.get(senderId);
         final boolean[] multimodal = new boolean[] { false };
         CompletableFuture<String> contentFuture = (attachments != null && !attachments.isEmpty())
-            ? mem.completeProcessAttachments(attachments).thenApply(list -> {
+            ? mess.completeProcessAttachments(attachments).thenApply(list -> {
                 multimodal[0] = true;
                 return String.join("\n", list) + "\n" + message.getContentDisplay().replace("@Vyrtuous ", "");
             })
@@ -90,7 +91,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
             .thenCompose(prompt -> completeCreateServerRequest(prompt,  senderId, multimodal[0], Integer.valueOf(System.getenv("DISCORD_CONTEXT_LENGTH")), previousResponse))
             .thenCompose(serverRequest -> {
                 try {
-                    return aim.completeRequest(
+                    return ais.completeRequest(
                         serverRequest.instructions,
                         serverRequest.prompt,
                         serverRequest.previousResponseId,
@@ -111,8 +112,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         };
                         return flaggedFuture.thenCompose(flagged -> {
                             if (flagged) {
-                                ModerationManager mom = new ModerationManager(api);
-                                return mom.completeHandleModeration(message, "Flagged for moderation").thenApply(ignored -> null);
+                                ModerationService mos = new ModerationService(api);
+                                return mos.completeHandleModeration(message, "Flagged for moderation").thenApply(ignored -> null);
                             }
                             if (serverRequest.stream) {
                                 return handleStreamedResponse(message, senderId, previousResponse, serverRequest);
@@ -137,14 +138,14 @@ public class EventListeners extends ListenerAdapter implements Cog {
     }
     
     private CompletableFuture<ServerRequest> completeCreateServerRequest(String prompt, long senderId, boolean multimodal, int historySize, MetadataContainer previousResponse) {
-        return SettingsManager.completeGetSettingsInstance()
+        return SettingsService.completeGetSettingsInstance()
                 .thenCompose(settingsManager -> settingsManager.completeGetUserSettings(senderId)
                     .thenCompose(userSettings -> {
                         String userModel = System.getenv("DISCORD_MODEL");
                         String provider = System.getenv("DISCORD_PROVIDER");
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
-                        return aim.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
-                            .thenCombine(aim.completeGetInstructions(multimodal, provider, "discord"),
+                        return ais.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
+                            .thenCombine(ais.completeGetInstructions(multimodal, provider, "discord"),
                                 (endpoint, instructions) -> new Object[] { endpoint, instructions })
                             .thenCompose(data -> {
                                 String endpoint = (String) data[0];
@@ -199,7 +200,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                     }
                 };
                 try {
-                    CompletableFuture<MetadataContainer> responseFuture = aim.completeRequest(
+                    CompletableFuture<MetadataContainer> responseFuture = ais.completeRequest(
                         serverRequest.instructions,
                         serverRequest.prompt,
                         serverRequest.previousResponseId,
@@ -210,7 +211,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         queue::offer,
                         System.getenv("DISCORD_PROVIDER")
                     );
-                    CompletableFuture<Void> streamFuture = mem.completeStreamResponse(sentMessage, nextChunkSupplier);
+                    CompletableFuture<Void> streamFuture = mess.completeStreamResponse(sentMessage, nextChunkSupplier);
                     return CompletableFuture.allOf(responseFuture, streamFuture)
                         .thenCompose(v -> responseFuture)
                         .thenCompose(responseObject -> {
@@ -239,7 +240,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
     
     private CompletableFuture<Void> handleNonStreamedResponse(Message message, long senderId, MetadataContainer previousResponse, ServerRequest serverRequest) {
         try {
-            return aim.completeRequest(
+            return ais.completeRequest(
                 serverRequest.instructions,
                 serverRequest.prompt,
                 serverRequest.previousResponseId,
@@ -266,7 +267,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                     contentFuture = CompletableFuture.completedFuture("Unknown response type.");
                 }
                 return contentFuture.thenCompose(content ->
-                    mem.completeSendResponse(message, content.strip())
+                    mess.completeSendResponse(message, content.strip())
                 );
             })
             .exceptionally(ex -> {

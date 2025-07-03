@@ -19,7 +19,7 @@
 package com.brandongcobb.vyrtuous.tools;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.domain.PatchInput;
+import com.brandongcobb.vyrtuous.domain.input.PatchInput;
 import com.brandongcobb.vyrtuous.domain.PatchOperation;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-import static com.brandongcobb.vyrtuous.utils.handlers.REPLManager.printIt;
+import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class Patch implements CustomTool<PatchInput, ToolStatus> {
