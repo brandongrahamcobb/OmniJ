@@ -71,6 +71,7 @@ public class Maps {
         Map.entry("https://api.openai.com/v1/moderations", "moderations"),
         Map.entry("https://api.openai.com/v1/responses", "responses"),
         Map.entry("https://api.openai.com/v1/uploads", "uploads"),
+        Map.entry("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "deprecated"),
         Map.entry("https://openrouter.ai/api/v1/chat/completions", "deprecated")
     );
     
@@ -91,6 +92,7 @@ public class Maps {
     public static final Map<String, String> CLI_INSTRUCTIONS = Map.ofEntries(
         Map.entry("lmstudio", ModelRegistry.LMSTUDIO_TEXT_INSTRUCTIONS_CLI.asString()),
         Map.entry("llama", ModelRegistry.LLAMA_TEXT_INSTRUCTIONS_CLI.asString()),
+        Map.entry("google", ModelRegistry.GOOGLE_TEXT_INSTRUCTIONS_CLI.asString()),
         Map.entry("ollama", ModelRegistry.OLLAMA_TEXT_INSTRUCTIONS_CLI.asString()),
         Map.entry("openai", ModelRegistry.OPENAI_TEXT_INSTRUCTIONS_CLI.asString()),
         Map.entry("openrouter", ModelRegistry.OPENROUTER_TEXT_INSTRUCTIONS_CLI.asString())
@@ -102,6 +104,14 @@ public class Maps {
         Map.entry("ollama", ModelRegistry.OLLAMA_TEXT_INSTRUCTIONS_TWITCH.asString()),
         Map.entry("openai", ModelRegistry.OPENAI_TEXT_INSTRUCTIONS_TWITCH.asString()),
         Map.entry("openrouter", ModelRegistry.OPENROUTER_TEXT_INSTRUCTIONS_TWITCH.asString())
+    );
+    
+    public static final Map<String, String> GOOGLE_CLI_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("deprecated", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+    );
+    
+    public static final Map<String, String> GOOGLE_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("deprecated", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
     );
     
     public static final Map<String, String> LLAMA_ENDPOINT_URLS = Map.ofEntries(

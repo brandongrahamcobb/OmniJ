@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.annotation.PostConstruct;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbacks;
@@ -52,10 +53,9 @@ public class CustomMCPServer {
     private ToolService toolService;
 
     @Autowired
-    public CustomMCPServer(ChatMemory replChatMemory) {
-        this.toolService = new ToolService(replChatMemory);
+    public CustomMCPServer(ChatMemory replChatMemory, ToolService toolService) {
         this.replChatMemory = replChatMemory;
-        initializeTools();
+        this.toolService = toolService;
     }
     
     
@@ -156,6 +156,7 @@ public class CustomMCPServer {
         return CompletableFuture.completedFuture(result);
     }
     
+    @PostConstruct
     public void initializeTools() {
         toolService.registerTool(new CountFileLines(replChatMemory));
         toolService.registerTool(new CreateFile(replChatMemory));

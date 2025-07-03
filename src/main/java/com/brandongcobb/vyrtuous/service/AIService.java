@@ -46,6 +46,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -55,6 +56,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
@@ -70,14 +72,87 @@ public class AIService {
     private StringBuilder builder = new StringBuilder();
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private ChatMemory chatMemory;
+    private final Map<String, CustomTool<?, ?>> tools = new ConcurrentHashMap<>();
     private ToolService toolService;
 
     public AIService(ChatMemory chatMemory) {
         this.chatMemory = chatMemory;
-        this.toolService = new ToolService(chatMemory);
+    }
+    
+    @Autowired
+    public AIService(ChatMemory chatMemory, ToolService toolService) {
+        this.chatMemory = chatMemory;
+        this.toolService = toolService;
     }
 
-    /*
+    private CompletableFuture<MetadataContainer> completeGoogleRequest(String instructions, String content, String previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, stream)
+                .thenCompose(reqBody -> completeGoogleProcessRequest(reqBody, endpoint, onContentChunk));
+    }
+    
+    private CompletableFuture<MetadataContainer> completeGoogleProcessRequest(Map<String, Object> requestBody, String endpoint, Consumer<String> onContentChunk) {
+        String apiKey = System.getenv("GEMINI_API_KEY");
+        if (apiKey == null || apiKey.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Missing GEMINI_API_KEY"));
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            ObjectMapper mapper = new ObjectMapper();
+            try (CloseableHttpClient client = HttpClients.custom()
+                    .setDefaultRequestConfig(REQUEST_CONFIG)
+                    .build()) {
+                HttpPost post = new HttpPost(endpoint);
+                post.setHeader("Authorization", "Bearer " + apiKey);
+                post.setHeader("Content-Type", "application/json");
+                String json = mapper.writeValueAsString(requestBody);
+                LOGGER.finer(json);
+                post.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
+                try (CloseableHttpResponse resp = client.execute(post)) {
+                    int statusCode = resp.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                    if (statusCode >= 200 && statusCode < 300) {
+                        
+                        if (onContentChunk == null) {
+                            LOGGER.finer(responseBody);
+                            Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
+                            OpenAIContainer openaiContainer = new OpenAIContainer(outer);
+                            return (MetadataContainer) openaiContainer;
+                        } else {
+                            StringBuilder builder = new StringBuilder();
+                            Map<String, Object> lastChunk = null;
+                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.getEntity().getContent(), StandardCharsets.UTF_8))) {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    if (!line.startsWith("data:")) continue;
+                                    String data = line.substring(5).trim();
+                                    if (data.equals("[DONE]")) break;
+                                    Map<String, Object> chunk = mapper.readValue(data, new TypeReference<>() {});
+                                    lastChunk = chunk;
+                                    Map<String, Object> choice = (Map<String, Object>) ((List<?>) chunk.get("choices")).get(0);
+                                    Map<String, Object> delta = (Map<String, Object>) choice.get("delta");
+                                    String content = (String) delta.get("content");
+                                    if (content != null) {
+                                        onContentChunk.accept(content);
+                                        builder.append(content);
+                                    }
+                                }
+                            }
+                            if (lastChunk == null) {
+                                throw new IllegalStateException("No valid chunk received.");
+                            }
+                            OpenAIContainer container = new OpenAIContainer(lastChunk);
+                            container.put(new MetadataKey<>("content", Metadata.STRING), builder.toString());
+                            return container;
+                        }
+
+                    } else {
+                        throw new IOException("Unexpected response code: " + statusCode + ", body: " + responseBody);
+                    }
+                }
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        });
+    }/*
      *  llama.cpp
      */
     private CompletableFuture<MetadataContainer> completeLlamaRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk
@@ -233,7 +308,7 @@ public class AIService {
      *  OpenAI
      */
     private CompletableFuture<MetadataContainer> completeOpenAIRequest(String instructions, String content, String previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk) {
-        return completeBuildRequestBody(content, previousResponseId, model, endpoint, instructions, stream)
+        return completeBuildRequestBody(content, previousResponseId, model, requestType, instructions, stream)
                 .thenCompose(reqBody -> completeOpenAIProcessRequest(reqBody, endpoint, onContentChunk));
     }
     
@@ -388,17 +463,21 @@ public class AIService {
             Map<String, Object> userMsg = new HashMap<>();
             Map<String, Object> systemMsg = new HashMap<>();
             List<Map<String, Object>> tools = new ArrayList<>();
-            List<ToolDefinition> allToolDefinitions = toolService.getTools().stream()
-                .filter(tool -> tool instanceof CustomTool<?, ?>)
-                .map(tool -> {
-                    CustomTool<?, ?> provider = (CustomTool<?, ?>) tool;
-                    return new ToolDefinition(
-                        provider.getName(),
-                        provider.getDescription(),
-                        new ObjectMapper().convertValue(provider.getJsonSchema(), new TypeReference<Map<String, Object>>() {})
-                    );
-                })
-                .toList();
+            ObjectMapper objectMapper = new ObjectMapper();
+
+            for (CustomTool<?, ?> tool : toolService.getTools()) {
+                Map<String, Object> toolMap = Map.of(
+                    "type", "function",
+                    "function", Map.of(
+                        "name", tool.getName(),
+                        "description", tool.getDescription(),
+                        "parameters", objectMapper.convertValue(
+                            tool.getJsonSchema(),
+                            new TypeReference<Map<String, Object>>() {})
+                    )
+                );
+                tools.add(toolMap);
+            }
             switch (requestType) {
                 case "deprecated":
                     body.put("model", model);
@@ -407,63 +486,51 @@ public class AIService {
                     userMsg.put("role", "user");
                     userMsg.put("content", content);
                     body.put("stream", stream);
-                    body.put("n_predict", -1);
-                    body.put("max_tokens", -1);
-                    body.put("max_completion_tokens", -1);
+                    body.put("max_completion_tokens", 128000);
                     messages.add(systemMsg);
                     messages.add(userMsg);
                     body.put("messages", messages);
-                    for (ToolDefinition tool : allToolDefinitions) {
-                        Map<String, Object> function = new LinkedHashMap<>();
-                        function.put("name", tool.name());
-                        function.put("description", tool.description());
-                        function.put("parameters", tool.schema());
-                        Map<String, Object> toolEntry = new LinkedHashMap<>();
-                        toolEntry.put("type", "function");
-                        toolEntry.put("function", function);
-                        tools.add(toolEntry);
-                    }
                     body.put("tools", tools);
-                case "moderation":
-                    body.put("model", model);
-                    body.put("input", content);
-                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                case "latest":
-                    body.put("placeholder", "");
-                case "response":
-                    body.put("model", model);
-                    ModelInfo info = Maps.RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-                    if (info != null && info.status()) {
-                        body.put("max_output_tokens", tokens);
-                    } else {
-                        body.put("max_tokens", tokens);
-                    }
-                    body.put("instructions", instructions);
-                    systemMsg.put("role", "system");
-                    systemMsg.put("content", instructions);
-                    userMsg.put("role", "user");
-                    userMsg.put("content", content);
-                    messages.add(systemMsg);
-                    messages.add(userMsg);
-                    body.put("input", messages);
-                    body.put("stream", stream);
-                    if (previousResponseId != null) {
-                        body.put("previous_response_id", previousResponseId);
-                    }
-                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-                    for (ToolDefinition tool : allToolDefinitions) {
-                        Map<String, Object> function = new LinkedHashMap<>();
-                        function.put("name", tool.name());
-                        function.put("description", tool.description());
-                        function.put("parameters", tool.schema());
-                        Map<String, Object> toolEntry = new LinkedHashMap<>();
-                        toolEntry.put("type", "function");
-                        toolEntry.put("function", function);
-                        tools.add(toolEntry);
-                    }
-                    body.put("tools", tools);
-                default:
-                    body.put("placeholder", "");
+//                case "moderation":
+//                    body.put("model", model);
+//                    body.put("input", content);
+//                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+//                case "latest":
+//                    body.put("placeholder", "");
+//                case "response":
+//                    body.put("model", model);
+//                    ModelInfo info = Maps.RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+//                    if (info != null && info.status()) {
+//                        body.put("max_output_tokens", tokens);
+//                    } else {
+//                        body.put("max_tokens", tokens);
+//                    }
+//                    body.put("instructions", instructions);
+//                    systemMsg.put("role", "system");
+//                    systemMsg.put("content", instructions);
+//                    userMsg.put("role", "user");
+//                    userMsg.put("content", content);
+//                    messages.add(systemMsg);
+//                    messages.add(userMsg);
+//                    body.put("input", messages);
+//                    body.put("stream", stream);
+//                    if (previousResponseId != null) {
+//                        body.put("previous_response_id", previousResponseId);
+//                    }
+//                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+//                    for (ToolDefinition tool : allToolDefinitions) {
+//                        Map<String, Object> function = new LinkedHashMap<>();
+//                        function.put("name", tool.name());
+//                        function.put("description", tool.description());
+//                        function.put("parameters", tool.schema());
+//                        Map<String, Object> toolEntry = new LinkedHashMap<>();
+//                        toolEntry.put("type", "function");
+//                        toolEntry.put("function", function);
+//                        tools.add(toolEntry);
+//                    }
+//                    body.put("tools", tools);
+                //default:
+                 //   body.put("placeholder", "");
             }
             return body;
         });
@@ -487,7 +554,9 @@ public class AIService {
     }
     public CompletableFuture<MetadataContainer> completeRequest(String instructions, String content, String previousResponseId, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk, String source
     ) throws Exception {
-        if (Maps.LLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
+        if (Maps.GOOGLE_ENDPOINT_URLS.containsValue(endpoint)) {
+            return completeGoogleRequest(instructions, content, previousResponseId, model, requestType, endpoint, stream, onContentChunk);
+        } else if (Maps.LLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeLlamaRequest(instructions, content, model, requestType, endpoint, stream, onContentChunk);
         } else if (Maps.OLLAMA_ENDPOINT_URLS.containsValue(endpoint)) {
             return completeOllamaRequest(instructions, content, model, requestType, endpoint, stream, onContentChunk);
@@ -509,6 +578,8 @@ public class AIService {
         if ("cli".equals(sourceOfRequest)) {
             if ("latest".equals(provider)) {
                 endpoint = Maps.LATEST_CLI_ENDPOINT_URLS.get(requestType);
+            } else if ("google".equals(provider)) {
+                endpoint = Maps.GOOGLE_CLI_ENDPOINT_URLS.get(requestType);
             } else if ("llama".equals(provider)) {
                 endpoint = Maps.LLAMA_CLI_ENDPOINT_URLS.get(requestType);
             } else if ("openai".equals(provider)) {

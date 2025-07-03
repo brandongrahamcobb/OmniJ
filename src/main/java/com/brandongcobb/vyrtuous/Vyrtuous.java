@@ -66,6 +66,9 @@ public class Vyrtuous {
         SpringApplication.run(Vyrtuous.class, args);
         LOGGER.setLevel(Level.FINER);
         app = new Vyrtuous();
+        for (Handler h : LOGGER.getParent().getHandlers()) {
+            h.setLevel(Level.FINER);
+        }
         try {
             new CountDownLatch(1).await();
         } catch (InterruptedException ie) {

@@ -74,10 +74,10 @@ public class REPLService {
     private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     
-    public REPLService(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory) {
+    public REPLService(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory, ToolService toolService) {
         this.api = discordBot.getJDA();
-        this.ais = new AIService(chatMemory);
-        this.toolService = new ToolService(chatMemory);
+        this.ais = new AIService(chatMemory, toolService);
+        this.toolService = toolService;
         this.replChatMemory = chatMemory;
         this.mcpServer = server;
         this.mess = new MessageService(this.api);

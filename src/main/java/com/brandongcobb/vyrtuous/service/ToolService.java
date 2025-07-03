@@ -75,7 +75,7 @@ public class ToolService {
     }
 
     public Collection<CustomTool<?, ?>> getTools() {
-        return (Collection<CustomTool<?, ?>>) (Collection<?>) tools.values();
+        return tools.values();
     }
     
     public void registerTool(CustomTool<?, ?> tool) {
