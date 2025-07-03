@@ -17,7 +17,7 @@ This project aims to provide a unified interface for interacting with various AI
 ## Technologies Used
 
 *   **Java:** The primary programming language.
-*   **Discord API (JDA):** For bot integration (if applicable).
+*   **Discord API (JDA):** For bot integration.
 *   **Logging:** Utilizes Java's logging framework.
 *   **Concurrent Data Structures:** `HashMap`, `ConcurrentHashMap`, etc., for efficient data management.
 *   **Asynchronous Programming:** `CompletableFuture` for non-blocking operations.
@@ -42,11 +42,8 @@ The `MCPServer` registers and manages a suite of tools that provide a wide range
 *   **`count_file_lines`:**  Counts the number of lines in a file.
 *   **`create_file`:** Creates a new file with specified content.
 *   **`find_in_file`:** Searches for specified terms within a file, providing context lines around matches.
-*   **`load_context`:** Loads a previously saved context snapshot.
 *   **`patch`:** Applies patches (replacements, insertions, deletions) to files.
 *   **`read_file`:** Reads the contents of a file.
-*   **`refresh_context`:** Summarizes the current context, providing a concise overview.
-*   **`save_context`:** Saves the current context snapshot for later retrieval.
 *   **`search_files`:** Searches for files matching specified criteria.
 *   **`search_web`:**  Searches the web for information using the Google Programmable Search API.
 
@@ -87,6 +84,10 @@ This project is built using Maven.
 **Configuration:**
 
 1.  Configure API keys, model paths, and other settings in the appropriate configuration files (e.g., `.bashrc`). Refer to the project's documentation for specific details.
+
+## Docker
+1. docker build --platform=linux/arm64/v8 -t vyrtuous .
+2. docker run -it --env-file ~/.env --rm vyrtuous
 
 ## Running Tests
 
