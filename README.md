@@ -2,6 +2,8 @@
 
 Vyrtuous is a Java-based application designed to integrate local and remote AI tools.
 
+## Project Flow
+![jVyrtuous](pictures/jVyrtuous.svg)
 ## Project Description
 
 This project aims to provide a unified interface for interacting with various AI models and services, including local LLMs and cloud-based APIs like OpenAI, OpenRouter, and LM Studio. It supports features like context management, approval workflows, and a REPL interface for experimentation.
