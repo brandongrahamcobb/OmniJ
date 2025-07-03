@@ -116,7 +116,7 @@ public class REPLService {
     }
     
     public String buildContext() {
-        List<Message> messages = replChatMemory.get("user");
+        List<Message> messages = replChatMemory.get("assistant");
         if (messages.isEmpty()) {
             return "No conversation context available.";
         }
@@ -219,6 +219,7 @@ public class REPLService {
                 return completeESubStep(firstRun).thenCompose(v -> {
                     for (JsonNode toolCallNode : lastResults) {
                         futures.add(completeESubStep(toolCallNode));
+                        lastResults = null;
                     }
                     return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
                 }).exceptionally(ex -> {

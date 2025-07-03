@@ -77,18 +77,10 @@ public class AIService {
         this.toolService = new ToolService(chatMemory);
     }
 
-
     /*
      *  llama.cpp
      */
-    private CompletableFuture<MetadataContainer> completeLlamaRequest(
-        String instructions,
-        String content,
-        String model,
-        String requestType,
-        String endpoint,
-        boolean stream,
-        Consumer<String> onContentChunk
+    private CompletableFuture<MetadataContainer> completeLlamaRequest(String instructions, String content, String model, String requestType, String endpoint, boolean stream, Consumer<String> onContentChunk
     ) {
         return completeBuildRequestBody(content, null, model, requestType, instructions, stream)
             .thenCompose(reqBody -> completeLlamaProcessRequest(reqBody, endpoint, onContentChunk));
@@ -395,6 +387,18 @@ public class AIService {
             Map<String, Object> msgMap = new HashMap<>();
             Map<String, Object> userMsg = new HashMap<>();
             Map<String, Object> systemMsg = new HashMap<>();
+            List<Map<String, Object>> tools = new ArrayList<>();
+            List<ToolDefinition> allToolDefinitions = toolService.getTools().stream()
+                .filter(tool -> tool instanceof CustomTool<?, ?>)
+                .map(tool -> {
+                    CustomTool<?, ?> provider = (CustomTool<?, ?>) tool;
+                    return new ToolDefinition(
+                        provider.getName(),
+                        provider.getDescription(),
+                        new ObjectMapper().convertValue(provider.getJsonSchema(), new TypeReference<Map<String, Object>>() {})
+                    );
+                })
+                .toList();
             switch (requestType) {
                 case "deprecated":
                     body.put("model", model);
@@ -409,28 +413,14 @@ public class AIService {
                     messages.add(systemMsg);
                     messages.add(userMsg);
                     body.put("messages", messages);
-                    List<Map<String, Object>> tools = new ArrayList<>();
-                    List<ToolDefinition> allToolDefinitions = toolService.getTools().stream()
-                        .filter(tool -> tool instanceof CustomTool<?, ?>)
-                        .map(tool -> {
-                            CustomTool<?, ?> provider = (CustomTool<?, ?>) tool;
-                            return new ToolDefinition(
-                                provider.getName(),
-                                provider.getDescription(),
-                                new ObjectMapper().convertValue(provider.getJsonSchema(), new TypeReference<Map<String, Object>>() {})
-                            );
-                        })
-                        .toList();
                     for (ToolDefinition tool : allToolDefinitions) {
                         Map<String, Object> function = new LinkedHashMap<>();
                         function.put("name", tool.name());
                         function.put("description", tool.description());
-                        function.put("parameters", tool.schema());  // This is your JSON Schema map
-
+                        function.put("parameters", tool.schema());
                         Map<String, Object> toolEntry = new LinkedHashMap<>();
                         toolEntry.put("type", "function");
                         toolEntry.put("function", function);
-
                         tools.add(toolEntry);
                     }
                     body.put("tools", tools);
@@ -461,6 +451,17 @@ public class AIService {
                         body.put("previous_response_id", previousResponseId);
                     }
                     body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                    for (ToolDefinition tool : allToolDefinitions) {
+                        Map<String, Object> function = new LinkedHashMap<>();
+                        function.put("name", tool.name());
+                        function.put("description", tool.description());
+                        function.put("parameters", tool.schema());
+                        Map<String, Object> toolEntry = new LinkedHashMap<>();
+                        toolEntry.put("type", "function");
+                        toolEntry.put("function", function);
+                        tools.add(toolEntry);
+                    }
+                    body.put("tools", tools);
                 default:
                     body.put("placeholder", "");
             }
