@@ -1,4 +1,4 @@
-/* REPLManager.java The purpose of this class is to serve as the local
+/* REPLService.java The purpose of this class is to serve as the local
  * CLI interface for a variety of AI endpoints.
  *
  * Copyright (C) 2025  github.com/brandongrahamcobb

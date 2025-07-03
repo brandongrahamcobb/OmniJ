@@ -1,5 +1,5 @@
-/*  ModelInfo.java The primary purpose of this record is to be the query
- *  for parameter bounds of AI models.
+/*  ToolDefinition.java The primary purpose of this record is to be the query
+ *  tool definitions.
  *  overridable method for user create on Discord, LinkedIn, OpenAI, Patreon and Twitch.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb

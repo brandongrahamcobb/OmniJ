@@ -1,5 +1,5 @@
-/*  ReadFileInput.java The primary purpose of this class is to
- *  provide input information about the ReadFile.java tool call.
+/*  MaveneInput.java The primary purpose of this class is to
+ *  provide input information about the Maven.java tool call.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

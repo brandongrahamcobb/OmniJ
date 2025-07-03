@@ -1,5 +1,5 @@
-/*  OllamaContainer.java The purpose of this class is to extend and
- *  a MetadataContainer for ollama HTTP posts.
+/*  LlamaContainer.java The purpose of this class is to extend and
+ *  a MetadataContainer for llama HTTP posts.
  *
  *  Copyright (th.C) 2025  github.com/brandongrahamcobb
  *

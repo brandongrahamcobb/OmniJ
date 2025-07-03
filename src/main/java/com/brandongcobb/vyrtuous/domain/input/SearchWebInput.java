@@ -1,5 +1,5 @@
 /*  SearchWebInput.java The primary purpose of this class is to
- *  provide input information about the SearchFiles.java tool call.
+ *  provide input information about the SearchWeb.java tool call.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

@@ -1,6 +1,5 @@
-/*  ReadFile.java The primary purpose of this class is to act as a tool
- *  for reading file contents. This is a crude method which can be replaced
- *  by a cli agent.
+/*  Patch.java The primary purpose of this class is to act as a tool
+ *  for patching file contents.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

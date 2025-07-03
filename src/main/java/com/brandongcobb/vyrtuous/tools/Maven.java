@@ -1,11 +1,21 @@
-//
-//  Maven.swift
-//  
-//
-//  Created by Brandon Cobb on 7/3/25.
-//
-
-
+/*  Maven.java The primary purpose of this class is to act as a tool
+ *  for executing Maven commands.
+ *
+ *  Copyright (C) 2025  github.com/brandongrahamcobb
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package com.brandongcobb.vyrtuous.tools;
 
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
@@ -17,6 +27,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -25,9 +36,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
+@Component
 public class Maven implements CustomTool<MavenInput, ToolStatus> {
 
     private static final ObjectMapper mapper = new ObjectMapper();

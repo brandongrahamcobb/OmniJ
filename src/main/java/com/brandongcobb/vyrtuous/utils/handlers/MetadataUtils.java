@@ -1,5 +1,5 @@
-/*  LlamaUtils.java The purpose of this class is to access the data
- *  stored in an LlamaContainer object.
+/*  MetadataUtils.java The purpose of this class is to access the data
+ *  stored in an MetadataContainer object.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

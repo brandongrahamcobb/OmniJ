@@ -1,6 +1,5 @@
-/*  SearchFiles.java The primary purpose of this class is to act as a tool
- *  for making searching files. This is a crude method which will be
- *  replaced with a VectorStore.
+/*  FindInFile.java The primary purpose of this class is to act as a tool
+ *  for finding text in a file.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

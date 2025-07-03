@@ -1,4 +1,4 @@
-/*  Tool.java The primary purpose of this interface is to create a template for future tools
+/*  CustomTool.java The primary purpose of this interface is to create a template for future tools
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

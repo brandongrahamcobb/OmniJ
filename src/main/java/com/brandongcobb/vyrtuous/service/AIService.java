@@ -1,4 +1,4 @@
-/*  AIManager.java The primary purpose of this class is to resolve
+/*  AIService.java The primary purpose of this class is to resolve
  *  AI model instructions, endpoints, request sources, request bodies and
  *  more.
  *

@@ -1,4 +1,4 @@
-/*  MCPServer.java The primary purpose of this class is to serve as
+/*  CustomMCPServer.java The primary purpose of this class is to serve as
  *  the Model Context Protocol server for the Vyrtuous spring boot application.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb

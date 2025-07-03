@@ -1,5 +1,5 @@
-/*  ReadFileInput.java The primary purpose of this class is to
- *  provide input information about the ReadFile.java tool call.
+/*  CountFileLinesInput.java The primary purpose of this class is to
+ *  provide input information about the CountFileLines.java tool call.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

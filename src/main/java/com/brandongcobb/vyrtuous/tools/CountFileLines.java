@@ -1,6 +1,5 @@
-/*  ReadFile.java The primary purpose of this class is to act as a tool
- *  for reading file contents. This is a crude method which can be replaced
- *  by a cli agent.
+/*  CountFileLines.java The primary purpose of this class is to act as a tool
+ *  for counting lines in a file.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *
@@ -27,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.beans.factory.annotation.Autowired;
-
+import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,9 +34,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
-
 import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
+@Component
 public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatus> {
     
     private static final ObjectMapper mapper = new ObjectMapper();

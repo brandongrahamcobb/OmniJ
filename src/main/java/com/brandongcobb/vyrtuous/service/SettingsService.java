@@ -1,5 +1,4 @@
-/*  SettingsManager.java The purpose of this class is to handle configuration
-
+/*  SettingsService.java The purpose of this class is to handle configuration=
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

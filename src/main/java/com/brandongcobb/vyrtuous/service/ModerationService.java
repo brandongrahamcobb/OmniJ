@@ -1,4 +1,4 @@
-/*  ModerationManager.java The purpose of this program is to handle all explicit
+/*  ModerationService.java The purpose of this program is to handle all explicit
  *  strings from the program's endpoints.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb

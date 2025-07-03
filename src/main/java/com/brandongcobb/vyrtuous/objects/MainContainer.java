@@ -1,5 +1,5 @@
-/*  ChatObject.java The purpose of this class is to extend and
- *  a MetadataContainer for completion objects.
+/*  MainContainer.java The purpose of this class is to extend
+ *  a MetadataContainer.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
  *

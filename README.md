@@ -18,55 +18,13 @@ This project aims to provide a unified interface for interacting with various AI
 
 ## Technologies Used
 
-*   **Java:** The primary programming language.
-*   **Discord API (JDA):** For bot integration.
-*   **Logging:** Utilizes Java's logging framework.
-*   **Concurrent Data Structures:** `HashMap`, `ConcurrentHashMap`, etc., for efficient data management.
 *   **Asynchronous Programming:** `CompletableFuture` for non-blocking operations.
-
-## MCPServer Class Details
-
-The `MCPServer` class is a core component of Vyrtuous, responsible for managing model contexts and providing a central interface for interacting with various AI tools. It acts as a server that handles requests and orchestrates the execution of different tools.
-
-**Class Structure:**
-
-*   `package com.brandongcobb.vyrtuous.utils.handlers;`:  This class resides within the `handlers` package of the `utils` module, indicating its role in handling requests and managing interactions.
-*   `private static final Logger LOGGER = Logger.getLogger(MCPServer.class.getName());`:  A logger is used for debugging and monitoring purposes, providing valuable insights into the server's operation.
-*   `private final ObjectMapper mapper = new ObjectMapper();`: The Jackson library's ObjectMapper is used for JSON serialization and deserialization, enabling the server to process structured data.
-*   `private final Map<String, ToolWrapper> tools = new ConcurrentHashMap<>();`:  A concurrent hash map stores registered tools, allowing for safe concurrent access and efficient tool lookup.  The `ToolWrapper` class encapsulates the tool's name, description, input schema, and execution logic.
-*   `private final ContextManager modelContextManager;` & `private final ContextManager userContextManager;`:  Context managers handle the management of model and user contexts, ensuring coherent interactions across multiple requests.
-*   `private boolean initialized = false;`: A flag to track whether the server has been initialized.
-
-**Registered Tools (Managed by MCPServer):**
-
-The `MCPServer` registers and manages a suite of tools that provide a wide range of functionalities. These tools are essential for the Vyrtuous application's capabilities.
-
-*   **`count_file_lines`:**  Counts the number of lines in a file.
-*   **`create_file`:** Creates a new file with specified content.
-*   **`find_in_file`:** Searches for specified terms within a file, providing context lines around matches.
-*   **`patch`:** Applies patches (replacements, insertions, deletions) to files.
-*   **`read_file`:** Reads the contents of a file.
-*   **`search_files`:** Searches for files matching specified criteria.
-*   **`search_web`:**  Searches the web for information using the Google Programmable Search API.
-
-**Dependencies:**
-
-This project relies on the following key dependencies (listed in `pom.xml`):
-
-*   Jackson Databind
-*   Logging Framework (e.g., java.util.logging)
-*   JDA (Java Discord API) - for Discord Integration
-
-## Project Structure
-
-*   `src/main/java/com/brandongcobb/vyrtuous/`: Main source code directory.
-    *   `bots/`: Contains bot-related classes (e.g., `DiscordBot`).
-    *   `records/`: Classes related to data records.
-    *   `tools/`: Contains classes implementing various AI tools and utilities (e.g., `Patch`, `SaveContext`, `ToolResult`).
-    *   `enums/`: Enumerations for configurations and states (e.g., `ModelRegistry`, `ApprovalMode`).
-    *   `objects/`: Classes representing data containers and models (e.g., `LlamaContainer`).
-    *   `utils/`: Utility classes and handlers (e.g., `Encryption`, `AIManager`, `MarkdownUtils`).
-    *   `Vyrtuous.java`: The main entry point of the application.
+*   **Discord API (JDA):** For bot integration.
+*   **Java:** The primary programming language.
+*   **Logging:** Utilizes Java's logging framework.
+*   **Maven:** The primary package manager (Gradle support upcoming).
+*   **[Model Context Protocol Server](https://modelcontextprotocol.io/introduction):** A backend component to reveal context to the LLM's. 
+*   **Spring-Boot-AI:** Autowires beans, component, services and the main SpringBootApplication.
 
 ## Setting Up the Project
 
@@ -88,7 +46,8 @@ This project is built using Maven.
 1.  Configure API keys, model paths, and other settings in the appropriate configuration files (e.g., `.bashrc`). Refer to the project's documentation for specific details.
 
 ## Docker
-1. docker build --platform=linux/arm64/v8 -t vyrtuous .
+1 Linux. docker build --platform=linux/arm64/v8 -t vyrtuous .
+1 Mac. docker buildx build --platform=linux/arm64/v8 -t vyrtuous --load .
 2. docker run -it --env-file ~/.env --rm vyrtuous
 
 ## Running Tests
@@ -115,18 +74,55 @@ Contributions are welcome! Please follow these guidelines:
 3.  Make your changes and write tests.
 4.  Submit a pull request.
 
+## Description 
+**Dependencies:**
+
+This project relies on the following key dependencies (listed in `pom.xml`):
+
+*   Apache Http Client
+*   Jackson Databind
+*   JDA
+*   [Metadata](https://github.com/brandongrahamcobb/Metadata)
+*   Spring-Boot
+
+** Package Structure:**
+
+*   `package com.brandongcobb.vyrtuous.service;`:  This package is for services, indicating their role in servicing requests from other parts of the code.
+*   `package com.brandongcobb.vyrtuous.objects`:  This package is for objects, indicating their role in serializing data from AIService.
+*   `package com.brandongcobb.vytuous.tools`: This package is for tools, self explanatory.
+*   `package com.brandongcobb.utils.handlers`: This package is for utilities accessing the serialized data in the program's objects.
+*   `package com.brandongcobb.utils.inc`: This package is for information which doesn't have a better place.
+*   `package com.brandongcobb.record`: This package is for recording model and tool statistics.
+*   `package com.brandongcobb.cogs`: This package has two functions and are registered under DiscordBot; one exposes commands to Discord and the other exposes a message listener.
+*   `package com.brandongcobb.enums`: This package is critical to the function of the program and also pose a vulnerability returning unserializable data from the models.
+*   `package com.brandongcobb.domain`: This package formalizes the connection between JSON tool schemas and their programatic fields.
+*   `pakcage com.brandongcobb.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction)**.
+
+**[Model Context Protocol Server](https://modelcontextprotocol.io/introduction)**
+
+The server is a core component of Vyrtuous, responsible for managing model contexts and providing a central interface for interacting with various AI tools.
+It acts as a server that handles requests and orchestrates the execution of different tools.
+
+*   **`count_file_lines`:**  Counts the number of lines in a file.
+*   **`create_file`:** Creates a new file with specified content.
+*   **`find_in_file`:** Searches for specified terms within a file, providing context lines around matches.
+*   **`patch`:** Applies patches (replacements, insertions, deletions) to files.
+*   **`read_file`:** Reads the contents of a file.
+*   **`search_files`:** Searches for files matching specified criteria.
+*   **`search_web`:**  Searches the web for information using the Google Programmable Search API.
+
 ## Advanced Features
 
-Vyrtuous now includes robust context management and a suite of tools for streamlining AI interactions:
+Vyrtuous now includes a [Model Context Protocol Server](https://modelcontextprotocol.io/introduction) and cloud access to OpenAI:
 
-*   **Context Management:** Persistent conversation history across sessions, enabling more natural and coherent AI dialogues. Context is stored securely and can be reviewed and modified by authorized users.
-*   **Tool Integration:** A growing collection of tools including `patch`, `read_file`, `search_files`, `create_file`, `save_context`, `load_context`, and `refresh_context`. These tools provide fine-grained control over file system operations, context management, and more.
-*   **REPL Improvements:** Enhanced REPL interface with features like code completion and syntax highlighting.
+*   **OpenAI:** The leader in global AI can be accessed with a single API key and personal funding.
+*   **[Model Context Protocol Server](https://modelcontextprotocol.io/introduction):** The opportunities are vast and the tools only reflect a small portion of useful actions for agentic capabilities. 
+*   **Discord:** Local LLM's with streaming is highly recommended.
 
 ## Future Enhancements
 
-*   Implement advanced context management features.
-*   Expand support for additional AI tools and models.
+*   Further implementation of Spring-Boot AI
+*   Native support for tool calling in local models.
 *   Refactor codebase for improved scalability and maintainability.
 
 ## License

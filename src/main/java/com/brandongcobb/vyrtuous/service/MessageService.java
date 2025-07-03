@@ -1,4 +1,4 @@
-/*  MessageManager.java The purpose of this program is to manage responding to
+/*  MessageService.java The purpose of this program is to manage responding to
  *  users on Discord.
  *
  *  Copyright (C) 2025  github.com/brandongrahamcobb
