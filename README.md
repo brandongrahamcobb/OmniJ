@@ -96,7 +96,7 @@ This project relies on the following key dependencies (listed in `pom.xml`):
 *   `package com.brandongcobb.cogs`: This package has two functions and are registered under DiscordBot; one exposes commands to Discord and the other exposes a message listener.
 *   `package com.brandongcobb.enums`: This package is critical to the function of the program and also pose a vulnerability returning unserializable data from the models.
 *   `package com.brandongcobb.domain`: This package formalizes the connection between JSON tool schemas and their programatic fields.
-*   `pakcage com.brandongcobb.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction)**.
+*   `pakcage com.brandongcobb.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction).
 
 **[Model Context Protocol Server](https://modelcontextprotocol.io/introduction)**
 
