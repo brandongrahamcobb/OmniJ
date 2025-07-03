@@ -230,6 +230,13 @@ public class OpenAIUtils {
             return (String) this.container.get(responseIdKey);
         });
     }
+    
+    public CompletableFuture<Integer> completeGetTokens() {
+        return CompletableFuture.supplyAsync(() -> {
+            MetadataKey<Integer> responseTokensKey = new MetadataKey<>("token_count", Metadata.INTEGER);
+            return (Integer) this.container.get(responseTokensKey);
+        });
+    }
 
     /*
      *    Setters

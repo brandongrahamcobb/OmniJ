@@ -333,6 +333,18 @@ public class REPLService {
                         CompletableFuture<String> contentFuture;
                         CompletableFuture<String> responseIdFuture;
                         switch (provider) {
+                            case "google" -> {
+                                OpenAIUtils openaiUtils = new OpenAIUtils(resp);
+                                contentFuture = openaiUtils.completeGetContent().thenApply(String.class::cast);
+                                responseIdFuture = openaiUtils.completeGetResponseId();
+                                String tokensCount = String.valueOf(openaiUtils.completeGetTokens().join());
+                                if (!firstRun) {
+                                    replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
+                                    replChatMemory.add("user", new AssistantMessage("[Tokens]: " + tokensCount));
+                                    printIt();
+                                    mess.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
+                                }
+                            }
                             case "llama" -> {
                                 LlamaUtils llamaUtils = new LlamaUtils(resp);
                                 contentFuture = llamaUtils.completeGetContent();
