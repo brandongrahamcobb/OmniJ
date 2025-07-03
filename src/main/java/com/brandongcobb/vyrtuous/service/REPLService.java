@@ -68,8 +68,8 @@ public class REPLService {
     private MessageService mess;
     private String originalDirective;
     private GuildChannel rawChannel;
-    private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
+    private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     
     public REPLService(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory) {
         this.api = discordBot.getJDA();
@@ -276,11 +276,13 @@ public class REPLService {
                 completeRStep(scanner, firstRun)
                     .orTimeout(timeout, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
-                        /*
-                         *  Null Checks
-                         */
                         if (err != null || resp == null) {
-                            //deleteLastEntry(replChatMemory, "assistant"); // TODO: Context deletion to prevent overflow.
+                            List<Message> originalMessages = replChatMemory.get("assistant");
+                            ChatMemory newMemory = MessageWindowChatMemory.builder().build();
+                            for (int i = 0; i < originalMessages.size() - 1; i++) {
+                                newMemory.add("assistant", originalMessages.get(i));
+                            }
+                            replChatMemory = newMemory;
                             addToolOutput("The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
                             printIt();
                             mess.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
