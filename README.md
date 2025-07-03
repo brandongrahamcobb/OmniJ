@@ -37,42 +37,17 @@ This project is built using Maven.
 
 **Installation (Maven):**
 
+
 1.  Clone the repository.
-2.  Navigate to the project directory.
-3.  Run `mvn clean install` to build the project and download dependencies.
+2.  Run `mvn clean install` to build the project and download dependencies.
+3.  Configure the application with appropriate settings (API keys, model paths, etc.).
+4. **Linux:** docker build --platform=linux/arm64/v8 -t vyrtuous .
+4. **Mac:** docker buildx build --platform=linux/arm64/v8 -t vyrtuous --load .
+5. docker run -it --env-file ~/.env --rm vyrtuous
 
 **Configuration:**
 
 1.  Configure API keys, model paths, and other settings in the appropriate configuration files (e.g., `.bashrc`). Refer to the project's documentation for specific details.
-
-## Docker
-1 Linux. docker build --platform=linux/arm64/v8 -t vyrtuous .
-1 Mac. docker buildx build --platform=linux/arm64/v8 -t vyrtuous --load .
-2. docker run -it --env-file ~/.env --rm vyrtuous
-
-## Running Tests
-
-The project includes a suite of tests to ensure functionality and stability.
-
-**Running Tests (Maven):**
-
-Run `mvn test` from the project root directory.
-
-## Getting Started
-
-1.  Clone the repository.
-2.  Set up your environment with the necessary dependencies (check the `pom.xml` file).
-3.  Configure the application with appropriate settings (API keys, model paths, etc.).
-4.  Build and run the application.
-
-## Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1.  Fork the repository.
-2.  Create a new branch for your feature or fix.
-3.  Make your changes and write tests.
-4.  Submit a pull request.
 
 ## Description 
 **Dependencies:**
@@ -124,6 +99,15 @@ Vyrtuous now includes a [Model Context Protocol Server](https://modelcontextprot
 *   Further implementation of Spring-Boot AI
 *   Native support for tool calling in local models.
 *   Refactor codebase for improved scalability and maintainability.
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1.  Fork the repository.
+2.  Create a new branch for your feature or fix.
+3.  Make your changes and write tests.
+4.  Submit a pull request.
 
 ## License
 
