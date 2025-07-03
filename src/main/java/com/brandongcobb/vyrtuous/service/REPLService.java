@@ -25,9 +25,8 @@ import com.brandongcobb.metadata.MetadataKey;
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
 import com.brandongcobb.vyrtuous.component.server.CustomMCPServer;
-import com.brandongcobb.vyrtuous.utils.handlers.LlamaUtils;
-import com.brandongcobb.vyrtuous.utils.handlers.MetadataUtils;
-import com.brandongcobb.vyrtuous.utils.handlers.OpenAIUtils;
+import com.brandongcobb.vyrtuous.records.*;
+import com.brandongcobb.vyrtuous.utils.handlers.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -43,7 +42,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -55,7 +57,7 @@ import java.util.stream.Collectors;
 @Service
 public class REPLService {
 
-    private AIService ais = new AIService();
+    private AIService ais;
     private static final Pattern ALREADY_ESCAPED = Pattern.compile("\\\\([\\\\\"`])");
     private JDA api;
     private static final AtomicLong counter = new AtomicLong();
@@ -67,12 +69,15 @@ public class REPLService {
     private CustomMCPServer mcpServer;
     private MessageService mess;
     private String originalDirective;
+    private ToolService toolService;
     private GuildChannel rawChannel;
     private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     
     public REPLService(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory) {
         this.api = discordBot.getJDA();
+        this.ais = new AIService(chatMemory);
+        this.toolService = new ToolService(chatMemory);
         this.replChatMemory = chatMemory;
         this.mcpServer = server;
         this.mess = new MessageService(this.api);
@@ -226,7 +231,6 @@ public class REPLService {
                 String newInput = scanner.nextLine();
                 replChatMemory.add("assistant", new UserMessage(newInput));
                 replChatMemory.add("user", new UserMessage(newInput));
-                printIt();
                 mess.completeSendResponse(rawChannel, newInput);
             }
             return CompletableFuture.completedFuture(null);
@@ -294,7 +298,6 @@ public class REPLService {
                                 result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
                             }
                         } else {
-                            printIt();
                             result.complete(resp);
                         }
                     });
@@ -353,49 +356,71 @@ public class REPLService {
                         lastAIResponseContainer = resp;
                         return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
                             MetadataContainer metadataContainer = new MetadataContainer();
+                            boolean hasContent = content != null && !content.trim().isEmpty();
+                            List<JsonNode> lastResults = new ArrayList<>();
+                            int i = 0;
                             boolean validJson = false;
-                            JsonNode rootNode;
-                            try {
-                                List<JsonNode> results = new ArrayList<>();
-                                Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
-                                Matcher matcher = pattern.matcher(content);
-                                while (matcher.find()) {
-                                    String jsonText = matcher.group(1).trim();
-                                    try {
-                                        JsonNode node = mapper.readTree(jsonText);
-                                        if (node.isArray()) {
-                                            for (JsonNode element : node) {
-                                                if (element.has("tool")) {
-                                                    results.add(element);
-                                                    validJson  = true;
+                            Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
+                            Matcher matcher = pattern.matcher(content);
+                            while (true) {
+                                MetadataKey<String> nameKey = new MetadataKey<>("tool_call[" + i + "].name", Metadata.STRING);
+                                MetadataKey<String> argsKey = new MetadataKey<>("tool_call[" + i + "].arguments", Metadata.STRING);
+                                String name = metadataContainer.get(nameKey);
+                                String args = metadataContainer.get(argsKey);
+                                if (name == null || args == null) {
+                                    while (matcher.find()) {
+                                        String jsonText = matcher.group(1).trim();
+                                        try {
+                                            JsonNode node = mapper.readTree(jsonText);
+                                            if (node.isArray()) {
+                                                for (JsonNode element : node) {
+                                                    if (element.has("tool")) {
+                                                        lastResults.add(element);
+                                                        validJson  = true;
+                                                    }
                                                 }
+                                            } else if (node.has("tool")) {
+                                                lastResults.add(node);
+                                                validJson = true;
                                             }
-                                        } else if (node.has("tool")) {
-                                            results.add(node);
-                                            validJson = true;
+                                        } catch (Exception e) {
+                                            LOGGER.severe("Skipping invalid JSON block: " + e.getMessage());
                                         }
-                                    } catch (Exception e) {
-                                        System.err.println("Skipping invalid JSON block: " + e.getMessage());
                                     }
+                                    break;
                                 }
-                                lastResults = results;
-                                if (!validJson) {
-                                    replChatMemory.add("assistant", new AssistantMessage(content));
-                                    replChatMemory.add("user", new AssistantMessage(content));
-                                    mess.completeSendResponse(rawChannel, content);
-                                } else {
-                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
-                                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
-                                    String cleanedText = before + after;
-                                    metadataContainer.put(contentKey, cleanedText);
-                                    replChatMemory.add("assistant", new AssistantMessage(cleanedText));
-                                    replChatMemory.add("user", new AssistantMessage(cleanedText));
-                                    printIt();
-                                    mess.completeSendResponse(rawChannel, cleanedText);
+                                try {
+                                    JsonNode argsNode = mapper.readTree(args);
+                                    ObjectNode toolCallNode = mapper.createObjectNode();
+                                    toolCallNode.put("tool", name);
+                                    toolCallNode.set("arguments", argsNode);
+                                    lastResults.add(toolCallNode);
+                                    ToolCall toolCall = new ToolCall(name, argsNode);
+                                    toolService.callTool(toolCall.name(), toolCall.arguments());
+                                } catch (Exception e) {
+                                    LOGGER.severe("Invalid JSON in tool arguments for tool_call[" + i + "]: " + e.getMessage());
                                 }
-                            } catch (Exception e) {
+                                i++;
                             }
+                            if (!validJson && hasContent) {
+                                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                metadataContainer.put(contentKey, content);
+                                replChatMemory.add("assistant", new AssistantMessage(content));
+                                replChatMemory.add("user", new AssistantMessage(content));
+                                printIt();
+                                mess.completeSendResponse(rawChannel, content);
+                            } else {
+                                MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
+                                String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
+                                String cleanedText = before + after;
+                                metadataContainer.put(contentKey, cleanedText);
+                                replChatMemory.add("assistant", new AssistantMessage(cleanedText));
+                                replChatMemory.add("user", new AssistantMessage(cleanedText));
+                                printIt();
+                                mess.completeSendResponse(rawChannel, cleanedText);
+                            }
+                            this.lastResults = lastResults;
                             return metadataContainer;
                         });
                     })

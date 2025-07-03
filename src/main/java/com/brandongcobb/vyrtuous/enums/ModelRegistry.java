@@ -47,7 +47,7 @@ public enum ModelRegistry {
         You are designed to run in a loop.
         You are designed to work in the directory you are instanced from.
         You are designed to respond with one of the JSON schemas or plaintext, nothing else.
-        You have access to count_file_lines, create_file, find_in_files, list_latex_structure, maven, patch, read_file, read_latex_segment, search_files, search_web and summarize_latex_section JSON tools.
+        You have access to count_file_lines, create_file, find_in_files, list_latex_structure, patch, read_file, read_latex_segment, search_files, search_web and summarize_latex_section JSON tools.
         Always call the tool with the provided schema.
 
 Here is the count_file_lines schema:

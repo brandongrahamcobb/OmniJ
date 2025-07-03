@@ -20,6 +20,8 @@ package com.brandongcobb.vyrtuous.objects;
 
 import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataKey;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -55,6 +57,35 @@ public class LlamaContainer extends MainContainer {
             if (contentObj instanceof String contentStr) {
                 put(contentKey, contentStr);
             }
+            List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) message.get("tool_calls");
+                if (toolCalls != null && !toolCalls.isEmpty()) {
+                    for (int i = 0; i < toolCalls.size(); i++) {
+                        Map<String, Object> toolCall = toolCalls.get(i);
+                        if (!"function".equals(toolCall.get("type"))) continue;
+
+                        Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
+                        if (function == null) continue;
+
+                        String name = (String) function.get("name");
+                        String arguments = (String) function.get("arguments");
+
+                        // Store each tool call under its own key (indexed if multiple)
+                        MetadataKey<String> functionNameKey = new MetadataKey<>("tool_call[" + i + "].name", Metadata.STRING);
+                        MetadataKey<String> functionArgsKey = new MetadataKey<>("tool_call[" + i + "].arguments", Metadata.STRING);
+                        put(functionNameKey, name);
+                        put(functionArgsKey, arguments);
+
+                        // Optional: parse JSON arguments to a Map
+                        try {
+                            Map<String, Object> parsedArgs = new ObjectMapper().readValue(arguments, new TypeReference<>() {});
+                            MetadataKey<Map<String, Object>> parsedArgsKey =
+                                new MetadataKey<>("tool_call[" + i + "].arguments_parsed", Metadata.MAP);
+                            put(parsedArgsKey, parsedArgs);
+                        } catch (Exception e) {
+                            // Log or ignore parse failure
+                        }
+                    }
+                }
         }
     }
 }

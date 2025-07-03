@@ -28,6 +28,8 @@ import com.brandongcobb.vyrtuous.objects.LlamaContainer;
 import com.brandongcobb.vyrtuous.objects.OpenAIContainer;
 import com.brandongcobb.vyrtuous.objects.OpenRouterContainer;
 import com.brandongcobb.vyrtuous.records.ModelInfo;
+import com.brandongcobb.vyrtuous.records.ToolDefinition;
+import com.brandongcobb.vyrtuous.tools.CustomTool;
 import com.brandongcobb.vyrtuous.utils.inc.Maps;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,6 +44,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -49,10 +52,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -69,6 +69,13 @@ public class AIService {
             .build();
     private StringBuilder builder = new StringBuilder();
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
+    private ChatMemory chatMemory;
+    private ToolService toolService;
+
+    public AIService(ChatMemory chatMemory) {
+        this.chatMemory = chatMemory;
+        this.toolService = new ToolService(chatMemory);
+    }
 
 
     /*
@@ -402,6 +409,31 @@ public class AIService {
                     messages.add(systemMsg);
                     messages.add(userMsg);
                     body.put("messages", messages);
+                    List<Map<String, Object>> tools = new ArrayList<>();
+                    List<ToolDefinition> allToolDefinitions = toolService.getTools().stream()
+                        .filter(tool -> tool instanceof CustomTool<?, ?>)
+                        .map(tool -> {
+                            CustomTool<?, ?> provider = (CustomTool<?, ?>) tool;
+                            return new ToolDefinition(
+                                provider.getName(),
+                                provider.getDescription(),
+                                new ObjectMapper().convertValue(provider.getJsonSchema(), new TypeReference<Map<String, Object>>() {})
+                            );
+                        })
+                        .toList();
+                    for (ToolDefinition tool : allToolDefinitions) {
+                        Map<String, Object> function = new LinkedHashMap<>();
+                        function.put("name", tool.name());
+                        function.put("description", tool.description());
+                        function.put("parameters", tool.schema());  // This is your JSON Schema map
+
+                        Map<String, Object> toolEntry = new LinkedHashMap<>();
+                        toolEntry.put("type", "function");
+                        toolEntry.put("function", function);
+
+                        tools.add(toolEntry);
+                    }
+                    body.put("tools", tools);
                 case "moderation":
                     body.put("model", model);
                     body.put("input", content);

@@ -29,6 +29,8 @@ import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,13 +45,14 @@ import java.util.function.Supplier;
 
 public class EventListeners extends ListenerAdapter implements Cog {
 
-    public static AIService ais = new AIService();
+    private static ChatMemory discordChatMemory = MessageWindowChatMemory.builder().build();
+    public static AIService ais = new AIService(discordChatMemory);
     private JDA api;
     private DiscordBot bot;
     private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
     private MessageService mess = new MessageService(api);
-    
+
     @Override
     public void register(JDA api, DiscordBot bot) {
         this.bot = bot.completeGetBot();
