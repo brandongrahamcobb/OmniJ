@@ -411,9 +411,12 @@ public class REPLService {
                                 mess.completeSendResponse(rawChannel, content);
                             } else {
                                 MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
-                                String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
-                                String cleanedText = before + after;
+                                String cleanedText = "";
+                                if (matcher.find()) {
+                                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
+                                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
+                                    cleanedText = before + after;
+                                }
                                 metadataContainer.put(contentKey, cleanedText);
                                 replChatMemory.add("assistant", new AssistantMessage(cleanedText));
                                 replChatMemory.add("user", new AssistantMessage(cleanedText));
