@@ -10,7 +10,7 @@ This project aims to provide a unified interface for interacting with various AI
 
 ## Key Features
 
-*   **Integration with Multiple AI Tools:** Vyrtuous integrates with Discord and provides a framework for connecting to various AI models and services. Currently, the codebase demonstrates Discord integration. Support for AI models like OpenAI, LM Studio, and Ollama is planned for future development.
+*   **Integration with Multiple AI Tools:** Vyrtuous integrates with Discord and provides a framework for connecting to various AI models and services. Currently, the codebase demonstrates Discord integration. 
 *   **Context Management:** Maintains and manages conversation context for more coherent interactions.
 *   **Approval Workflows:** Implements approval mechanisms to control AI responses.
 *   **REPL Interface:** Provides a Read-Eval-Print Loop (REPL) for interactive experimentation with AI tools.
