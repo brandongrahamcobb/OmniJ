@@ -149,9 +149,11 @@ public class SearchFiles implements CustomTool<SearchFilesInput, ToolStatus> {
                     .filter(Files::isRegularFile)
                     .filter(path -> {
                         if (input.getFileExtensions() != null && !input.getFileExtensions().isEmpty()) {
-                            boolean match = input.getFileExtensions().stream()
-                                .anyMatch(ext -> path.toString().endsWith(ext));
-                            if (!match) return false;
+                            if (!input.getFileExtensions().contains("*")) {
+                                boolean match = input.getFileExtensions().stream()
+                                    .anyMatch(ext -> path.toString().endsWith(ext));
+                                if (!match) return false;
+                            }
                         }
                         if (input.getFileNameContains() != null && !input.getFileNameContains().isEmpty()) {
                             boolean match = input.getFileNameContains().stream()
