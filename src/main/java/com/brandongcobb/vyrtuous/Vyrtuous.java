@@ -65,16 +65,8 @@ public class Vyrtuous {
     public static void main(String[] args) {
         SpringApplication.run(Vyrtuous.class, args);
         app = new Vyrtuous();
-        LOGGER.setLevel(Level.FINER);
         for (Handler h : LOGGER.getParent().getHandlers()) {
             h.setLevel(Level.FINER);
-        }
-        //DiscordBot bot = new DiscordBot();
-        boolean isInputThreadRunning = false;
-        if (!isInputThreadRunning) {
-            CustomMCPServer server = new CustomMCPServer(replChatMemory);
-            //REPLService repl = new REPLService(bot, server, replChatMemory);
-            isInputThreadRunning = true;
         }
         try {
             new CountDownLatch(1).await();
