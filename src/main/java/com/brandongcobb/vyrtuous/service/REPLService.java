@@ -45,6 +45,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -57,6 +58,7 @@ public class REPLService {
     private AIService ais = new AIService();
     private static final Pattern ALREADY_ESCAPED = Pattern.compile("\\\\([\\\\\"`])");
     private JDA api;
+    private static final AtomicLong counter = new AtomicLong();
     private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
     private List<JsonNode> lastResults;
@@ -99,7 +101,7 @@ public class REPLService {
      *  Helpers
      */
     private void addToolOutput(String content) {
-        String uuid = UUID.randomUUID().toString();
+        String uuid = String.valueOf(counter.getAndIncrement());
         ToolResponseMessage.ToolResponse response = new ToolResponseMessage.ToolResponse(uuid, "tool", content);
         ToolResponseMessage toolMsg = new ToolResponseMessage(List.of(response));
         replChatMemory.add("assistant", toolMsg);
