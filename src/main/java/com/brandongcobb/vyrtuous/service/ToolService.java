@@ -105,6 +105,11 @@ public class ToolService {
         return new ListLatexStructure(replChatMemory).run(input);
     }
 
+    @Tool(name = "maven", description = "Execute a Maven command")
+    public CompletableFuture<ToolStatus> maven(MavenInput input) {
+        return new Maven(replChatMemory).run(input);
+    }
+    
     @Tool(name = "patch", description = "Apply patches to files")
     public CompletableFuture<ToolStatus> patch(PatchInput input) {
         return new Patch(replChatMemory).run(input);
