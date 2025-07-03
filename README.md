@@ -40,10 +40,11 @@ This project is built using Maven.
 
 1.  Clone the repository.
 2.  Run `mvn clean install` to build the project and download dependencies.
-3.  Configure the application with appropriate settings (API keys, model paths, etc.).
-4. **Linux:** docker build --platform=linux/arm64/v8 -t vyrtuous .
-4. **Mac:** docker buildx build --platform=linux/arm64/v8 -t vyrtuous --load .
-5. docker run -it --env-file ~/.env --rm vyrtuous
+3.  Copy Vyrtuous-0.1.jar to the root directory of the project as Vyrtuous.jar.
+4.  Configure the application with appropriate settings in .env and save it to ~/.env or add the fields to your .env file.
+5. **Linux:** docker build --platform=linux/arm64/v8 -t vyrtuous .
+5. **Mac:** docker buildx build --platform=linux/arm64/v8 -t vyrtuous --load .
+6. docker run -it --env-file ~/.env --rm vyrtuous
 
 **Configuration:**
 
