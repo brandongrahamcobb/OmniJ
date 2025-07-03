@@ -161,6 +161,7 @@ public class CustomMCPServer {
         toolService.registerTool(new CreateFile(replChatMemory));
         toolService.registerTool(new FindInFile(replChatMemory));
         toolService.registerTool(new ListLatexStructure(replChatMemory));
+        toolService.registerTool(new Maven(replChatMemory));
         toolService.registerTool(new Patch(replChatMemory));
         toolService.registerTool(new ReadFile(replChatMemory));
         toolService.registerTool(new ReadLatexSegment(replChatMemory));
