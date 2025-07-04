@@ -22,12 +22,16 @@ import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataKey;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.brandongcobb.vyrtuous.Vyrtuous;
 
+import java.util.logging.Logger;
 import java.util.List;
 import java.util.Map;
 
 public class LlamaContainer extends MainContainer {
     
+
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     
     public LlamaContainer(Map<String, Object> responseMap) {
         

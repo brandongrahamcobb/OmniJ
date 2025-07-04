@@ -87,121 +87,7 @@ public class OpenAIContainer extends MainContainer {
         MetadataKey<String> idKey = new MetadataKey<>("id", Metadata.STRING);
         String requestId = (String) responseMap.get("id");
         put(idKey, requestId);
-        LOGGER.finer(requestId);
-        if (false) {
-            List<Map<String, Object>> completionChoices = (List<Map<String, Object>>) responseMap.get("choices");
-            if (completionChoices == null || completionChoices.isEmpty()) return;
-            Map<String, Object> completionChoice = completionChoices.get(0);
-            Map<String, Object> completionMessage = (Map<String, Object>) completionChoice.get("message");
-            if (completionMessage != null) {
-                String completionContent = completionMessage != null ? (String) completionMessage.get("content") : null;
-                MetadataKey<String> completionContentKey = new MetadataKey<>("content", Metadata.STRING);
-                put(completionContentKey, completionContent);
-            }
-            String finishReason = (String) completionChoice.get("finish_reason");
-
-            // Store finish_reason
-            if (finishReason != null) {
-                MetadataKey<String> finishKey = new MetadataKey<>("finish_reason", Metadata.STRING);
-                put(finishKey, finishReason);
-            }
-            MetadataKey<Integer> tokenCountKey = new MetadataKey<>("token_count", Metadata.INTEGER);
-            Map<String, Object> usage = (Map<String, Object>) responseMap.get("usage");
-            if (usage != null && usage.get("total_tokens") instanceof Number) {
-                Integer totalTokens =  ((Number) usage.get("total_tokens")).intValue();
-                put(tokenCountKey, totalTokens);
-            }
-            List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) completionMessage.get("tool_calls");
-            if (toolCalls == null) return;
-
-            for (Map<String, Object> toolCall : toolCalls) {
-                Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
-                if (function == null) continue;
-
-                String functionName = (String) function.get("name");
-                MetadataKey<String> functionNameKey = new MetadataKey<>("name", Metadata.STRING);
-                put(functionNameKey, functionName);
-                String argumentsJson = (String) function.get("arguments");
-                ObjectMapper mapper = new ObjectMapper();
-                try {
-                    Map<String, Object> argumentsMap = mapper.readValue(argumentsJson, new TypeReference<Map<String, Object>>() {});
-                    
-                    MetadataKey<Map<String, Object>> argumentsMapKey = new MetadataKey<>("arguments", Metadata.MAP);
-                    put(argumentsMapKey, argumentsMap);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-            if (completionMessage != null) {
-                MetadataKey<String> responsesIdKey = new MetadataKey<>("id", Metadata.STRING);
-                String responsesId = (String) responseMap.get("id");
-                put(responsesIdKey, responsesId);
-                MetadataKey<String> responsesObjectKey = new MetadataKey<>("object", Metadata.STRING);
-                String responsesObject = (String) responseMap.get("object");
-                put(responsesObjectKey, responsesObject);
-                MetadataKey<Integer> responsesCreatedAtKey = new MetadataKey<>("created_at", Metadata.INTEGER);
-                Integer responsesCreatedAt = (Integer) responseMap.get("created_at");
-                put(responsesCreatedAtKey, responsesCreatedAt);
-                MetadataKey<String> responsesStatusKey = new MetadataKey<>("status", Metadata.STRING);
-                String responsesStatus = (String) responseMap.get("status");
-                put(responsesStatusKey, responsesStatus);
-                MetadataKey<String> responsesErrorKey = new MetadataKey<>("error", Metadata.STRING);
-                String responsesError = (String) responseMap.get("error");
-                put(responsesErrorKey, responsesError);
-                MetadataKey<String> responsesIncompleteDetailsReasonKey = new MetadataKey<>("reason", Metadata.STRING);
-                Map<String, String> responsesIncompleteDetails = (Map<String, String>) responseMap.get("incomplete_details");
-                String reason = responsesIncompleteDetails != null ? responsesIncompleteDetails.get("reason") : null;
-                put(responsesIncompleteDetailsReasonKey, reason);
-                MetadataKey<String> responsesInstructionsKey = new MetadataKey<>("instructions", Metadata.STRING);
-                String responsesInstructions = (String) responseMap.get("instructions");
-                put(responsesInstructionsKey, responsesInstructions);
-                MetadataKey<Integer> responsesMaxOutputTokensKey = new MetadataKey<>("max_output_tokens", Metadata.INTEGER);
-                Integer responsesMaxOutputTokens = (Integer) responseMap.get("max_output_tokens");
-                put(responsesMaxOutputTokensKey, responsesMaxOutputTokens);
-                MetadataKey<String> responsesModelKey = new MetadataKey<>("model", Metadata.STRING);
-                String responsesModel = (String) responseMap.get("model");
-                put(responsesModelKey, responsesModel);
-                MetadataKey<Boolean> responsesParallelToolCallsKey = new MetadataKey<>("parallel_tool_calls", Metadata.BOOLEAN);
-                Boolean responsesParallelToolCalls = (Boolean) responseMap.get("parallel_tool_calls");
-                put(responsesParallelToolCallsKey, responsesParallelToolCalls);
-                MetadataKey<String> responsesPreviousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
-                String responsesPreviousResponseId = (String) responseMap.get("previous_response_id");
-                put(responsesPreviousResponseIdKey, responsesPreviousResponseId);
-                MetadataKey<String> responsesReasoningEffortKey = new MetadataKey<>("effort", Metadata.STRING);
-                MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
-                Map<String, String> responsesReasoning = (Map<String, String>) responseMap.get("reasoning");
-                if (responsesReasoning != null) {
-                    String responsesReasoningEffort = responsesReasoning.get("effort");
-                    put(responsesReasoningEffortKey, responsesReasoningEffort);
-                    String responsesReasoningSummary = responsesReasoning.get("summary");
-                    put(responsesReasoningSummaryKey, responsesReasoningSummary);
-                }
-                MetadataKey<Double> responsesTemperatureKey = new MetadataKey<>("temperature", Metadata.DOUBLE);
-                Double responsesTemperature = (Double) responseMap.get("temperature");
-                put(responsesTemperatureKey, responsesTemperature);
-                MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
-                Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
-                put(responsesTextFormatKey, responsesTextFormat);
-                MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", Metadata.DOUBLE);                              // MUST MATCH THE RESP OBJECT         VALUE
-                Double responsesTopP = (Double) responseMap.get("top_p");                                                        // DO NOT CHANGE TO INTEGER if     NON OPENAI,     CAUSES ERROR
-                put(responsesTopPKey, responsesTopP);
-                MetadataKey<String> responsesTruncationKey = new MetadataKey<>("truncation", Metadata.STRING);
-                String responsesTruncation = (String) responseMap.get("truncation");
-                put(responsesTruncationKey, responsesTruncation);
-                MetadataKey<Integer> responsesTotalTokensKey = new MetadataKey<>("total_tokens", Metadata.INTEGER);
-                Map<String, Object> responsesUsage = (Map<String, Object>) responseMap.get("usage");
-                if (responsesUsage != null) {
-                    Integer responsesTotalTokens = (Integer) responsesUsage.get("total_tokens");
-                    put(responsesTotalTokensKey, responsesTotalTokens);
-                }
-                MetadataKey<String> responsesUserKey = new MetadataKey<>("user", Metadata.STRING);
-                String responsesUser = (String) responseMap.get("user");
-                put(responsesUserKey, responsesUser);
-                MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("metadata", Metadata.MAP);
-                Map<String, Object> responsesMetadata = (Map<String, Object>) responseMap.get("metadata");
-            }
-        }
-        else if (requestId.contains("chatcmpl")) {
+        if (requestId.contains("chatcmpl")) {
             MetadataKey<Integer> tokenCountKey = new MetadataKey<>("token_count", Metadata.INTEGER);
             Map<String, Object> usage = (Map<String, Object>) responseMap.get("usage");
             if (usage != null && usage.get("total_tokens") instanceof Number) {
@@ -1011,6 +897,118 @@ public class OpenAIContainer extends MainContainer {
                     Double moderationViolenceGraphicScore = categoryScores.get("violence/graphic");
                     put(violenceGraphicScoreKey, moderationViolenceGraphicScore);
                 }
+            }
+        } else {
+            List<Map<String, Object>> completionChoices = (List<Map<String, Object>>) responseMap.get("choices");
+            if (completionChoices == null || completionChoices.isEmpty()) return;
+            Map<String, Object> completionChoice = completionChoices.get(0);
+            Map<String, Object> completionMessage = (Map<String, Object>) completionChoice.get("message");
+            if (completionMessage != null) {
+                String completionContent = completionMessage != null ? (String) completionMessage.get("content") : null;
+                MetadataKey<String> completionContentKey = new MetadataKey<>("content", Metadata.STRING);
+                put(completionContentKey, completionContent);
+            }
+            String finishReason = (String) completionChoice.get("finish_reason");
+
+            // Store finish_reason
+            if (finishReason != null) {
+                MetadataKey<String> finishKey = new MetadataKey<>("finish_reason", Metadata.STRING);
+                put(finishKey, finishReason);
+            }
+            MetadataKey<Integer> tokenCountKey = new MetadataKey<>("token_count", Metadata.INTEGER);
+            Map<String, Object> usage = (Map<String, Object>) responseMap.get("usage");
+            if (usage != null && usage.get("total_tokens") instanceof Number) {
+                Integer totalTokens =  ((Number) usage.get("total_tokens")).intValue();
+                put(tokenCountKey, totalTokens);
+            }
+            List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) completionMessage.get("tool_calls");
+            if (toolCalls == null) return;
+
+            for (Map<String, Object> toolCall : toolCalls) {
+                Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
+                if (function == null) continue;
+
+                String functionName = (String) function.get("name");
+                MetadataKey<String> functionNameKey = new MetadataKey<>("name", Metadata.STRING);
+                put(functionNameKey, functionName);
+                String argumentsJson = (String) function.get("arguments");
+                ObjectMapper mapper = new ObjectMapper();
+                try {
+                    Map<String, Object> argumentsMap = mapper.readValue(argumentsJson, new TypeReference<Map<String, Object>>() {});
+                    
+                    MetadataKey<Map<String, Object>> argumentsMapKey = new MetadataKey<>("arguments", Metadata.MAP);
+                    put(argumentsMapKey, argumentsMap);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            if (completionMessage != null) {
+                MetadataKey<String> responsesIdKey = new MetadataKey<>("id", Metadata.STRING);
+                String responsesId = (String) responseMap.get("id");
+                put(responsesIdKey, responsesId);
+                MetadataKey<String> responsesObjectKey = new MetadataKey<>("object", Metadata.STRING);
+                String responsesObject = (String) responseMap.get("object");
+                put(responsesObjectKey, responsesObject);
+                MetadataKey<Integer> responsesCreatedAtKey = new MetadataKey<>("created_at", Metadata.INTEGER);
+                Integer responsesCreatedAt = (Integer) responseMap.get("created_at");
+                put(responsesCreatedAtKey, responsesCreatedAt);
+                MetadataKey<String> responsesStatusKey = new MetadataKey<>("status", Metadata.STRING);
+                String responsesStatus = (String) responseMap.get("status");
+                put(responsesStatusKey, responsesStatus);
+                MetadataKey<String> responsesErrorKey = new MetadataKey<>("error", Metadata.STRING);
+                String responsesError = (String) responseMap.get("error");
+                put(responsesErrorKey, responsesError);
+                MetadataKey<String> responsesIncompleteDetailsReasonKey = new MetadataKey<>("reason", Metadata.STRING);
+                Map<String, String> responsesIncompleteDetails = (Map<String, String>) responseMap.get("incomplete_details");
+                String reason = responsesIncompleteDetails != null ? responsesIncompleteDetails.get("reason") : null;
+                put(responsesIncompleteDetailsReasonKey, reason);
+                MetadataKey<String> responsesInstructionsKey = new MetadataKey<>("instructions", Metadata.STRING);
+                String responsesInstructions = (String) responseMap.get("instructions");
+                put(responsesInstructionsKey, responsesInstructions);
+                MetadataKey<Integer> responsesMaxOutputTokensKey = new MetadataKey<>("max_output_tokens", Metadata.INTEGER);
+                Integer responsesMaxOutputTokens = (Integer) responseMap.get("max_output_tokens");
+                put(responsesMaxOutputTokensKey, responsesMaxOutputTokens);
+                MetadataKey<String> responsesModelKey = new MetadataKey<>("model", Metadata.STRING);
+                String responsesModel = (String) responseMap.get("model");
+                put(responsesModelKey, responsesModel);
+                MetadataKey<Boolean> responsesParallelToolCallsKey = new MetadataKey<>("parallel_tool_calls", Metadata.BOOLEAN);
+                Boolean responsesParallelToolCalls = (Boolean) responseMap.get("parallel_tool_calls");
+                put(responsesParallelToolCallsKey, responsesParallelToolCalls);
+                MetadataKey<String> responsesPreviousResponseIdKey = new MetadataKey<>("previous_response_id", Metadata.STRING);
+                String responsesPreviousResponseId = (String) responseMap.get("previous_response_id");
+                put(responsesPreviousResponseIdKey, responsesPreviousResponseId);
+                MetadataKey<String> responsesReasoningEffortKey = new MetadataKey<>("effort", Metadata.STRING);
+                MetadataKey<String> responsesReasoningSummaryKey = new MetadataKey<>("summary", Metadata.STRING);
+                Map<String, String> responsesReasoning = (Map<String, String>) responseMap.get("reasoning");
+                if (responsesReasoning != null) {
+                    String responsesReasoningEffort = responsesReasoning.get("effort");
+                    put(responsesReasoningEffortKey, responsesReasoningEffort);
+                    String responsesReasoningSummary = responsesReasoning.get("summary");
+                    put(responsesReasoningSummaryKey, responsesReasoningSummary);
+                }
+                MetadataKey<Double> responsesTemperatureKey = new MetadataKey<>("temperature", Metadata.DOUBLE);
+                Double responsesTemperature = (Double) responseMap.get("temperature");
+                put(responsesTemperatureKey, responsesTemperature);
+                MetadataKey<Map<String, Object>> responsesTextFormatKey = new MetadataKey<>("text_format", Metadata.MAP);
+                Map<String, Object> responsesTextFormat = (Map<String, Object>) responseMap.get("text");
+                put(responsesTextFormatKey, responsesTextFormat);
+                MetadataKey<Double> responsesTopPKey = new MetadataKey<>("top_p", Metadata.DOUBLE);                              // MUST MATCH THE RESP OBJECT         VALUE
+                Double responsesTopP = (Double) responseMap.get("top_p");                                                        // DO NOT CHANGE TO INTEGER if     NON OPENAI,     CAUSES ERROR
+                put(responsesTopPKey, responsesTopP);
+                MetadataKey<String> responsesTruncationKey = new MetadataKey<>("truncation", Metadata.STRING);
+                String responsesTruncation = (String) responseMap.get("truncation");
+                put(responsesTruncationKey, responsesTruncation);
+                MetadataKey<Integer> responsesTotalTokensKey = new MetadataKey<>("total_tokens", Metadata.INTEGER);
+                Map<String, Object> responsesUsage = (Map<String, Object>) responseMap.get("usage");
+                if (responsesUsage != null) {
+                    Integer responsesTotalTokens = (Integer) responsesUsage.get("total_tokens");
+                    put(responsesTotalTokensKey, responsesTotalTokens);
+                }
+                MetadataKey<String> responsesUserKey = new MetadataKey<>("user", Metadata.STRING);
+                String responsesUser = (String) responseMap.get("user");
+                put(responsesUserKey, responsesUser);
+                MetadataKey<Map<String, Object>> responsesMetadataKey = new MetadataKey<>("metadata", Metadata.MAP);
+                Map<String, Object> responsesMetadata = (Map<String, Object>) responseMap.get("metadata");
             }
         }
     }
