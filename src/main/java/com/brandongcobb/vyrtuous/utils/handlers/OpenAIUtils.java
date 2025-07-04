@@ -237,6 +237,17 @@ public class OpenAIUtils {
             return (Integer) this.container.get(responseTokensKey);
         });
     }
+    
+    public CompletableFuture<String> completeGetFunctionName() {
+        MetadataKey<String> functionNameKey = new MetadataKey<>("name", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(functionNameKey));
+    }
+
+    public CompletableFuture<Map<String, Object>> completeGetArguments() {
+        MetadataKey<Map<String, Object>> argumentsMapKey = new MetadataKey<>("arguments", Metadata.MAP);
+        return CompletableFuture.completedFuture(this.container.get(argumentsMapKey));
+    }
+
 
     /*
      *    Setters

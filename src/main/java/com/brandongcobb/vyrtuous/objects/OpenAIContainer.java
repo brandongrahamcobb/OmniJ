@@ -22,6 +22,8 @@ import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataKey;
 import com.brandongcobb.metadata.MetadataList;
 import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.*;
 import java.util.logging.Logger;
@@ -86,12 +88,6 @@ public class OpenAIContainer extends MainContainer {
         String requestId = (String) responseMap.get("id");
         put(idKey, requestId);
         if (requestId.length() > 0) {
-            MetadataKey<Integer> tokenCountKey = new MetadataKey<>("token_count", Metadata.INTEGER);
-            Map<String, Object> usage = (Map<String, Object>) responseMap.get("usage");
-            if (usage != null && usage.get("total_tokens") instanceof Number) {
-                Integer totalTokens =  ((Number) usage.get("total_tokens")).intValue();
-                put(tokenCountKey, totalTokens);
-            }
             List<Map<String, Object>> completionChoices = (List<Map<String, Object>>) responseMap.get("choices");
             if (completionChoices == null || completionChoices.isEmpty()) return;
             Map<String, Object> completionChoice = completionChoices.get(0);
@@ -100,6 +96,35 @@ public class OpenAIContainer extends MainContainer {
                 String completionContent = completionMessage != null ? (String) completionMessage.get("content") : null;
                 MetadataKey<String> completionContentKey = new MetadataKey<>("content", Metadata.STRING);
                 put(completionContentKey, completionContent);
+            }
+            MetadataKey<Integer> tokenCountKey = new MetadataKey<>("token_count", Metadata.INTEGER);
+            Map<String, Object> usage = (Map<String, Object>) responseMap.get("usage");
+            if (usage != null && usage.get("total_tokens") instanceof Number) {
+                Integer totalTokens =  ((Number) usage.get("total_tokens")).intValue();
+                put(tokenCountKey, totalTokens);
+            }
+            List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) completionMessage.get("tool_calls");
+            if (toolCalls == null) return;
+
+            for (Map<String, Object> toolCall : toolCalls) {
+                Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
+                if (function == null) continue;
+
+                String functionName = (String) function.get("name");
+                MetadataKey<String> functionNameKey = new MetadataKey<>("name", Metadata.STRING);
+                put(functionNameKey, functionName);
+                String argumentsJson = (String) function.get("arguments");
+                ObjectMapper mapper = new ObjectMapper();
+                try {
+                    Map<String, Object> argumentsMap = mapper.readValue(argumentsJson, new TypeReference<Map<String, Object>>() {});
+                    
+                    MetadataKey<Map<String, Object>> argumentsMapKey = new MetadataKey<>("arguments", Metadata.MAP);
+                    put(argumentsMapKey, argumentsMap);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            if (completionMessage != null) {
                 MetadataKey<String> responsesIdKey = new MetadataKey<>("id", Metadata.STRING);
                 String responsesId = (String) responseMap.get("id");
                 put(responsesIdKey, responsesId);

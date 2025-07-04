@@ -25,8 +25,10 @@ import com.brandongcobb.metadata.MetadataKey;
 import com.brandongcobb.vyrtuous.Vyrtuous;
 import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
 import com.brandongcobb.vyrtuous.component.server.CustomMCPServer;
-import com.brandongcobb.vyrtuous.records.*;
-import com.brandongcobb.vyrtuous.utils.handlers.*;
+import com.brandongcobb.vyrtuous.records.ToolCall;
+import com.brandongcobb.vyrtuous.utils.handlers.LlamaUtils;
+import com.brandongcobb.vyrtuous.utils.handlers.MetadataUtils;
+import com.brandongcobb.vyrtuous.utils.handlers.OpenAIUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -42,10 +44,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -121,8 +120,20 @@ public class REPLService {
             return "No conversation context available.";
         }
         return messages.stream()
-                .map(msg -> msg.getMessageType() + ": " + msg.getText())
-                .collect(Collectors.joining("\n"));
+            .map(msg -> {
+                if (msg instanceof ToolResponseMessage toolMsg) {
+                    var responses = toolMsg.getResponses();
+                    if (!responses.isEmpty()) {
+                        return msg.getMessageType() + ": " + responses.get(0).responseData();
+                    } else {
+                        return msg.getMessageType() + ": [no tool response data]";
+                    }
+                } else {
+                    String text = msg.getText();
+                    return msg.getMessageType() + ": " + (text != null ? text : "[no text]");
+                }
+            })
+            .collect(Collectors.joining("\n"));
     }
     /*
      *  E-Step
@@ -132,12 +143,17 @@ public class REPLService {
         return CompletableFuture.runAsync(() -> {
             String toolName = toolCallNode.get("tool").asText();
             try {
+                JsonNode argsNode = toolCallNode.get("arguments");
+                if (toolName == null || toolName.isBlank() || argsNode == null || argsNode.isEmpty()) {
+                    LOGGER.finer("Skipping tool call with missing or empty name/arguments.");
+                    return;
+                }
                 ObjectNode rpcRequest = mapper.createObjectNode();
                 rpcRequest.put("jsonrpc", "2.0");
                 rpcRequest.put("method", "tools/call");
                 ObjectNode params = rpcRequest.putObject("params");
                 params.put("name", toolName);
-                params.set("arguments", toolCallNode.get("input"));
+                params.set("arguments", toolCallNode.get("arguments"));
                 String rpcText = rpcRequest.toString();
                 LOGGER.finer("[JSON-RPC →] " + rpcText);
                 StringWriter buffer = new StringWriter();
@@ -282,22 +298,22 @@ public class REPLService {
                     .orTimeout(timeout, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
                         if (err != null || resp == null) {
-                            List<Message> originalMessages = replChatMemory.get("assistant");
-                            ChatMemory newMemory = MessageWindowChatMemory.builder().build();
-                            for (int i = 0; i < originalMessages.size() - 1; i++) {
-                                newMemory.add("assistant", originalMessages.get(i));
-                            }
-                            replChatMemory = newMemory;
-                            addToolOutput("The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
-                            printIt();
-                            mess.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
-                            if (retries <= maxRetries) {
-                                LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
-                                replExecutor.submit(this);
-                            } else {
-                                LOGGER.severe("R-step permanently failed after " + retries + " attempts.");
-                                result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
-                            }
+//                            List<Message> originalMessages = replChatMemory.get("assistant");
+//                            ChatMemory newMemory = MessageWindowChatMemory.builder().build();
+//                            for (int i = 0; i < originalMessages.size() - 1; i++) {
+//                                newMemory.add("assistant", originalMessages.get(i));
+//                            }
+//                            replChatMemory = newMemory;
+//                            addToolOutput("The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
+//                            printIt();
+//                            mess.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
+//                            if (retries <= maxRetries) {
+//                                LOGGER.warning("R-step failed (attempt " + retries + "): " + (err != null ? err.getMessage() : "null response") + ", retrying...");
+//                                replExecutor.submit(this);
+//                            } else {
+//                                LOGGER.severe("R-step permanently failed after " + retries + " attempts.");
+                            result.completeExceptionally(err != null ? err : new IllegalStateException("Null result"));
+//                            }
                         } else {
                             result.complete(resp);
                         }
@@ -339,9 +355,9 @@ public class REPLService {
                                 responseIdFuture = openaiUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(openaiUtils.completeGetTokens().join());
                                 if (!firstRun) {
-                                    replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
-                                    replChatMemory.add("user", new AssistantMessage("[Tokens]: " + tokensCount));
-                                    printIt();
+                                  //  replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
+                                    replChatMemory.add("user", new AssistantMessage(tokensCount));
+                                 //   printIt();
                                     mess.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
                                 }
                             }
@@ -368,52 +384,50 @@ public class REPLService {
                         }
                         lastAIResponseContainer = resp;
                         return contentFuture.thenCombine(responseIdFuture, (content, responseId) -> {
+                            LOGGER.finer(content);
                             MetadataContainer metadataContainer = new MetadataContainer();
                             boolean hasContent = content != null && !content.trim().isEmpty();
                             List<JsonNode> lastResults = new ArrayList<>();
                             int i = 0;
                             boolean validJson = false;
-                            Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
-                            Matcher matcher = pattern.matcher(content);
-                            while (true) {
-                                MetadataKey<String> nameKey = new MetadataKey<>("tool_call[" + i + "].name", Metadata.STRING);
-                                MetadataKey<String> argsKey = new MetadataKey<>("tool_call[" + i + "].arguments", Metadata.STRING);
-                                String name = metadataContainer.get(nameKey);
-                                String args = metadataContainer.get(argsKey);
-                                if (name == null || args == null) {
-                                    while (matcher.find()) {
-                                        String jsonText = matcher.group(1).trim();
-                                        try {
-                                            JsonNode node = mapper.readTree(jsonText);
-                                            if (node.isArray()) {
-                                                for (JsonNode element : node) {
-                                                    if (element.has("tool")) {
-                                                        lastResults.add(element);
-                                                        validJson  = true;
-                                                    }
+                            OpenAIUtils openaiUtils = new OpenAIUtils(resp);
+                            String name = openaiUtils.completeGetFunctionName().join();
+                            Map<String, Object> args = openaiUtils.completeGetArguments().join();
+                            if (name == null || args == null) {
+                                Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
+                                Matcher matcher = pattern.matcher(content != null ? content : "");
+                                while (matcher.find()) {
+                                    String jsonText = matcher.group(1).trim();
+                                    try {
+                                        JsonNode node = mapper.readTree(jsonText);
+                                        if (node.isArray()) {
+                                            for (JsonNode element : node) {
+                                                if (element.has("tool")) {
+                                                    lastResults.add(element);
+                                                    validJson = true;
                                                 }
-                                            } else if (node.has("tool")) {
-                                                lastResults.add(node);
-                                                validJson = true;
                                             }
-                                        } catch (Exception e) {
-                                            LOGGER.severe("Skipping invalid JSON block: " + e.getMessage());
+                                        } else if (node.has("tool")) {
+                                            lastResults.add(node);
+                                            validJson = true;
                                         }
+                                    } catch (Exception e) {
+                                        LOGGER.severe("Skipping invalid JSON block: " + e.getMessage());
                                     }
-                                    break;
                                 }
+                            } else {
                                 try {
-                                    JsonNode argsNode = mapper.readTree(args);
+                                    JsonNode argsNode = mapper.valueToTree(args);
                                     ObjectNode toolCallNode = mapper.createObjectNode();
                                     toolCallNode.put("tool", name);
                                     toolCallNode.set("arguments", argsNode);
                                     lastResults.add(toolCallNode);
+
                                     ToolCall toolCall = new ToolCall(name, argsNode);
-                                    toolService.callTool(toolCall.name(), toolCall.arguments());
+                                    toolService.callTool(toolCall.name(), toolCall.arguments()).join();
                                 } catch (Exception e) {
                                     LOGGER.severe("Invalid JSON in tool arguments for tool_call[" + i + "]: " + e.getMessage());
                                 }
-                                i++;
                             }
                             if (!validJson && hasContent) {
                                 MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
@@ -425,10 +439,16 @@ public class REPLService {
                             } else {
                                 MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                 String cleanedText = "";
-                                if (matcher.find()) {
-                                    String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
-                                    String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
-                                    cleanedText = before + after;
+                                if (name == null || args == null) {
+                                    Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
+                                    Matcher matcher = pattern.matcher(content != null ? content : "");
+                                    if (matcher.find()) {
+                                        String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
+                                        String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
+                                        cleanedText = before + after;
+                                    } else {
+                                        cleanedText = content != null ? content : "";
+                                    }
                                 }
                                 metadataContainer.put(contentKey, cleanedText);
                                 replChatMemory.add("assistant", new AssistantMessage(cleanedText));
