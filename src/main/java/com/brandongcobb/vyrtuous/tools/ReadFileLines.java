@@ -122,8 +122,8 @@ public class ReadFileLines implements CustomTool<ReadFileLinesInput, ToolStatus>
                 List<String> subLines = lines.subList(startLine, endLine);
                 String content = String.join("\n", subLines);
                 String jsonResponse = "{\"content\": " + JSONObject.quote(content) + "}";
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 printIt();
                 return new ToolStatusWrapper(jsonResponse, true);
             } catch (IOException e) {

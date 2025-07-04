@@ -121,8 +121,8 @@ public class CreateFile implements CustomTool<CreateFileInput, ToolStatus> {
                     input.getOverwrite() ? StandardOpenOption.CREATE : StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.TRUNCATE_EXISTING
                 );
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 printIt();
                 return new ToolStatusWrapper("File created successfully: " + filePath.toString(), true);
             } catch (FileAlreadyExistsException e) {

@@ -119,8 +119,8 @@ public class ReadFile implements CustomTool<ReadFileInput, ToolStatus> {
 
                 // Step 4: Escape for JSON (minimalist version)
                 
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 printIt();
                 return new ToolStatusWrapper(safeContent, true);
             } catch (IOException e) {

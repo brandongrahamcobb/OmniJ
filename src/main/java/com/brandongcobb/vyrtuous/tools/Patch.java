@@ -151,8 +151,8 @@ public class Patch implements CustomTool<PatchInput, ToolStatus> {
                 List<String> patchedLines = applyOperations(originalLines, operations);
                 Files.write(filePath, patchedLines);
 
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 printIt();
                 return new ToolStatusWrapper("Patch applied successfully.", true);
             } catch (IOException e) {

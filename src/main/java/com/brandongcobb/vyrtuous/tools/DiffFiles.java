@@ -115,8 +115,8 @@ public class DiffFiles implements CustomTool<DiffFilesInput, ToolStatus> {
                 result.put("path2", input.getPath2());
                 result.put("diffCount", diffs.size());
                 result.set("diffs", mapper.valueToTree(diffs));
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"input\":" + input.getOriginalJson() + ",\"output\":" + result.toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"input\":" + input.getOriginalJson() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"arguments\":" + input.getOriginalJson() + ",\"output\":" + result.toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":\"" + getName() + "\",\"arguments\":" + input.getOriginalJson() + "}"));
                 printIt();
                 return new ToolStatusWrapper("Diff computed successfully.", true);
             } catch (IOException e) {

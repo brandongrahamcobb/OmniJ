@@ -101,8 +101,8 @@ public class CountFileLines implements CustomTool<CountFileLinesInput, ToolStatu
                 try (Stream<String> lines = Files.lines(filePath, StandardCharsets.UTF_8)) {
                     lineCount = lines.count();
                 }
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 printIt();
                 return new ToolStatusWrapper(String.valueOf(lineCount), true);
             } catch (IOException e) {

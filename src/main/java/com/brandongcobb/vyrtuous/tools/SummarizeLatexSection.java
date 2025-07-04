@@ -97,8 +97,8 @@ public class SummarizeLatexSection implements CustomTool<SummarizeLatexSectionIn
                     if (lineNum > input.getEndLine()) break;
                     lineNum++;
                 }
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 printIt();
             } catch (IOException e) {
                 return new ToolStatusWrapper("Failed: " + e.getMessage(), false);

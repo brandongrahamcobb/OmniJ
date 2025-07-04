@@ -496,7 +496,7 @@ public class AIService {
                     break;
                 case "moderation":
                     body.put("model", model);
-                    body.put("input", content);
+                    body.put("arguments", content);
                     body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
                     break;
                 case "latest":
@@ -517,7 +517,7 @@ public class AIService {
                     userMsg.put("content", content);
                     messages.add(systemMsg);
                     messages.add(userMsg);
-                    body.put("input", messages);
+                    body.put("arguments", messages);
                     body.put("stream", stream);
                     if (previousResponseId != null) {
                         body.put("previous_response_id", previousResponseId);

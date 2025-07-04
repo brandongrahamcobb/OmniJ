@@ -66,14 +66,14 @@ Here is the count_file_lines schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "CountFileLines",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["count_file_lines"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["path"],
       "properties": {
@@ -92,14 +92,14 @@ Here is the create_file schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "CreateFile",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["create_file"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["path", "content"],
       "properties": {
@@ -127,14 +127,14 @@ Here is the find_in_file schema:
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "FindInFile",
     "type": "object",
-    "required": ["tool", "input"],
+    "required": ["tool", "arguments"],
     "properties": {
         "tool": {
             "type": "string",
             "enum": ["find_in_file"],
             "description": "The name of the tool to invoke."
         },
-        "input": {
+        "arguments": {
             "type": "object",
             "required": ["filePath", "searchTerms"],
             "properties": {
@@ -178,14 +178,14 @@ Here is the list_latex_structure schema.
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ListLatexStructure",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["list_latex_structure"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["path"],
       "properties": {
@@ -204,14 +204,14 @@ Here is the maven schema.
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Maven",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["maven"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["goal"],
       "properties": {
@@ -238,13 +238,13 @@ Here is the patch schema.
   "$id": "https://yourdomain.com/schemas/patch-input.schema.json",
   "title": "Patch",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "const": "patch"
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["targetFile", "patches"],
       "properties": {
@@ -307,14 +307,14 @@ Here is the read_file schema.
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ReadFile",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["read_file"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["path"],
       "properties": {
@@ -333,14 +333,14 @@ Here is the read_latex_segment schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ReadLatexSegment",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["read_latex_segment"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["path", "startLine", "numLines"],
       "properties": {
@@ -369,14 +369,14 @@ Here is the search_files schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SearchFiles",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["search_files"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["rootDirectory"],
       "properties": {
@@ -415,14 +415,14 @@ Here is the search_web schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SearchWeb",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["search_web"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["query"],
       "properties": {
@@ -441,14 +441,14 @@ Here is the summarize_latex_section schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SummarizeLatexSection",
   "type": "object",
-  "required": ["tool", "input"],
+  "required": ["tool", "arguments"],
   "properties": {
     "tool": {
       "type": "string",
       "enum": ["summarize_latex_section"],
       "description": "The name of the tool to invoke."
     },
-    "input": {
+    "arguments": {
       "type": "object",
       "required": ["path", "startLine", "endLine"],
       "properties": {

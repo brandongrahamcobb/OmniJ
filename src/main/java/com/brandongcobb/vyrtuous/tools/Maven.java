@@ -123,8 +123,8 @@ public class Maven implements CustomTool<MavenInput, ToolStatus> {
                 String result = output.toString().trim();
 
                 // Record invocation in memory
-                chatMemory.add("assistant", new AssistantMessage("{\"tool\":\"maven\",\"input\":" + input.getOriginalJson().toString() + "}"));
-                chatMemory.add("user", new AssistantMessage( "{\"tool\":\"maven\",\"input\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("assistant", new AssistantMessage("{\"tool\":\"maven\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
+                chatMemory.add("user", new AssistantMessage( "{\"tool\":\"maven\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 printIt();
 
                 if (exitCode == 0) {
