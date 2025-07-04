@@ -401,7 +401,7 @@ public class REPLService {
                             boolean validJson = false;
                             OpenAIUtils openaiUtils = new OpenAIUtils(resp);
                             String finishReason = openaiUtils.completeGetFinishReason().join();
-                            if (!finishReason.contains("MALFORMED_FUNCTION_CALL")) {
+                            if (finishReason == null) {
                                 String name = openaiUtils.completeGetFunctionName().join();
                                 Map<String, Object> args = openaiUtils.completeGetArguments().join();
                                 if (name == null || args == null) {
@@ -426,7 +426,8 @@ public class REPLService {
                                             LOGGER.severe("Skipping invalid JSON block: " + e.getMessage());
                                         }
                                     }
-                                } else if (!validJson && hasContent) {
+                                }
+                                if (!validJson && hasContent) {
                                     MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
                                     metadataContainer.put(contentKey, content);
                                     replChatMemory.add("assistant", new AssistantMessage(content));
