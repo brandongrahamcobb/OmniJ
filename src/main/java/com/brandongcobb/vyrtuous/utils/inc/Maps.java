@@ -76,12 +76,12 @@ public class Maps {
     );
     
     public static final Map<String, String> DISCORD_IMAGE_INSTRUCTIONS = Map.ofEntries(
-                                                                                       
         Map.entry("llama", ""),
         Map.entry("openai", ModelRegistry.OPENAI_IMAGE_INSTRUCTIONS_DISCORD.asString())
     );
     
     public static final Map<String, String> DISCORD_TEXT_INSTRUCTIONS = Map.ofEntries(
+        Map.entry("google", ModelRegistry.GOOGLE_TEXT_INSTRUCTIONS_DISCORD.asString()),
         Map.entry("lmstudio", ModelRegistry.LMSTUDIO_TEXT_INSTRUCTIONS_DISCORD.asString()),
         Map.entry("llama", ModelRegistry.LLAMA_TEXT_INSTRUCTIONS_DISCORD.asString()),
         Map.entry("ollama", ModelRegistry.OLLAMA_TEXT_INSTRUCTIONS_DISCORD.asString()),
@@ -110,10 +110,18 @@ public class Maps {
         Map.entry("deprecated", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
     );
     
-    public static final Map<String, String> GOOGLE_ENDPOINT_URLS = Map.ofEntries(
+    public static final Map<String, String> GOOGLE_DISCORD_MULTIMODAL_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("deprecated", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
     );
     
+    public static final Map<String, String> GOOGLE_DISCORD_TEXT_ENDPOINT_URLS = Map.ofEntries(
+         Map.entry("deprecated", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+    );
+
+    public static final Map<String, String> GOOGLE_ENDPOINT_URLS = Map.ofEntries(
+        Map.entry("deprecated", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+    );
+        
     public static final Map<String, String> LLAMA_ENDPOINT_URLS = Map.ofEntries(
         Map.entry("deprecated", "http://127.0.0.1:8080/api/chat")
     );
@@ -436,7 +444,8 @@ public class Maps {
         Map.entry("gpt-4o-mini", new ModelInfo(Helpers.parseCommaNumber("128,000"), false)),
         Map.entry("o3-mini", new ModelInfo(Helpers.parseCommaNumber("200,000"), true)),
         Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("200,000"), true)),
-        Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("200,000"), true))
+        Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("200,000"), true)),
+        Map.entry("gemma-3-27b-it", new ModelInfo(Helpers.parseCommaNumber("32,768"), true))
     );
     
     public static final Map<String, ModelInfo> RESPONSE_MODEL_OUTPUT_LIMITS = Map.ofEntries(
@@ -449,7 +458,8 @@ public class Maps {
         Map.entry("gpt-4o-mini", new ModelInfo(Helpers.parseCommaNumber("16,384"), false)),
         Map.entry("o3-mini", new ModelInfo(Helpers.parseCommaNumber("100,000"), true)),
         Map.entry("o4-mini", new ModelInfo(Helpers.parseCommaNumber("100,000"), true)),
-        Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("100,000"), true))
+        Map.entry("codex-mini-latest", new ModelInfo(Helpers.parseCommaNumber("100,000"), true)),
+        Map.entry("gemma-3-27b-it", new ModelInfo(Helpers.parseCommaNumber("8,192"), true))
     );
 
     public static final String OPENAI_RESPONSE_SYS_INPUT = "";

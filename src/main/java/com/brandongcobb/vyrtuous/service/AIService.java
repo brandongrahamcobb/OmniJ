@@ -481,7 +481,7 @@ public class AIService {
             switch (requestType) {
                 case "deprecated":
                     body.put("model", model);
-                    body.put("max_completion_tokens", 128000);
+                    body.put("max_completion_tokens", tokens);
                     if (System.getenv("CLI_PROVIDER").equals("null")) {
                         systemMsg.put("role", "system");
                         systemMsg.put("content", instructions);
@@ -591,6 +591,10 @@ public class AIService {
                 endpoint = multimodal
                     ? Maps.LATEST_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)
                     : Maps.LATEST_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
+            } else if ("google".equals(provider)) {
+                endpoint = multimodal
+                    ? Maps.GOOGLE_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)
+                    : Maps.GOOGLE_DISCORD_TEXT_ENDPOINT_URLS.get(requestType);
             } else if ("llama".equals(provider)) {
                 endpoint = multimodal
                     ? Maps.LLAMA_DISCORD_MULTIMODAL_ENDPOINT_URLS.get(requestType)

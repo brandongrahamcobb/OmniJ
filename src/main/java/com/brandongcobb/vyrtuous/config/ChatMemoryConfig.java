@@ -27,10 +27,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ChatMemoryConfig {
     
-    private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
+    private static ChatMemory chatMemory = MessageWindowChatMemory.builder().build();
     
     @Bean
-    public ChatMemory replChatMemory() {
-        return replChatMemory;
+    public ChatMemory chatMemory() {
+        return chatMemory;
     }
+    
 }

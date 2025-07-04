@@ -21,7 +21,10 @@ package com.brandongcobb.vyrtuous.cogs;
 import com.brandongcobb.metadata.MetadataContainer;
 import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
 import com.brandongcobb.vyrtuous.objects.*;
-import com.brandongcobb.vyrtuous.service.*;
+import com.brandongcobb.vyrtuous.service.AIService;
+import com.brandongcobb.vyrtuous.service.MessageService;
+import com.brandongcobb.vyrtuous.service.ModerationService;
+import com.brandongcobb.vyrtuous.service.SettingsService;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
@@ -29,8 +32,8 @@ import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,16 +46,20 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+@Component
 public class EventListeners extends ListenerAdapter implements Cog {
 
-    private static ChatMemory discordChatMemory = MessageWindowChatMemory.builder().build();
-    public static AIService ais = new AIService(discordChatMemory);
     private JDA api;
     private DiscordBot bot;
     private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
     private MessageService mess = new MessageService(api);
-
+    public AIService ais;
+    
+    @Autowired
+    public EventListeners(AIService ais) {
+        this.ais = ais;
+    }
     @Override
     public void register(JDA api, DiscordBot bot) {
         this.bot = bot.completeGetBot();
@@ -87,7 +94,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
         CompletableFuture<String> contentFuture = (attachments != null && !attachments.isEmpty())
             ? mess.completeProcessAttachments(attachments).thenApply(list -> {
                 multimodal[0] = true;
-                return String.join("\n", list) + "\n" + message.getContentDisplay().replace("@Vyrtuous ", "");
+                return String.join("\n", list) + "\n" + message.getContentDisplay().replace("<@1318597210119864385>", "");
             })
             : CompletableFuture.completedFuture(message.getContentDisplay());
         contentFuture

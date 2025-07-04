@@ -37,6 +37,7 @@ You have access to count_file_lines, create_file, find_in_files, list_latex_stru
 If you happen to find a pitfall where a tool is required but it does not exist, engage in a conversation with the user about how to create the tool and encourage them to deploy it within your codebase.
 You may request the user to make manual changes where it is ideal
 """),
+    GOOGLE_TEXT_INSTRUCTIONS_DISCORD(""),
     OPENAI_RESPONSES_INSTRUCTIONS_CLI(""),
     OPENAI_IMAGE_INSTRUCTIONS_CLI(""),
     OPENAI_IMAGE_INSTRUCTIONS_DISCORD(""),

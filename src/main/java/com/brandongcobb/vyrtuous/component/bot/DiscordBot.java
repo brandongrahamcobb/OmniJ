@@ -19,17 +19,16 @@
 package com.brandongcobb.vyrtuous.component.bot;
 
 import com.brandongcobb.vyrtuous.cogs.Cog;
-import com.brandongcobb.vyrtuous.cogs.EventListeners;
-import com.brandongcobb.vyrtuous.cogs.HybridCommands;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -42,7 +41,8 @@ public class DiscordBot {
     private final Logger logger = Logger.getLogger("Vyrtuous");;
     private final ReentrantLock lock = new ReentrantLock();
 
-    public DiscordBot() {
+    @Autowired
+    public DiscordBot(ApplicationContext context) {
         this.bot = this;
         String apiKey = System.getenv("DISCORD_API_KEY");
         if (apiKey == null || apiKey.trim().isEmpty()) {
@@ -55,11 +55,9 @@ public class DiscordBot {
                         GatewayIntent.GUILD_MEMBERS)
                     .setActivity(Activity.playing("I take pharmacology personally."))
                     .build();
-            List<Cog> cogs = new ArrayList<>();
-            cogs.add(new EventListeners());
-            cogs.add(new HybridCommands());
-            for (Cog cog : cogs) {
-                cog.register(this.api, this.bot);
+            Map<String, Cog> cogs = context.getBeansOfType(Cog.class);
+            for (Cog cog : cogs.values()) {
+                cog.register(api, this);
             }
             logger.info("Discord bot successfully initialized.");
             this.api.awaitReady();
