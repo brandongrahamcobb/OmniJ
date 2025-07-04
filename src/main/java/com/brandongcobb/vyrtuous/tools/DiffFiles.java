@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
+//import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 public class DiffFiles implements CustomTool<DiffFilesInput, ToolStatus> {
 

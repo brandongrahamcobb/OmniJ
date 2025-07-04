@@ -39,7 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
+//import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class SearchWeb implements CustomTool<SearchWebInput, ToolStatus> {

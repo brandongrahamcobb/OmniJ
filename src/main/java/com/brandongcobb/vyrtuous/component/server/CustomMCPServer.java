@@ -19,13 +19,17 @@
 package com.brandongcobb.vyrtuous.component.server;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
+import com.brandongcobb.vyrtuous.service.MessageService;
 import com.brandongcobb.vyrtuous.service.ToolService;
 import com.brandongcobb.vyrtuous.tools.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbacks;
@@ -50,11 +54,15 @@ public class CustomMCPServer {
     private boolean initialized = false;
     private final ChatMemory replChatMemory;
     private ToolService toolService;
+    private MessageService mess;
+    private GuildChannel rawChannel;
 
     @Autowired
-    public CustomMCPServer(ChatMemory replChatMemory, ToolService toolService) {
+    public CustomMCPServer(DiscordBot discordBot, MessageService messageService, ChatMemory replChatMemory, ToolService toolService) {
+        this.mess = messageService;
         this.replChatMemory = replChatMemory;
         this.toolService = toolService;
+        this.rawChannel = discordBot.getJDA().getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
         initializeTools();
     }
     
@@ -66,63 +74,101 @@ public class CustomMCPServer {
         return error;
     }
 
-    private ObjectNode createErrorResponse(String id, int code, String message) {
+    private ObjectNode createErrorResponse(JsonNode idNode, int code, String message) {
         ObjectNode response = mapper.createObjectNode();
         response.put("jsonrpc", "2.0");
-        if (id != null) {
-            response.put("id", id);
+        if (idNode != null && !idNode.isNull()) {
+            response.set("id", idNode);
         }
         response.set("error", createError(code, message));
         return response;
     }
 
-    private CompletableFuture<JsonNode> handleInitialize(JsonNode params) {
+
+    private CompletableFuture<JsonNode> handleInitialize(JsonNode params, String id) {
         initialized = true;
         ObjectNode result = mapper.createObjectNode();
-        result.put("protocolVersion", "2024-11-05");
+        result.put("protocolVersion", params.path("protocolVersion").asText("2025-06-18"));
+
         ObjectNode capabilities = mapper.createObjectNode();
-        capabilities.put("tools", true);
-        result.set("capabilities", capabilities);
+
+        ObjectNode toolsCapabilities = mapper.createObjectNode();
+        toolsCapabilities.put("canExecute", true);
+
+        ArrayNode toolNames = mapper.createArrayNode();
+        for (CustomTool<?, ?> tool : toolService.getTools()) {
+            toolNames.add(tool.getName());
+        }
+        toolsCapabilities.set("toolNames", toolNames);
+
+        capabilities.set("tools", toolsCapabilities);
+
         ObjectNode serverInfo = mapper.createObjectNode();
-        serverInfo.put("name", "Vyrtuous Tool Server");
+        serverInfo.put("name", "vyrtuous");
         serverInfo.put("version", "1.0.0");
+
+        result.set("capabilities", capabilities);
         result.set("serverInfo", serverInfo);
-        return CompletableFuture.completedFuture(result);
+
+        ObjectNode response = mapper.createObjectNode();
+        response.put("jsonrpc", "2.0");
+        response.put("id", id);
+        response.set("result", result);
+
+        return CompletableFuture.completedFuture(response);
+    }
+    
+    private void sendError(PrintWriter writer, JsonNode idNode, int code, String message) {
+        ObjectNode errorResponse = createErrorResponse(idNode, code, message);
+        try {
+            writer.println(mapper.writeValueAsString(errorResponse));
+            writer.flush();
+        } catch (Exception e) {
+            LOGGER.severe("Failed to send error response: " + e.getMessage());
+        }
     }
 
+    
     public void handleRequest(String requestLine, PrintWriter writer) {
         try {
             LOGGER.finer("[JSON-RPC →] " + requestLine);
             JsonNode request = mapper.readTree(requestLine);
             String method = request.get("method").asText();
             String id = request.has("id") ? request.get("id").asText() : null;
+            JsonNode idNode = request.get("id");
+            boolean isNotification = idNode == null || idNode.isNull();
             JsonNode params = request.get("params");
-            handleInitialize(params); // TODO: This is bad practice.
+            mess.completeSendResponse(rawChannel, method);
             CompletableFuture<JsonNode> responseFuture = switch (method) {
-                case "initialize" -> handleInitialize(params);
-                case "tools/list" -> handleToolsList();
+                case "initialize" -> handleInitialize(params, id);
+                case "tools/list" -> handleToolsList(id);
                 case "tools/call" -> handleToolCall(params);
-                default -> CompletableFuture.completedFuture(createError(-32601, "Method not found"));
+                case "notifications/initialized" -> {
+                        LOGGER.info("Received notifications/initialized → ignoring");
+                        yield CompletableFuture.completedFuture(null); // skip response
+                    }
+                default -> CompletableFuture.completedFuture(createErrorResponse(idNode, -32601, "Method not found"));
             };
-            responseFuture.thenAccept(result -> {
-                ObjectNode response = mapper.createObjectNode();
-                response.put("jsonrpc", "2.0");
-                if (id != null) response.put("id", id);
-                response.set("result", result);
-                LOGGER.finer("[JSON-RPC ←] " + response);
-                writer.println(response.toString());
-                writer.flush();
+            responseFuture.thenAccept(responseJson -> {
+                if (isNotification || responseJson == null) {
+                    return;
+                }
+                try {
+                    String jsonString = mapper.writeValueAsString(responseJson);
+                    LOGGER.finer("[JSON-RPC ←] " + jsonString);
+                    mess.completeSendResponse(rawChannel, jsonString);
+                    writer.println(jsonString);
+                    writer.flush();
+                } catch (JsonProcessingException e) {
+                    sendError(writer, idNode, -32603, "JSON serialization error: " + e.getMessage());
+                }
             }).exceptionally(ex -> {
-                ObjectNode errorResponse = createErrorResponse(id, -32603, "Internal error: " + ex.getMessage());
-                LOGGER.severe("[JSON-RPC ← ERROR] " + errorResponse.toString());
-                writer.println(errorResponse.toString());
-                writer.flush();
+                sendError(writer, idNode, -32603, "Internal error: " + ex.getMessage());
                 return null;
             });
         } catch (Exception e) {
-            ObjectNode errorResponse = createErrorResponse(null, -32700, "Parse error" + e.getMessage());
-            LOGGER.severe("[JSON-RPC PARSE ERROR] " + errorResponse.toString());
-            writer.flush();
+            LOGGER.severe("Failed to parse request: " + e.getMessage());
+            sendError(writer, null, -32700, "Parse error: " + e.getMessage());
         }
     }
     
@@ -139,12 +185,10 @@ public class CustomMCPServer {
         }
     }
     
-    private CompletableFuture<JsonNode> handleToolsList() {
-        if (!initialized) {
-            return CompletableFuture.completedFuture(createError(-32002, "Server not initialized"));
-        }
+    private CompletableFuture<JsonNode> handleToolsList(String id) {
         ObjectNode result = mapper.createObjectNode();
         ArrayNode toolsArray = mapper.createArrayNode();
+
         for (CustomTool<?, ?> tool : toolService.getTools()) {
             ObjectNode toolDef = mapper.createObjectNode();
             toolDef.put("name", tool.getName());
@@ -153,8 +197,15 @@ public class CustomMCPServer {
             toolsArray.add(toolDef);
         }
         result.set("tools", toolsArray);
-        return CompletableFuture.completedFuture(result);
+
+        ObjectNode response = mapper.createObjectNode();
+        response.put("jsonrpc", "2.0");
+        response.put("id", id);
+        response.set("result", result);
+
+        return CompletableFuture.completedFuture(response);
     }
+
     
     public void initializeTools() {
         toolService.registerTool(new CountFileLines(replChatMemory));
@@ -183,6 +234,7 @@ public class CustomMCPServer {
             LOGGER.severe("Error in MCP server: " + e.getMessage());
         }
     }
+
 
     public static class ToolWrapper {
     

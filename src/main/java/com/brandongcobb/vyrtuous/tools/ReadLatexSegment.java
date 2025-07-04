@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
+//import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class ReadLatexSegment implements CustomTool<ReadLatexSegmentInput, ToolStatus> {

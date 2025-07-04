@@ -35,7 +35,7 @@ import java.nio.file.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
+//import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class CreateFile implements CustomTool<CreateFileInput, ToolStatus> {

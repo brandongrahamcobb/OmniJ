@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
-import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
+//import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class FindInFile implements CustomTool<FindInFileInput, ToolStatus> {

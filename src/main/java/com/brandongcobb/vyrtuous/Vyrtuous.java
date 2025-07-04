@@ -21,6 +21,7 @@ package com.brandongcobb.vyrtuous;
 import com.brandongcobb.vyrtuous.component.server.CustomMCPServer;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -63,17 +64,14 @@ public class Vyrtuous {
     public static final String YELLOW = "\u001B[33m";
     
     public static void main(String[] args) {
-        SpringApplication.run(Vyrtuous.class, args);
+        ApplicationContext ctx = SpringApplication.run(Vyrtuous.class, args);
         LOGGER.setLevel(Level.FINE);
         app = new Vyrtuous();
         for (Handler h : LOGGER.getParent().getHandlers()) {
             h.setLevel(Level.FINE);
         }
-        try {
-            new CountDownLatch(1).await();
-        } catch (InterruptedException ie) {
-            ie.printStackTrace();
-        }
+        CustomMCPServer server = ctx.getBean(CustomMCPServer.class);
+        server.start();
     }
 
     public static CompletableFuture<Vyrtuous> completeGetAppInstance() {
