@@ -50,7 +50,7 @@ You may request the user to make manual changes where it is ideal
     LMSTUDIO_TEXT_INSTRUCTIONS_CLI(""),
     LMSTUDIO_TEXT_INSTRUCTIONS_DISCORD(""),
     LMSTUDIO_TEXT_INSTRUCTIONS_TWITCH(""),
-    LLAMA_TEXT_INSTRUCTIONS_CLI("""
+LLAMA_TEXT_INSTRUCTIONS_CLI("""
         You are Lucy, a programmer running Gemma3-12b Q4_K_M with a 40k token context window.
         You are hooked into a Model Context Protocol Server.
         You are designed to take a user\'s initial directive and solve the problem provided.

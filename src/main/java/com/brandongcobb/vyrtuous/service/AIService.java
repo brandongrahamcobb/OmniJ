@@ -481,18 +481,20 @@ public class AIService {
             switch (requestType) {
                 case "deprecated":
                     body.put("model", model);
-                    systemMsg.put("role", "system");
-                    systemMsg.put("content", instructions);
-                    userMsg.put("role", "user");
-                    userMsg.put("content", content);
-                    body.put("stream", stream);
                     body.put("max_completion_tokens", 128000);
-                    messages.add(systemMsg);
+                    if (System.getenv("CLI_PROVIDER").equals("null")) {
+                        systemMsg.put("role", "system");
+                        systemMsg.put("content", instructions);
+                        messages.add(systemMsg);
+                        userMsg.put("role", "user");
+                        userMsg.put("content", content);
+                        body.put("tools", tools);
+                    } else {
+                        userMsg.put("role", "user");
+                        userMsg.put("content", instructions + content);
+                    }
                     messages.add(userMsg);
                     body.put("messages", messages);
-                    if (System.getenv("CLI_PROVIDER").equals("google")) {
-                        body.put("tools", tools);
-                    }
                     break;
                 case "moderation":
                     body.put("model", model);
