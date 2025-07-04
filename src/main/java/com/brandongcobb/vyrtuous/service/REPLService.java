@@ -248,7 +248,7 @@ public class REPLService {
                 }
             } else {
                 LOGGER.finer("No tools to run, falling back to user input.");
-                System.out.print("> ");
+                System.out.print("USER: ");
                 String newInput = scanner.nextLine();
                 replChatMemory.add("assistant", new UserMessage(newInput));
                 replChatMemory.add("user", new UserMessage(newInput));
@@ -368,10 +368,9 @@ public class REPLService {
                                 responseIdFuture = openaiUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(openaiUtils.completeGetTokens().join());
                                 if (!firstRun) {
-                                  //  replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
                                     replChatMemory.add("user", new AssistantMessage(tokensCount));
-                                 //   printIt();
-                                    mess.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
+                                    printIt();
+                                    mess.completeSendResponse(rawChannel, "TOKENS: " + tokensCount);
                                 }
                             }
                             case "llama" -> {
@@ -380,10 +379,9 @@ public class REPLService {
                                 responseIdFuture = llamaUtils.completeGetResponseId();
                                 String tokensCount = String.valueOf(llamaUtils.completeGetTokens().join());
                                 if (!firstRun) {
-                                    replChatMemory.add("assistant", new AssistantMessage("[Tokens]: " + tokensCount));
-                                    replChatMemory.add("user", new AssistantMessage("[Tokens]: " + tokensCount));
+                                    replChatMemory.add("user", new AssistantMessage("TOKENS: " + tokensCount));
                                     printIt();
-                                    mess.completeSendResponse(rawChannel, "[Tokens]: " + tokensCount);
+                                    mess.completeSendResponse(rawChannel, "TOKENS: " + tokensCount);
                                 }
                             }
                             case "openai" -> {
@@ -502,7 +500,7 @@ public class REPLService {
      * Full-REPL
      */
     private CompletableFuture<Void> startREPL(Scanner scanner, String userInput) {
-        System.out.println(Vyrtuous.BLURPLE + "Thinking..." + Vyrtuous.RESET);
+        System.out.println("ASSISTANT: Thinking...");
         if (scanner == null) {
             CompletableFuture<Void> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalArgumentException("Scanner cannot be null"));
@@ -516,7 +514,7 @@ public class REPLService {
         originalDirective = userInput;
         replChatMemory.add("assistant", new AssistantMessage(userInput));
         replChatMemory.add("user", new AssistantMessage(userInput));
-        mess.completeSendResponse(rawChannel, "[User]: " + userInput);
+        mess.completeSendResponse(rawChannel, "USER: " + userInput);
         userInput = null;
         return completeRStepWithTimeout(scanner, true)
             .thenCompose(resp ->
@@ -535,7 +533,7 @@ public class REPLService {
         inputExecutor.submit(() -> {
             try (Scanner scanner = new Scanner(System.in)) {
                 while (true) {
-                    System.out.print("> ");
+                    System.out.print("USER: ");
                     String input = scanner.nextLine();
                     startREPL(scanner, input)
                         .exceptionally(ex -> {
