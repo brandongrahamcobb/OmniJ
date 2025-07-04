@@ -159,11 +159,13 @@ public class CustomMCPServer {
     public void initializeTools() {
         toolService.registerTool(new CountFileLines(replChatMemory));
         toolService.registerTool(new CreateFile(replChatMemory));
+        toolService.registerTool(new DiffFiles(replChatMemory));
         toolService.registerTool(new FindInFile(replChatMemory));
         toolService.registerTool(new ListLatexStructure(replChatMemory));
         toolService.registerTool(new Maven(replChatMemory));
         toolService.registerTool(new Patch(replChatMemory));
         toolService.registerTool(new ReadFile(replChatMemory));
+        toolService.registerTool(new ReadFileLines(replChatMemory));
         toolService.registerTool(new ReadLatexSegment(replChatMemory));
         toolService.registerTool(new SearchFiles(replChatMemory));
         toolService.registerTool(new SearchWeb(replChatMemory));

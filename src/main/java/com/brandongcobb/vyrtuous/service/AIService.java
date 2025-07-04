@@ -490,47 +490,44 @@ public class AIService {
                     messages.add(systemMsg);
                     messages.add(userMsg);
                     body.put("messages", messages);
+                    if (System.getenv("CLI_PROVIDER").equals("google")) {
+                        body.put("tools", tools);
+                    }
+                    break;
+                case "moderation":
+                    body.put("model", model);
+                    body.put("input", content);
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
+                    break;
+                case "latest":
+                    body.put("placeholder", "");
+                    break;
+                case "response":
+                    body.put("model", model);
+                    ModelInfo info = Maps.RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
+                    if (info != null && info.status()) {
+                        body.put("max_output_tokens", tokens);
+                    } else {
+                        body.put("max_tokens", tokens);
+                    }
+                    body.put("instructions", instructions);
+                    systemMsg.put("role", "system");
+                    systemMsg.put("content", instructions);
+                    userMsg.put("role", "user");
+                    userMsg.put("content", content);
+                    messages.add(systemMsg);
+                    messages.add(userMsg);
+                    body.put("input", messages);
+                    body.put("stream", stream);
+                    if (previousResponseId != null) {
+                        body.put("previous_response_id", previousResponseId);
+                    }
+                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
                     body.put("tools", tools);
-//                case "moderation":
-//                    body.put("model", model);
-//                    body.put("input", content);
-//                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-//                case "latest":
-//                    body.put("placeholder", "");
-//                case "response":
-//                    body.put("model", model);
-//                    ModelInfo info = Maps.RESPONSE_MODEL_CONTEXT_LIMITS.get(model);
-//                    if (info != null && info.status()) {
-//                        body.put("max_output_tokens", tokens);
-//                    } else {
-//                        body.put("max_tokens", tokens);
-//                    }
-//                    body.put("instructions", instructions);
-//                    systemMsg.put("role", "system");
-//                    systemMsg.put("content", instructions);
-//                    userMsg.put("role", "user");
-//                    userMsg.put("content", content);
-//                    messages.add(systemMsg);
-//                    messages.add(userMsg);
-//                    body.put("input", messages);
-//                    body.put("stream", stream);
-//                    if (previousResponseId != null) {
-//                        body.put("previous_response_id", previousResponseId);
-//                    }
-//                    body.put("metadata", List.of(Map.of("timestamp", LocalDateTime.now().toString())));
-//                    for (ToolDefinition tool : allToolDefinitions) {
-//                        Map<String, Object> function = new LinkedHashMap<>();
-//                        function.put("name", tool.name());
-//                        function.put("description", tool.description());
-//                        function.put("parameters", tool.schema());
-//                        Map<String, Object> toolEntry = new LinkedHashMap<>();
-//                        toolEntry.put("type", "function");
-//                        toolEntry.put("function", function);
-//                        tools.add(toolEntry);
-//                    }
-//                    body.put("tools", tools);
-                //default:
-                 //   body.put("placeholder", "");
+                    break;
+                default:
+                    body.put("placeholder", "");
+                    break;
             }
             return body;
         });

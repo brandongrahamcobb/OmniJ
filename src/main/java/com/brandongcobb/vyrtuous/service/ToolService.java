@@ -95,6 +95,11 @@ public class ToolService {
         return new CreateFile(replChatMemory).run(input);
     }
 
+    @Tool(name = "diff_files", description = "Shows the differences between two files.")
+    public CompletableFuture<ToolStatus> diffFiles(DiffFilesInput input) {
+        return new DiffFiles(replChatMemory).run(input);
+    }
+
     @Tool(name = "find_in_file", description = "Provides context for found strings inside a file")
     public CompletableFuture<ToolStatus> findInFile(FindInFileInput input) {
         return new FindInFile(replChatMemory).run(input);
@@ -120,6 +125,11 @@ public class ToolService {
         return new ReadFile(replChatMemory).run(input);
     }
 
+    @Tool(name = "read_file_line", description = "Read the contents of a file")
+    public CompletableFuture<ToolStatus> readFileLine(ReadFileLinesInput input) {
+        return new ReadFileLines(replChatMemory).run(input);
+    }
+    
     @Tool(name = "read_latex_segment", description = "Read a segment of LaTeXe in a .tex file")
     public CompletableFuture<ToolStatus> readLatexSegment(ReadLatexSegmentInput input) {
         return new ReadLatexSegment(replChatMemory).run(input);
