@@ -17,8 +17,8 @@
  */
 package com.brandongcobb.vyrtuous.utils.inc;
 
-import com.brandongcobb.vyrtuous.enums.ModelRegistry;
-import com.brandongcobb.vyrtuous.records.ModelInfo;
+import com.brandongcobb.vyrtuous.enums.*;
+import com.brandongcobb.vyrtuous.records.*;
 
 import java.util.Arrays;
 import java.util.HashMap;

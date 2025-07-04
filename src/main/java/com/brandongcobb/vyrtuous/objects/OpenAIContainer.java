@@ -21,7 +21,7 @@ package com.brandongcobb.vyrtuous.objects;
 import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataKey;
 import com.brandongcobb.metadata.MetadataList;
-import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

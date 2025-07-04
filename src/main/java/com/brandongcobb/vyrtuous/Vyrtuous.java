@@ -18,13 +18,19 @@
  */
 package com.brandongcobb.vyrtuous;
 
-import com.brandongcobb.vyrtuous.component.server.CustomMCPServer;
+import com.brandongcobb.vyrtuous.component.bot.*;
+import com.brandongcobb.vyrtuous.component.server.*;
+import com.brandongcobb.vyrtuous.service.*;
+import net.dv8tion.jda.api.JDA;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -32,13 +38,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.*;
+import java.io.*;
+import jakarta.annotation.PostConstruct;
 
 @SpringBootApplication
 public class Vyrtuous {
 
-    private static Vyrtuous app;
+    private JDA api;
+    private Vyrtuous app;
+    private MessageService mess;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private static Boolean isInputThreadRunning = false;
+    private GuildChannel rawChannel;
     private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
     public Map<Long, String> userModelPairs = new HashMap<>();
     public Map<Long, String> userSourcePairs = new HashMap<>();
@@ -63,19 +75,59 @@ public class Vyrtuous {
     public static final String WHITE = "\u001B[37m";
     public static final String YELLOW = "\u001B[33m";
     
+    @Autowired
+    private void wrapper(DiscordBot bot) {
+        this.api = bot.getJDA();
+        this.mess = new MessageService(api);
+        this.rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
+    }
+    
     public static void main(String[] args) {
+        // 1. Boot Spring
         ApplicationContext ctx = SpringApplication.run(Vyrtuous.class, args);
         LOGGER.setLevel(Level.FINE);
-        app = new Vyrtuous();
+        
         for (Handler h : LOGGER.getParent().getHandlers()) {
             h.setLevel(Level.FINE);
         }
+        Vyrtuous app = ctx.getBean(Vyrtuous.class);
+        // 2. Get beans from Spring
         CustomMCPServer server = ctx.getBean(CustomMCPServer.class);
-        server.start();
+        REPLService replService = ctx.getBean(REPLService.class);
+        // 3. Start REPL thread
+        try (Scanner scanner = new Scanner(System.in)) {
+            while (true) {
+                if (replService.isWaitingForInput()) {
+                    System.out.print("USER: ");
+                    String line = scanner.nextLine();
+                    replService.completeWithUserInput(line);
+                } else {
+                    String line = scanner.nextLine();
+                    if (app.looksLikeJsonRpc(line)) {
+                        String response = server.handleRequest(line).join();
+                        if (response != null && !response.isBlank()) {
+                            System.out.println(response);
+                            app.wrapper(ctx.getBean(DiscordBot.class));
+                            System.out.flush();
+                        }
+                    } else {
+                        replService.startREPL(line)
+                            .exceptionally(ex -> {
+                                LOGGER.log(Level.SEVERE, "REPL crash", ex);
+                                return null;
+                            });
+                    }
+                }
+            }
+        }
+    }
+    
+    private boolean looksLikeJsonRpc(String line) {
+        return line.trim().startsWith("{") && line.contains("\"method\"");
     }
 
-    public static CompletableFuture<Vyrtuous> completeGetAppInstance() {
-        return CompletableFuture.completedFuture(app);
+    public CompletableFuture<Vyrtuous> completeGetAppInstance() {
+        return CompletableFuture.completedFuture(this);
     }
 
 }

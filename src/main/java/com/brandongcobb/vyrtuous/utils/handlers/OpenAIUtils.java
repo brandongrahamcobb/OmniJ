@@ -22,7 +22,7 @@ import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataContainer;
 import com.brandongcobb.metadata.MetadataKey;
 import com.brandongcobb.metadata.MetadataList;
-import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.*;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

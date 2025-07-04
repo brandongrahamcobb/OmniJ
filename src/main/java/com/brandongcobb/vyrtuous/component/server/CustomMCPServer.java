@@ -18,11 +18,10 @@
  */
 package com.brandongcobb.vyrtuous.component.server;
 
-import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
-import com.brandongcobb.vyrtuous.domain.ToolStatus;
-import com.brandongcobb.vyrtuous.service.MessageService;
-import com.brandongcobb.vyrtuous.service.ToolService;
+import com.brandongcobb.vyrtuous.*;
+import com.brandongcobb.vyrtuous.component.bot.*;
+import com.brandongcobb.vyrtuous.domain.*;
+import com.brandongcobb.vyrtuous.service.*;
 import com.brandongcobb.vyrtuous.tools.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -129,47 +128,54 @@ public class CustomMCPServer {
     }
 
     
-    public void handleRequest(String requestLine, PrintWriter writer) {
+    public CompletableFuture<String> handleRequest(String requestLine) {
+        CompletableFuture<String> resultFuture = new CompletableFuture<>();
         try {
             LOGGER.finer("[JSON-RPC →] " + requestLine);
             JsonNode request = mapper.readTree(requestLine);
             String method = request.get("method").asText();
-            String id = request.has("id") ? request.get("id").asText() : null;
             JsonNode idNode = request.get("id");
             boolean isNotification = idNode == null || idNode.isNull();
             JsonNode params = request.get("params");
+
             mess.completeSendResponse(rawChannel, method);
+
             CompletableFuture<JsonNode> responseFuture = switch (method) {
-                case "initialize" -> handleInitialize(params, id);
-                case "tools/list" -> handleToolsList(id);
+                case "initialize" -> handleInitialize(params, idNode != null ? idNode.asText() : null);
+                case "tools/list" -> handleToolsList(idNode != null ? idNode.asText() : null);
                 case "tools/call" -> handleToolCall(params);
                 case "notifications/initialized" -> {
-                        LOGGER.info("Received notifications/initialized → ignoring");
-                        yield CompletableFuture.completedFuture(null); // skip response
-                    }
+                    LOGGER.info("Received notifications/initialized → ignoring");
+                    yield CompletableFuture.completedFuture(null); // skip response
+                }
                 default -> CompletableFuture.completedFuture(createErrorResponse(idNode, -32601, "Method not found"));
             };
+
             responseFuture.thenAccept(responseJson -> {
                 if (isNotification || responseJson == null) {
+                    resultFuture.complete(null); // No response expected
                     return;
                 }
                 try {
                     String jsonString = mapper.writeValueAsString(responseJson);
                     LOGGER.finer("[JSON-RPC ←] " + jsonString);
                     mess.completeSendResponse(rawChannel, jsonString);
-                    writer.println(jsonString);
-                    writer.flush();
+                    resultFuture.complete(jsonString);
                 } catch (JsonProcessingException e) {
-                    sendError(writer, idNode, -32603, "JSON serialization error: " + e.getMessage());
+                    LOGGER.severe("JSON serialization error: " + e.getMessage());
+                    resultFuture.completeExceptionally(e);
                 }
             }).exceptionally(ex -> {
-                sendError(writer, idNode, -32603, "Internal error: " + ex.getMessage());
+                LOGGER.severe("Internal error: " + ex.getMessage());
+                resultFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
             LOGGER.severe("Failed to parse request: " + e.getMessage());
-            sendError(writer, null, -32700, "Parse error: " + e.getMessage());
+            resultFuture.completeExceptionally(e);
         }
+
+        return resultFuture;
     }
     
     private CompletableFuture<JsonNode> handleToolCall(JsonNode params) {
@@ -221,20 +227,6 @@ public class CustomMCPServer {
         toolService.registerTool(new SearchFiles(replChatMemory));
         toolService.registerTool(new SearchWeb(replChatMemory));
     }
-
-    public void start() {
-        LOGGER.info("Starting MCP Server");
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            PrintWriter writer = new PrintWriter(System.out, true)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                handleRequest(line, writer);
-            }
-        } catch (IOException e) {
-            LOGGER.severe("Error in MCP server: " + e.getMessage());
-        }
-    }
-
 
     public static class ToolWrapper {
     

@@ -19,12 +19,9 @@
 package com.brandongcobb.vyrtuous.cogs;
 
 import com.brandongcobb.metadata.MetadataContainer;
-import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
+import com.brandongcobb.vyrtuous.component.bot.*;
 import com.brandongcobb.vyrtuous.objects.*;
-import com.brandongcobb.vyrtuous.service.AIService;
-import com.brandongcobb.vyrtuous.service.MessageService;
-import com.brandongcobb.vyrtuous.service.ModerationService;
-import com.brandongcobb.vyrtuous.service.SettingsService;
+import com.brandongcobb.vyrtuous.service.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
