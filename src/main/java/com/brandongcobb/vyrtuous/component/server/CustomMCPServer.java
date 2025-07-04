@@ -169,7 +169,6 @@ public class CustomMCPServer {
         toolService.registerTool(new ReadLatexSegment(replChatMemory));
         toolService.registerTool(new SearchFiles(replChatMemory));
         toolService.registerTool(new SearchWeb(replChatMemory));
-        toolService.registerTool(new SummarizeLatexSection(replChatMemory));
     }
 
     public void start() {

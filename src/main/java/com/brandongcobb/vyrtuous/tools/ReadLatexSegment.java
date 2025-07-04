@@ -107,7 +107,6 @@ public class ReadLatexSegment implements CustomTool<ReadLatexSegmentInput, ToolS
                     .collect(Collectors.toList());
                 chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
             } catch (IOException e) {
                 return new ToolStatusWrapper("Error", false);
             }

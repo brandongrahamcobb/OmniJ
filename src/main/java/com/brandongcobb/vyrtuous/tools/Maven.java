@@ -125,7 +125,6 @@ public class Maven implements CustomTool<MavenInput, ToolStatus> {
                 // Record invocation in memory
                 chatMemory.add("assistant", new AssistantMessage("{\"tool\":\"maven\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 chatMemory.add("user", new AssistantMessage( "{\"tool\":\"maven\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
 
                 if (exitCode == 0) {
                     return new ToolStatusWrapper(result, true);

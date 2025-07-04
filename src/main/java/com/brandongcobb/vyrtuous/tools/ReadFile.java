@@ -18,9 +18,9 @@
  */
 package com.brandongcobb.vyrtuous.tools;
 
-import com.brandongcobb.vyrtuous.domain.input.ReadFileInput;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
+import com.brandongcobb.vyrtuous.domain.input.ReadFileInput;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -39,8 +39,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Normalizer;
 import java.util.concurrent.CompletableFuture;
-
-import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class ReadFile implements CustomTool<ReadFileInput, ToolStatus> {
@@ -104,8 +102,6 @@ public class ReadFile implements CustomTool<ReadFileInput, ToolStatus> {
                     return new ToolStatusWrapper("File not found: " + filePath, false);
                 }
                 byte[] rawBytes = Files.readAllBytes(filePath);
-
-                // Step 2: Decode safely with UTF-8 and replace invalid characters
                 CharsetDecoder decoder = StandardCharsets.UTF_8
                         .newDecoder()
                         .onMalformedInput(CodingErrorAction.REPLACE)
@@ -113,15 +109,9 @@ public class ReadFile implements CustomTool<ReadFileInput, ToolStatus> {
 
                 CharBuffer decodedBuffer = decoder.decode(ByteBuffer.wrap(rawBytes));
                 String safeContent = decodedBuffer.toString();
-
-                // Step 3: Normalize Unicode to NFC form
                 safeContent = Normalizer.normalize(safeContent, Normalizer.Form.NFC);
-
-                // Step 4: Escape for JSON (minimalist version)
-                
                 chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
                 return new ToolStatusWrapper(safeContent, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

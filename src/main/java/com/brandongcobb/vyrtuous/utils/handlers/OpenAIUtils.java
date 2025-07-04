@@ -247,6 +247,12 @@ public class OpenAIUtils {
         MetadataKey<Map<String, Object>> argumentsMapKey = new MetadataKey<>("arguments", Metadata.MAP);
         return CompletableFuture.completedFuture(this.container.get(argumentsMapKey));
     }
+    
+    public CompletableFuture<String> completeGetFinishReason() {
+        MetadataKey<String> finishKey = new MetadataKey<>("finish_reason", Metadata.STRING);
+        return CompletableFuture.completedFuture(this.container.get(finishKey));
+    }
+
 
 
     /*

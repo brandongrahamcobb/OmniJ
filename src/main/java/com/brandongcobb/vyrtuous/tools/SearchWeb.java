@@ -110,7 +110,6 @@ public class SearchWeb implements CustomTool<SearchWebInput, ToolStatus> {
                 : "Search results:\n" + String.join("\n", results);
                 chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
                 return new ToolStatusWrapper(content, true);
             } catch (Exception e) {
                 return new ToolStatusWrapper("Search failed: " + e.getMessage(), false);

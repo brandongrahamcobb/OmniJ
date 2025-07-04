@@ -97,6 +97,13 @@ public class OpenAIContainer extends MainContainer {
                 MetadataKey<String> completionContentKey = new MetadataKey<>("content", Metadata.STRING);
                 put(completionContentKey, completionContent);
             }
+            String finishReason = (String) completionChoice.get("finish_reason");
+
+            // Store finish_reason
+            if (finishReason != null) {
+                MetadataKey<String> finishKey = new MetadataKey<>("finish_reason", Metadata.STRING);
+                put(finishKey, finishReason);
+            }
             MetadataKey<Integer> tokenCountKey = new MetadataKey<>("token_count", Metadata.INTEGER);
             Map<String, Object> usage = (Map<String, Object>) responseMap.get("usage");
             if (usage != null && usage.get("total_tokens") instanceof Number) {

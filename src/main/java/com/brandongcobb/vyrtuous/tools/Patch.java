@@ -19,10 +19,10 @@
 package com.brandongcobb.vyrtuous.tools;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.domain.input.PatchInput;
 import com.brandongcobb.vyrtuous.domain.PatchOperation;
 import com.brandongcobb.vyrtuous.domain.ToolStatus;
 import com.brandongcobb.vyrtuous.domain.ToolStatusWrapper;
+import com.brandongcobb.vyrtuous.domain.input.PatchInput;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -37,8 +37,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
-
-import static com.brandongcobb.vyrtuous.service.REPLService.printIt;
 
 @Component
 public class Patch implements CustomTool<PatchInput, ToolStatus> {
@@ -153,7 +151,6 @@ public class Patch implements CustomTool<PatchInput, ToolStatus> {
 
                 chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
                 return new ToolStatusWrapper("Patch applied successfully.", true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

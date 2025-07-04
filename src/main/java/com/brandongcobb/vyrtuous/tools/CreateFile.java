@@ -123,7 +123,6 @@ public class CreateFile implements CustomTool<CreateFileInput, ToolStatus> {
                 );
                 chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
                 return new ToolStatusWrapper("File created successfully: " + filePath.toString(), true);
             } catch (FileAlreadyExistsException e) {
                 return new ToolStatusWrapper("File already exists and overwrite not allowed.", false);

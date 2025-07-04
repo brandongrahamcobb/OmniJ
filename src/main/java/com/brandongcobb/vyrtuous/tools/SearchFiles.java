@@ -194,7 +194,6 @@ public class SearchFiles implements CustomTool<SearchFilesInput, ToolStatus> {
                 }
                 chatMemory.add("assistant", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
                 chatMemory.add("user", new AssistantMessage("{\"tool\":" + "\"" + getName() + "\",\"arguments\":" + input.getOriginalJson().toString() + "}"));
-                printIt();
                 return new ToolStatusWrapper(summary, true);
             } catch (IOException e) {
                 return new ToolStatusWrapper("IO error: " + e.getMessage(), false);

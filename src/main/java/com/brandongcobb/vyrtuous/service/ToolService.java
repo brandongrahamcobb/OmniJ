@@ -144,11 +144,6 @@ public class ToolService {
     public CompletableFuture<ToolStatus> searchWeb(SearchWebInput input) {
         return new SearchWeb(replChatMemory).run(input);
     }
-
-    @Tool(name = "summarize_latex_section", description = "Summarize a section in a LaTeXe document")
-    public CompletableFuture<ToolStatus> summarizeLatexSection(SummarizeLatexSectionInput input) {
-        return new SummarizeLatexSection(replChatMemory).run(input);
-    }
     
 //    public CompletableFuture<ToolStatus> callTool(String toolName, JsonNode arguments) throws Exception {
 //        for (Method method : this.getClass().getMethods()) {
