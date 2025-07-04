@@ -87,7 +87,8 @@ public class OpenAIContainer extends MainContainer {
         MetadataKey<String> idKey = new MetadataKey<>("id", Metadata.STRING);
         String requestId = (String) responseMap.get("id");
         put(idKey, requestId);
-        if (requestId.length() > 0) {
+        LOGGER.finer(requestId);
+        if (false) {
             List<Map<String, Object>> completionChoices = (List<Map<String, Object>>) responseMap.get("choices");
             if (completionChoices == null || completionChoices.isEmpty()) return;
             Map<String, Object> completionChoice = completionChoices.get(0);
@@ -210,6 +211,12 @@ public class OpenAIContainer extends MainContainer {
             List<Map<String, Object>> completionChoices = (List<Map<String, Object>>) responseMap.get("choices");
             if (completionChoices == null || completionChoices.isEmpty()) return;
             Map<String, Object> completionChoice = completionChoices.get(0);
+            String finishReason = (String) completionChoice.get("finish_reason");
+            LOGGER.finer(finishReason);
+            if (finishReason != null) {
+                MetadataKey<String> finishKey = new MetadataKey<>("finish_reason", Metadata.STRING);
+                put(finishKey, finishReason);
+            }
             Map<String, Object> completionMessage = (Map<String, Object>) completionChoice.get("message");
             if (completionMessage != null) {
                 String completionContent = completionMessage != null ? (String) completionMessage.get("content") : null;
