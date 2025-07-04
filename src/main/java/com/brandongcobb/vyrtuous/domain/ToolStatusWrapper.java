@@ -18,9 +18,14 @@
  */
 package com.brandongcobb.vyrtuous.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class ToolStatusWrapper extends ToolStatus {
 
-    public ToolStatusWrapper(String message, boolean success) {
+    @JsonCreator
+    public ToolStatusWrapper(@JsonProperty("message") String message,
+                             @JsonProperty("success") boolean success) {
         super(message, success);
     }
 }
