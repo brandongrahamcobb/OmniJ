@@ -106,10 +106,12 @@ public class REPLService {
         String uuid = String.valueOf(counter.getAndIncrement());
         ToolResponseMessage.ToolResponse response = new ToolResponseMessage.ToolResponse(uuid, "tool", content);
         ToolResponseMessage toolMsg = new ToolResponseMessage(List.of(response));
+        ToolResponseMessage.ToolResponse otherResponse = new ToolResponseMessage.ToolResponse(uuid, "tool", content.length() <= 500 ? content : content.substring(0, 500));
+        ToolResponseMessage otherToolMsg = new ToolResponseMessage(List.of(response));
         replChatMemory.add("assistant", toolMsg);
-        replChatMemory.add("user", toolMsg);
+        replChatMemory.add("user", otherToolMsg);
         printIt();
-        mess.completeSendResponse(rawChannel, content);
+        mess.completeSendResponse(rawChannel, content.length() <= 500 ? content : content.substring(0, 500));
     }
     
     public String buildContext() {
