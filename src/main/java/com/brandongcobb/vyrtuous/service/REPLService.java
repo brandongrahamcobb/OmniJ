@@ -125,7 +125,6 @@ public class REPLService {
         replChatMemory.add("assistant", toolMsg);
         replChatMemory.add("user", otherToolMsg);
         printIt();
-        mess.completeSendResponse(rawChannel, content.length() <= 500 ? content : content.substring(0, 500));
     }
     
     public String buildContext() {
@@ -272,7 +271,6 @@ public class REPLService {
                     return nextInputFuture.thenCompose(userInput -> {
                         replChatMemory.add("assistant", new UserMessage(userInput));
                         replChatMemory.add("user", new UserMessage(userInput));
-                        mess.completeSendResponse(rawChannel, userInput);
                         originalDirective = userInput;
                         return completeRStepWithTimeout(false)
                             .thenCompose(resp -> completeEStep(resp, false));
@@ -432,7 +430,6 @@ public class REPLService {
                                     replChatMemory.add("assistant", new AssistantMessage(content));
                                     replChatMemory.add("user", new AssistantMessage(content));
                                     System.out.println(content);
-                                    mess.completeSendResponse(rawChannel, content);
                                 }
                             }
                         }
@@ -462,7 +459,6 @@ public class REPLService {
         originalDirective = userInput;
         replChatMemory.add("assistant", new AssistantMessage(userInput));
         replChatMemory.add("user", new AssistantMessage(userInput));
-        mess.completeSendResponse(rawChannel, "[User]: " + userInput);
         userInput = null;
         return completeRStepWithTimeout(true)
             .thenCompose(resp ->

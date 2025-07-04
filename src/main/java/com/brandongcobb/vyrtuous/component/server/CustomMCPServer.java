@@ -57,11 +57,9 @@ public class CustomMCPServer {
     private GuildChannel rawChannel;
 
     @Autowired
-    public CustomMCPServer(DiscordBot discordBot, MessageService messageService, ChatMemory replChatMemory, ToolService toolService) {
-        this.mess = messageService;
+    public CustomMCPServer(DiscordBot discordBot, ChatMemory replChatMemory, ToolService toolService) {
         this.replChatMemory = replChatMemory;
         this.toolService = toolService;
-        this.rawChannel = discordBot.getJDA().getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
         initializeTools();
     }
     
@@ -138,7 +136,6 @@ public class CustomMCPServer {
             boolean isNotification = idNode == null || idNode.isNull();
             JsonNode params = request.get("params");
 
-            mess.completeSendResponse(rawChannel, method);
 
             CompletableFuture<JsonNode> responseFuture = switch (method) {
                 case "initialize" -> handleInitialize(params, idNode != null ? idNode.asText() : null);
@@ -159,7 +156,6 @@ public class CustomMCPServer {
                 try {
                     String jsonString = mapper.writeValueAsString(responseJson);
                     LOGGER.finer("[JSON-RPC ←] " + jsonString);
-                    mess.completeSendResponse(rawChannel, jsonString);
                     resultFuture.complete(jsonString);
                 } catch (JsonProcessingException e) {
                     LOGGER.severe("JSON serialization error: " + e.getMessage());

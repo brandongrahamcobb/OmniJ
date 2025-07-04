@@ -75,13 +75,6 @@ public class Vyrtuous {
     public static final String WHITE = "\u001B[37m";
     public static final String YELLOW = "\u001B[33m";
     
-    @Autowired
-    private void wrapper(DiscordBot bot) {
-        this.api = bot.getJDA();
-        this.mess = new MessageService(api);
-        this.rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
-    }
-    
     public static void main(String[] args) {
         // 1. Boot Spring
         ApplicationContext ctx = SpringApplication.run(Vyrtuous.class, args);
@@ -107,7 +100,6 @@ public class Vyrtuous {
                         String response = server.handleRequest(line).join();
                         if (response != null && !response.isBlank()) {
                             System.out.println(response);
-                            app.wrapper(ctx.getBean(DiscordBot.class));
                             System.out.flush();
                         }
                     } else {
