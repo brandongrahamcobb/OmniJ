@@ -151,9 +151,10 @@ public class REPLService {
                 rpcRequest.put("method", "tools/call");
                 ObjectNode params = rpcRequest.putObject("params");
                 params.put("name", toolName);
-                params.set("arguments", toolCallNode.get("arguments"));
+                params.set("arguments", argsNode);
                 String rpcText = rpcRequest.toString();
                 LOGGER.finer("[JSON-RPC →] " + rpcText);
+
                 StringWriter buffer = new StringWriter();
                 CountDownLatch latch = new CountDownLatch(1);
                 PrintWriter out = new PrintWriter(new Writer() {
@@ -165,29 +166,39 @@ public class REPLService {
                     }
                     @Override public void close() {}
                 }, true);
+
                 mcpServer.handleRequest(rpcText, out);
+
                 if (!latch.await(2, TimeUnit.SECONDS)) {
-                    throw new TimeoutException("Tool execution timed out");
+                    String timeoutMsg = "TOOL: [" + toolName + "] Error: Tool execution timed out";
+                    LOGGER.severe(timeoutMsg);
+                    addToolOutput(timeoutMsg);
+                    return;
                 }
+
                 String responseStr = buffer.toString().trim();
                 LOGGER.finer("[JSON-RPC ←] " + responseStr);
                 if (responseStr.isEmpty()) {
-                    throw new IOException("Empty tool response");
+                    String emptyMsg = "TOOL: [" + toolName + "] Error: Empty tool response";
+                    LOGGER.severe(emptyMsg);
+                    addToolOutput(emptyMsg);
+                    return;
                 }
-                JsonNode root   = mapper.readTree(responseStr);
-                JsonNode result = root.path("result");  // this is your ToolResult.getOutput()
+
+                JsonNode root = mapper.readTree(responseStr);
+                JsonNode result = root.path("result");
                 String message = result.path("message").asText("No message");
                 boolean success = result.path("success").asBoolean(false);
-                LOGGER.finer(String.valueOf(success));
+
                 if (success) {
                     addToolOutput("[" + toolName + "] " + message);
                     LOGGER.finer("[" + toolName + "] succeeded: " + message);
                 } else {
-                    addToolOutput("[" + toolName + " ERROR] " + message);
+                    addToolOutput("TOOL: [" + toolName + "] Error: " + message);
                     LOGGER.severe(toolName + " failed: " + message);
                 }
             } catch (Exception e) {
-                String err = "Exception executing tool '" + toolName + "': " + e.getMessage();
+                String err = "TOOL: [" + toolName + "] Error: Exception executing tool: " + e.getMessage();
                 LOGGER.severe(err);
                 addToolOutput(err);
             }
@@ -196,6 +207,7 @@ public class REPLService {
             return null;
         });
     }
+
 
     private CompletableFuture<Void> completeESubStep(boolean firstRun) {
         LOGGER.finer("Starting E-substep for first run...");
