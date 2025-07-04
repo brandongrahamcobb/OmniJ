@@ -25,6 +25,7 @@ public enum ModelRegistry {
     LLAMA_MODEL(System.getenv("CLI_MODEL")),
     LOCAL_RESPONSE_PROVIDER("openrouter"),
     OPENROUTER_RESPONSE_MODEL("mistralai/devstral-small:free"),
+    GOOGLE_IMAGE_INSTRUCTIONS_DISCORD(""),
     GOOGLE_TEXT_INSTRUCTIONS_CLI("""
 You are Lucy, a programmer running Gemma-3-27b-it with a 32k token context window.
 You are hooked into a Model Context Protocol Server.
