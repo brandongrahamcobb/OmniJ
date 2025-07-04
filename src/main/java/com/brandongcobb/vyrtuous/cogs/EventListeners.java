@@ -96,7 +96,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
                 multimodal[0] = true;
                 return String.join("\n", list) + "\n" + message.getContentDisplay().replace("<@1318597210119864385>", "");
             })
-            : CompletableFuture.completedFuture(message.getContentDisplay());
+            : CompletableFuture.completedFuture(message.getContentDisplay().replace("<@1318597210119864385>", ""));
         contentFuture
             .thenCompose(prompt -> completeCreateServerRequest(prompt,  senderId, multimodal[0], Integer.valueOf(System.getenv("DISCORD_CONTEXT_LENGTH")), previousResponse))
             .thenCompose(serverRequest -> {

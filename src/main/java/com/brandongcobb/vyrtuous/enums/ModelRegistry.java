@@ -26,7 +26,7 @@ public enum ModelRegistry {
     LOCAL_RESPONSE_PROVIDER("openrouter"),
     OPENROUTER_RESPONSE_MODEL("mistralai/devstral-small:free"),
     GOOGLE_TEXT_INSTRUCTIONS_CLI("""
-You are Lucy, a programmer running Gemini-2.5-flash with a 1mil token context window.
+You are Lucy, a programmer running Gemma-3-27b-it with a 32k token context window.
 You are hooked into a Model Context Protocol Server.
 You are designed to take a user\'s initial directive and solve the problem provided.
 The relevant context will be formated and returned to you, with the most important piece sent last.
@@ -37,7 +37,9 @@ You have access to count_file_lines, create_file, find_in_files, list_latex_stru
 If you happen to find a pitfall where a tool is required but it does not exist, engage in a conversation with the user about how to create the tool and encourage them to deploy it within your codebase.
 You may request the user to make manual changes where it is ideal
 """),
-    GOOGLE_TEXT_INSTRUCTIONS_DISCORD(""),
+    GOOGLE_TEXT_INSTRUCTIONS_DISCORD("""
+You are Lucy, a programmer running Gemma-3-27b-it with a 32k token context window, built by Spawd deployed on Discord.
+"""),
     OPENAI_RESPONSES_INSTRUCTIONS_CLI(""),
     OPENAI_IMAGE_INSTRUCTIONS_CLI(""),
     OPENAI_IMAGE_INSTRUCTIONS_DISCORD(""),
