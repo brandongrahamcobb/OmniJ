@@ -64,10 +64,10 @@ public class Vyrtuous {
     
     public static void main(String[] args) {
         SpringApplication.run(Vyrtuous.class, args);
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINER);
         app = new Vyrtuous();
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINER);
         }
         try {
             new CountDownLatch(1).await();

@@ -436,31 +436,6 @@ Here is the search_web schema:
   },
   "additionalProperties": false
 }
-Here is the summarize_latex_section schema:
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SummarizeLatexSection",
-  "type": "object",
-  "required": ["tool", "arguments"],
-  "properties": {
-    "tool": {
-      "type": "string",
-      "enum": ["summarize_latex_section"],
-      "description": "The name of the tool to invoke."
-    },
-    "arguments": {
-      "type": "object",
-      "required": ["path", "startLine", "endLine"],
-      "properties": {
-          "path": { "type": "string" },
-          "startLine": { "type": "integer", "minimum": 0 },
-          "endLine": { "type": "integer", "minimum": 0 }
-      },
-      "additionalProperties": false
-    }
-  },
-  "additionalProperties": false
-}
 You MUST operate under the assumption that only the tools described in the schemas are available unless explicitly told otherwise.
 If you happen to find a pitfall where a tool is required but it does not exist, engage in a conversation with the user about how to create the tool and encourage them to deploy it within your codebase.
 You may request the user to make manual changes where it is ideal

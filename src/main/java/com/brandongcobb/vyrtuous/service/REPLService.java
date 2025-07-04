@@ -401,40 +401,60 @@ public class REPLService {
                             boolean validJson = false;
                             OpenAIUtils openaiUtils = new OpenAIUtils(resp);
                             String finishReason = openaiUtils.completeGetFinishReason().join();
-                            if (finishReason == null) {
-                                String name = openaiUtils.completeGetFunctionName().join();
-                                Map<String, Object> args = openaiUtils.completeGetArguments().join();
-                                if (name == null || args == null) {
-                                    Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
-                                    Matcher matcher = pattern.matcher(content != null ? content : "");
-                                    while (matcher.find()) {
-                                        String jsonText = matcher.group(1).trim();
-                                        try {
-                                            JsonNode node = mapper.readTree(jsonText);
-                                            if (node.isArray()) {
-                                                for (JsonNode element : node) {
-                                                    if (element.has("tool")) {
-                                                        lastResults.add(element);
-                                                        validJson = true;
+                            if (finishReason != null) {
+                                if (!finishReason.contains("MALFORMED_FUNCTION_CALL")) {
+                                    String name = openaiUtils.completeGetFunctionName().join();
+                                    Map<String, Object> args = openaiUtils.completeGetArguments().join();
+                                    if (name == null || args == null) {
+                                        Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
+                                        Matcher matcher = pattern.matcher(content != null ? content : "");
+                                        while (matcher.find()) {
+                                            String jsonText = matcher.group(1).trim();
+                                            try {
+                                                JsonNode node = mapper.readTree(jsonText);
+                                                if (node.isArray()) {
+                                                    for (JsonNode element : node) {
+                                                        if (element.has("tool")) {
+                                                            lastResults.add(element);
+                                                            validJson = true;
+                                                        }
                                                     }
+                                                } else if (node.has("tool")) {
+                                                    lastResults.add(node);
+                                                    validJson = true;
                                                 }
-                                            } else if (node.has("tool")) {
-                                                lastResults.add(node);
-                                                validJson = true;
+                                            } catch (Exception e) {
+                                                LOGGER.severe("Skipping invalid JSON block: " + e.getMessage());
                                             }
-                                        } catch (Exception e) {
-                                            LOGGER.severe("Skipping invalid JSON block: " + e.getMessage());
                                         }
                                     }
-                                }
-                                if (!validJson && hasContent) {
-                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    metadataContainer.put(contentKey, content);
-                                    replChatMemory.add("assistant", new AssistantMessage(content));
-                                    replChatMemory.add("user", new AssistantMessage(content));
-                                    printIt();
-                                    mess.completeSendResponse(rawChannel, content);
-                                } else {
+                                    if (!validJson && hasContent) {
+                                        MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                        metadataContainer.put(contentKey, content);
+                                        replChatMemory.add("assistant", new AssistantMessage(content));
+                                        replChatMemory.add("user", new AssistantMessage(content));
+                                        printIt();
+                                        mess.completeSendResponse(rawChannel, content);
+                                    } else {
+                                        MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
+                                        String cleanedText = "";
+                                        if (name == null || args == null) {
+                                            Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
+                                            Matcher matcher = pattern.matcher(content != null ? content : "");
+                                            if (matcher.find()) {
+                                                String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
+                                                String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
+                                                cleanedText = before + after;
+                                            } else {
+                                                cleanedText = content != null ? content : "";
+                                            }
+                                        }
+                                        metadataContainer.put(contentKey, cleanedText);
+                                        replChatMemory.add("assistant", new AssistantMessage(cleanedText));
+                                        replChatMemory.add("user", new AssistantMessage(cleanedText));
+                                        printIt();
+                                        mess.completeSendResponse(rawChannel, cleanedText);
+                                    }
                                     try {
                                         JsonNode argsNode = mapper.valueToTree(args);
                                         ObjectNode toolCallNode = mapper.createObjectNode();
@@ -446,30 +466,12 @@ public class REPLService {
                                     } catch (Exception e) {
                                         LOGGER.severe("Invalid JSON in tool arguments for tool_call[" + i + "]: " + e.getMessage());
                                     }
-                                    MetadataKey<String> contentKey = new MetadataKey<>("response", Metadata.STRING);
-                                    String cleanedText = "";
-                                    if (name == null || args == null) {
-                                        Pattern pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
-                                        Matcher matcher = pattern.matcher(content != null ? content : "");
-                                        if (matcher.find()) {
-                                            String before = content.substring(0, matcher.start()).replaceAll("[\\n]+$", "");
-                                            String after = content.substring(matcher.end()).replaceAll("^[\\n]+", "");
-                                            cleanedText = before + after;
-                                        } else {
-                                            cleanedText = content != null ? content : "";
-                                        }
-                                    }
-                                    metadataContainer.put(contentKey, cleanedText);
-                                    replChatMemory.add("assistant", new AssistantMessage(cleanedText));
-                                    replChatMemory.add("user", new AssistantMessage(cleanedText));
+                                    this.lastResults = lastResults;
+                                } else {
+                                    replChatMemory.add("user", new AssistantMessage("MALFORMED_FUNCTION_CALL"));
                                     printIt();
-                                    mess.completeSendResponse(rawChannel, cleanedText);
                                 }
-                            } else {
-                                replChatMemory.add("user", new AssistantMessage("MALFORMED_FUNCTION_CALL"));
-                                printIt();
                             }
-                            this.lastResults = lastResults;
                             return metadataContainer;
                         });
                     })
