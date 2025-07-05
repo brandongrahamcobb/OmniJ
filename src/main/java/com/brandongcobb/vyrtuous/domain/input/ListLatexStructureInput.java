@@ -21,10 +21,11 @@ package com.brandongcobb.vyrtuous.domain.input;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class ListLatexStructureInput implements ToolInput {
+    
     private String path;
     private transient JsonNode originalJson;
     
-    
+    @Override
     public JsonNode getOriginalJson() {
         return originalJson;
     }

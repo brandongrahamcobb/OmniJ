@@ -22,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class SearchWebInput {
+public class SearchWebInput implements ToolInput {
     
     private String description;
     private String name;
@@ -34,6 +34,7 @@ public class SearchWebInput {
         this.query = query;
     }
     
+    @Override
     public JsonNode getOriginalJson() {
         return originalJson;
     }
@@ -41,6 +42,7 @@ public class SearchWebInput {
         return query;
     }
     
+    @Override
     public void setOriginalJson(JsonNode originalJson) {
         this.originalJson = originalJson;
     }

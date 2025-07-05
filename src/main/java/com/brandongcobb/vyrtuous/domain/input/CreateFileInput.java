@@ -20,7 +20,7 @@ package com.brandongcobb.vyrtuous.domain.input;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class CreateFileInput {
+public class CreateFileInput implements ToolInput {
 
     private String content;
     private transient JsonNode originalJson;
@@ -52,7 +52,7 @@ public class CreateFileInput {
     public void setContent(String content) {
         this.content = content;
     }
-    
+    @Override
     public void setOriginalJson(JsonNode originalJson) {
         this.originalJson = originalJson;
     }

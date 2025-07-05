@@ -50,6 +50,7 @@ public class SearchFilesInput implements ToolInput {
         return maxResults;
     }
     
+    @Override
     public JsonNode getOriginalJson() {
         return originalJson;
     }
@@ -77,6 +78,7 @@ public class SearchFilesInput implements ToolInput {
         this.maxResults = maxResults;
     }
     
+    @Override
     public void setOriginalJson(JsonNode originalJson) {
         this.originalJson = originalJson;
     }

@@ -55,6 +55,7 @@ public class REPLService {
 
     private AIService ais;
     private static final AtomicLong counter = new AtomicLong();
+    private volatile boolean firstRun = true;
     private MetadataContainer lastAIResponseContainer = null;
     private List<JsonNode> lastResults;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
@@ -200,6 +201,14 @@ public class REPLService {
     
     private CompletableFuture<Void> completeEStep(MetadataContainer response, boolean firstRun) {
         LOGGER.fine("Starting E-step...");
+        if (System.getenv("CLI_PROVIDER").equals("google")) {
+            try {
+                Thread.sleep(60000); // Pause for 1000 milliseconds (1 second)
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // Restore interrupted status
+                e.printStackTrace();
+            }
+        }
         return new MetadataUtils(response).completeGetContent().thenCompose(contentStr -> {
             String finishReason = new OpenAIUtils(response).completeGetFinishReason().join();
             if (finishReason != null) {
@@ -219,6 +228,14 @@ public class REPLService {
                     LOGGER.finer("No tools to run, falling back to user input.");
                     waitingForInput = true;
                     nextInputFuture = new CompletableFuture<>();
+                    if (System.getenv("CLI_PROVIDER").equals("google")) {
+                        try {
+                            Thread.sleep(60000); // Pause for 1000 milliseconds (1 second)
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt(); // Restore interrupted status
+                            e.printStackTrace();
+                        }
+                    }
                     System.out.print("USER: ");
                     return nextInputFuture.thenCompose(userInput -> {
                         replChatMemory.add("assistant", new UserMessage(userInput));
@@ -240,14 +257,9 @@ public class REPLService {
      * L-Step
      */
     private CompletableFuture<Void> completeLStep() {
+        firstRun = false;
         LOGGER.fine("Starting L-step...");
         System.out.println("ASSISTANT: Thinking...");
-        try {
-            Thread.sleep(60000); // Pause for 1000 milliseconds (1 second)
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // Restore interrupted status
-            e.printStackTrace();
-        }
         return completeRStepWithTimeout(false)
             .thenCompose(resp ->
                 completeEStep(resp, false)
@@ -347,11 +359,11 @@ public class REPLService {
                         String finishReason = utils.completeGetFinishReason().join();
                         String content = utils.completeGetContent().join();
                         this.lastResults = new ArrayList<>();
-                        if (content == null || content.isBlank()) {
+                        String toolName = utils.completeGetFunctionName().join();
+                        Map<String, Object> toolArgs = utils.completeGetArguments().join();
+                        if (content == null && content.isBlank() && toolName == null && toolArgs == null) {
                             LOGGER.warning("No content in model response.");
                         } else {
-                            String toolName = utils.completeGetFunctionName().join();
-                            Map<String, Object> toolArgs = utils.completeGetArguments().join();
                             if (toolName != null && toolArgs != null) {
                                 ObjectNode toolCallNode = mapper.createObjectNode();
                                 toolCallNode.put("tool", toolName);
@@ -439,15 +451,15 @@ public class REPLService {
         if (userInput == null || userInput.isBlank()) {
             return CompletableFuture.completedFuture(null);
         }
-        replChatMemory.clear("assistant");
-        replChatMemory.clear("user");
+//        replChatMemory.clear("assistant");
+//        replChatMemory.clear("user");
         originalDirective = userInput;
         replChatMemory.add("assistant", new AssistantMessage(userInput));
         replChatMemory.add("user", new AssistantMessage(userInput));
         userInput = null;
-        return completeRStepWithTimeout(true)
+        return completeRStepWithTimeout(firstRun)
             .thenCompose(resp ->
-                completeEStep(resp, true)
+                completeEStep(resp, firstRun)
                     .thenCompose(eDone ->
                         completePStep()
                             .thenCompose(pDone ->
