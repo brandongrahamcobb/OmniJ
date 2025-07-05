@@ -243,7 +243,7 @@ public class REPLService {
         LOGGER.fine("Starting L-step...");
         System.out.println("ASSISTANT: Thinking...");
         try {
-            Thread.sleep(600000); // Pause for 1000 milliseconds (1 second)
+            Thread.sleep(60000); // Pause for 1000 milliseconds (1 second)
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); // Restore interrupted status
             e.printStackTrace();
