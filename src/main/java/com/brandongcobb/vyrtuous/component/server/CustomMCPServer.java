@@ -133,14 +133,13 @@ public class CustomMCPServer {
             JsonNode request = mapper.readTree(requestLine);
             String method = request.get("method").asText();
             JsonNode idNode = request.get("id");
-            boolean isNotification = idNode == null || idNode.isNull();
+            boolean isNotification = method.equals("notifications/initialized");
             JsonNode params = request.get("params");
-
 
             CompletableFuture<JsonNode> responseFuture = switch (method) {
                 case "initialize" -> handleInitialize(params, idNode != null ? idNode.asText() : null);
                 case "tools/list" -> handleToolsList(idNode != null ? idNode.asText() : null);
-                case "tools/call" -> handleToolCall(params);
+                case "tools/call" -> handleToolCall(params, idNode != null ? idNode.asText() : null);
                 case "notifications/initialized" -> {
                     LOGGER.info("Received notifications/initialized → ignoring");
                     yield CompletableFuture.completedFuture(null); // skip response
@@ -149,7 +148,7 @@ public class CustomMCPServer {
             };
 
             responseFuture.thenAccept(responseJson -> {
-                if (isNotification || responseJson == null) {
+                if (isNotification) {
                     resultFuture.complete(null); // No response expected
                     return;
                 }
@@ -174,19 +173,39 @@ public class CustomMCPServer {
         return resultFuture;
     }
     
-    private CompletableFuture<JsonNode> handleToolCall(JsonNode params) {
+//    private CompletableFuture<JsonNode> handleToolCall(JsonNode params) {
+//        if (!initialized) {
+//            throw new IllegalStateException("Server not initialized");
+//        }
+//        try {
+//            String toolName = params.get("name").asText();
+//            JsonNode arguments = params.get("arguments");
+//            return toolService.callTool(toolName, arguments);
+//        } catch (Exception e) {
+//            throw new CompletionException(e);
+//        }
+//    }
+    private CompletableFuture<JsonNode> handleToolCall(JsonNode params, String id) {
         if (!initialized) {
             throw new IllegalStateException("Server not initialized");
         }
         try {
             String toolName = params.get("name").asText();
             JsonNode arguments = params.get("arguments");
-            return toolService.callTool(toolName, arguments);
+            return toolService.callTool(toolName, arguments)
+                .thenApply(toolResult -> {
+                    ObjectNode response = mapper.createObjectNode();
+                    response.put("jsonrpc", "2.0");
+                    response.put("id", id);
+                    response.set("result", toolResult);
+                    LOGGER.finer(response.toString());
+                    return response;
+                });
         } catch (Exception e) {
             throw new CompletionException(e);
         }
     }
-    
+
     private CompletableFuture<JsonNode> handleToolsList(String id) {
         ObjectNode result = mapper.createObjectNode();
         ArrayNode toolsArray = mapper.createArrayNode();

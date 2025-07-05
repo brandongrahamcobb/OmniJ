@@ -145,12 +145,6 @@ public class REPLService {
                     @Override public void close() {}
                 }, true);
                 String responseStr = mcpServer.handleRequest(rpcText).join();
-                if (!latch.await(2, TimeUnit.SECONDS)) {
-                    String timeoutMsg = "TOOL: [" + toolName + "] Error: Tool execution timed out";
-                    LOGGER.severe(timeoutMsg);
-                    addToolOutput(timeoutMsg, replChatMemory);
-                    return;
-                }
                 LOGGER.finer("[JSON-RPC ←] " + responseStr);
                 if (responseStr.isEmpty()) {
                     String emptyMsg = "TOOL: [" + toolName + "] Error: Empty tool response";
@@ -248,6 +242,12 @@ public class REPLService {
     private CompletableFuture<Void> completeLStep() {
         LOGGER.fine("Starting L-step...");
         System.out.println("ASSISTANT: Thinking...");
+        try {
+            Thread.sleep(600000); // Pause for 1000 milliseconds (1 second)
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // Restore interrupted status
+            e.printStackTrace();
+        }
         return completeRStepWithTimeout(false)
             .thenCompose(resp ->
                 completeEStep(resp, false)

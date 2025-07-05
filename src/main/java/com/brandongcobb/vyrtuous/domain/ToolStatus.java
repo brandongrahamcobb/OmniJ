@@ -18,6 +18,9 @@
  */
 package com.brandongcobb.vyrtuous.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public abstract class ToolStatus {
 
     private final String message;
@@ -28,11 +31,14 @@ public abstract class ToolStatus {
         this.success = success;
     }
 
+    @JsonProperty("message")
     public String getMessage() {
         return message;
     }
 
+    @JsonProperty("success")
     public boolean isSuccess() {
         return success;
     }
+
 }

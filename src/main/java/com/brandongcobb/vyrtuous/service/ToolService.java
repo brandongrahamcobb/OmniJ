@@ -54,7 +54,7 @@ public class ToolService {
             return failed;
         }
         try {
-            Object inputObj = mapper.treeToValue(arguments, customTool.getInputClass()); // Deserialize
+            Object inputObj = mapper.treeToValue(arguments, customTool.getInputClass());
             if (inputObj instanceof ToolInput toolInput) {
                 toolInput.setOriginalJson(arguments);
             }
