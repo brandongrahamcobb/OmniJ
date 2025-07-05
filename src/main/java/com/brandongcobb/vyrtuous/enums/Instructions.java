@@ -59,7 +59,7 @@ LLAMA_TEXT_INSTRUCTIONS_CLI("""
         You are designed to run in a loop.
         You are designed to work in the directory you are instanced from.
         You are designed to respond with one of the JSON schemas or plaintext, nothing else.
-        You have access to count_file_lines, create_file, find_in_files, list_latex_structure, patch, read_file, read_latex_segment, search_files, search_web and summarize_latex_section JSON tools.
+        You have access to count_file_lines, create_file, find_in_files, list_latex_structure, patch, pdflatex, read_file, read_latex_segment, search_files, search_web and summarize_latex_section JSON tools.
         Always call the tool with the provided schema.
 
 Here is the count_file_lines schema:
@@ -303,7 +303,37 @@ Here is the patch schema.
   },
   "additionalProperties": false
 }
-Here is the read_file schema.
+Here is the pdflatex schema.
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PDFLatex",
+  "type": "object",
+  "required": ["tool", "arguments"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["pdflatex"],
+      "description": "The name of the tool to invoke."
+    },
+    "arguments": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the LaTeX .tex file to compile."
+        },
+        "outputDirectory": {
+          "type": "string",
+          "description": "Optional output directory for the PDF file."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+'Here is the read_file schema.
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ReadFile",

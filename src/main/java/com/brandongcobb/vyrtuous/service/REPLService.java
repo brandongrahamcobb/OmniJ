@@ -203,9 +203,9 @@ public class REPLService {
         LOGGER.fine("Starting E-step...");
         if (System.getenv("CLI_PROVIDER").equals("google")) {
             try {
-                Thread.sleep(60000); // Pause for 1000 milliseconds (1 second)
+                Thread.sleep(60000);
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt(); // Restore interrupted status
+                Thread.currentThread().interrupt();
                 e.printStackTrace();
             }
         }
@@ -451,8 +451,8 @@ public class REPLService {
         if (userInput == null || userInput.isBlank()) {
             return CompletableFuture.completedFuture(null);
         }
-//        replChatMemory.clear("assistant");
-//        replChatMemory.clear("user");
+        replChatMemory.clear("assistant");
+        replChatMemory.clear("user");
         originalDirective = userInput;
         replChatMemory.add("assistant", new AssistantMessage(userInput));
         replChatMemory.add("user", new AssistantMessage(userInput));

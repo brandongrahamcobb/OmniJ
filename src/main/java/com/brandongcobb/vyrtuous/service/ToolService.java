@@ -119,6 +119,11 @@ public class ToolService {
     public CompletableFuture<ToolStatus> patch(PatchInput input) {
         return new Patch(replChatMemory).run(input);
     }
+    
+    @Tool(name = "pdflatex", description = "Compiles a LaTeX document")
+    public CompletableFuture<ToolStatus> pdflatex(PDFLatexInput input) {
+        return new PDFLatex(replChatMemory).run(input);
+    }
 
     @Tool(name = "read_file", description = "Read the contents of a file")
     public CompletableFuture<ToolStatus> readFile(ReadFileInput input) {
