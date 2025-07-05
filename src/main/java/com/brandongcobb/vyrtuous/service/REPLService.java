@@ -283,6 +283,7 @@ public class REPLService {
                     .orTimeout(timeout, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
                         if (err != null || resp == null) {
+                            LOGGER.finer(err.toString());
                             List<Message> originalMessages = replChatMemory.get("assistant");
                             ChatMemory newMemory = MessageWindowChatMemory.builder().build();
                             for (int i = 0; i < originalMessages.size() - 1; i++) {

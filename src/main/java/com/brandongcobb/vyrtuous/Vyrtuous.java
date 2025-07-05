@@ -78,10 +78,10 @@ public class Vyrtuous {
     public static void main(String[] args) {
         // 1. Boot Spring
         ApplicationContext ctx = SpringApplication.run(Vyrtuous.class, args);
-        LOGGER.setLevel(Level.FINE);
+        LOGGER.setLevel(Level.FINER);
         
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.FINER);
         }
         Vyrtuous app = ctx.getBean(Vyrtuous.class);
         // 2. Get beans from Spring

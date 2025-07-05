@@ -194,14 +194,13 @@ public class AIService {
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int statusCode = resp.getStatusLine().getStatusCode();
                     String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
+                    LOGGER.finer(responseBody);
                     int code = resp.getStatusLine().getStatusCode();
                     if (code < 200 || code >= 300) {
-                        String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        throw new IOException("completeGoogleProcessRequest failed: HTTP: " + statusCode + ", body: " + errorBody);
+                        throw new IOException("completeGoogleProcessRequest failed: HTTP: " + statusCode + ", body: " + responseBody);
                     }
                     if (onContentChunk == null) {
-                        String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
                         OpenAIContainer openaiContainer = new OpenAIContainer(outer);
                         return (MetadataContainer) openaiContainer;
                     } else {
@@ -249,26 +248,20 @@ public class AIService {
     private CompletableFuture<MetadataContainer> completeLlamaProcessRequest(Map<String, Object> requestBody, String endpoint, Consumer<String> onContentChunk
     ) {
         return CompletableFuture.supplyAsync(() -> {
-            String apiKey = System.getenv("LLAMA_API_KEY");
-            if (apiKey == null || apiKey.isEmpty()) {
-                throw new IllegalStateException("completeLlamaProcessRequest failed: Missing LLAMA_API_KEY. Provider option `llama` will not work.");
-            }
             try (CloseableHttpClient client = HttpClients.custom().setDefaultRequestConfig(REQUEST_CONFIG).build()) {
                 HttpPost post = new HttpPost(endpoint);
-                post.setHeader("Authorization", "Bearer " + apiKey);
                 post.setHeader("Content-Type", "application/json");
                 ObjectMapper mapper = new ObjectMapper();
                 String json = mapper.writeValueAsString(requestBody);
                 post.setEntity(new StringEntity(json));
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code < 200 || code >= 300) {
-                        String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        throw new  IOException("HTTP " + code + ": " + errorBody);
+                        throw new  IOException("HTTP " + code + ": " + responseBody);
                     }
                     if (onContentChunk == null) {
-                        String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
                         LlamaContainer llamaContainer = new LlamaContainer(outer);
                         return llamaContainer;
                     } else {
@@ -327,13 +320,12 @@ public class AIService {
                 post.setEntity(new StringEntity(json));
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code < 200 || code >= 300) {
-                        String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        throw new IOException("completeLMStudioProcessRequest failed: HTTP " + code + ": " + errorBody);
+                        throw new IOException("completeLMStudioProcessRequest failed: HTTP " + code + ": " + responseBody);
                     }
                     if (onContentChunk == null) {
-                        String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
                         LMStudioContainer lmstudioContainer = new LMStudioContainer(outer);
                         return lmstudioContainer;
                     } else {
@@ -401,13 +393,14 @@ public class AIService {
                 post.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code < 200 || code >= 300) {
-                        String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        throw new IOException("completeOpenAIProcessRequest failed: HTTP " + code + ": " + errorBody);
+                        throw new IOException("completeOpenAIProcessRequest failed: HTTP " + code + ": " + responseBody);
                     }
                     if (onContentChunk == null) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        LOGGER.finer(respBody);
+                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
                         OpenAIContainer openaiContainer = new OpenAIContainer(outer);
                         return (MetadataContainer) openaiContainer;
                     } else {
@@ -469,13 +462,14 @@ public class AIService {
                 post.setEntity(new StringEntity(json));
                 try (CloseableHttpResponse resp = client.execute(post)) {
                     int code = resp.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
                     if (code < 200 || code >= 300) {
-                        String errorBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        throw new IOException("completeOpenRouterProcessRequest failed: HTTP " + code + ": " + errorBody);
+                        throw new IOException("completeOpenRouterProcessRequest failed: HTTP " + code + ": " + responseBody);
                     }
                     if (onContentChunk == null) {
                         String respBody = EntityUtils.toString(resp.getEntity(), StandardCharsets.UTF_8);
-                        Map<String, Object> outer = mapper.readValue(respBody, new TypeReference<>() {});
+                        LOGGER.finer(respBody);
+                        Map<String, Object> outer = mapper.readValue(responseBody, new TypeReference<>() {});
                         OpenRouterContainer openRouterContainer = new OpenRouterContainer(outer);
                         return (MetadataContainer) openRouterContainer;
                     } else {
