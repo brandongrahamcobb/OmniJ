@@ -20,11 +20,8 @@ package com.brandongcobb.vyrtuous.enums;
 
 import java.util.HashMap;
 
-public enum ModelRegistry {
+public enum Instructions {
 
-    LLAMA_MODEL(System.getenv("CLI_MODEL")),
-    LOCAL_RESPONSE_PROVIDER("openrouter"),
-    OPENROUTER_RESPONSE_MODEL("mistralai/devstral-small:free"),
     GOOGLE_IMAGE_INSTRUCTIONS_DISCORD(""),
     GOOGLE_TEXT_INSTRUCTIONS_CLI("""
 You are Lucy, a programmer running Gemma-3-27b-it with a 32k token context window.
@@ -448,29 +445,11 @@ You may request the user to make manual changes where it is ideal
     LLAMA_TEXT_INSTRUCTIONS_TWITCH(""),
     OLLAMA_TEXT_INSTRUCTIONS_CLI(""),
     OLLAMA_TEXT_INSTRUCTIONS_DISCORD(""),
-    OLLAMA_TEXT_INSTRUCTIONS_TWITCH(""),
-
-    OPENAI_CODEX_MODEL("codex-mini-latest"),
-    OPENAI_MODERATION_STATUS(true),
-    OPENAI_MODERATION_MODEL("omni-moderation-latest"),
-    OPENAI_MODERATION_RESPONSE_STORE(false),
-    OPENAI_MODERATION_RESPONSE_STREAM(false),
-    OPENAI_MODERATION_RESPONSE_SYS_INPUT("You are a moderation assistant."),
-    OPENAI_MODERATION_RESPONSE_TEMPERATURE(0.7f),
-    OPENAI_MODERATION_RESPONSE_TOP_P(1.0f),
-    OPENAI_MODERATION_RESPONSE_WARNING("Please adhere to the community guidelines. Your message was flagged for moderation."),
-    OPENAI_RESPONSE_FORMAT(new HashMap<>()),
-    OPENAI_RESPONSE_MODEL("gpt-4.1"),
-    OPENAI_RESPONSE_N(1),
-    OPENAI_RESPONSE_STATUS(true),
-    OPENAI_RESPONSE_STORE(false),
-    OPENAI_RESPONSE_STREAM(false),
-    OPENAI_RESPONSE_TOP_P(1.0f),
-    OPENAI_RESPONSE_TEMPERATURE(0.7f);
+    OLLAMA_TEXT_INSTRUCTIONS_TWITCH("");
 
     private final Object value;
     
-    ModelRegistry(Object value) {
+    Instructions(Object value) {
         this.value = value;
     }
     

@@ -17,7 +17,7 @@
  */
 package com.brandongcobb.vyrtuous.service;
 
-import com.brandongcobb.vyrtuous.enums.ModelRegistry;
+import com.brandongcobb.vyrtuous.registry.*;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -26,12 +26,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class SettingsService {
-
+    
     private static SettingsService settingsService = new SettingsService();
     private final Map<Long, String> userModelPairs = new ConcurrentHashMap<>();
     private final Map<Long, String> userSourcePairs = new ConcurrentHashMap<>();
-    private static final String DEFAULT_MODEL = ModelRegistry.LLAMA_MODEL.toString();
-    private static final String DEFAULT_SOURCE = "llama";
+    private static final String DEFAULT_MODEL = System.getenv("LATEST_MODEL");
+    private static final String DEFAULT_SOURCE = "latest";
 
     /*
      *  Getters

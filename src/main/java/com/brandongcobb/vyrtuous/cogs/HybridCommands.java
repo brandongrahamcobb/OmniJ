@@ -1,3 +1,11 @@
+//
+//  is.swift
+//  
+//
+//  Created by Brandon Cobb on 7/5/25.
+//
+
+
 /*  HybridCommands.java The purpose of this class is to be a cog
  *  with both slash and text commands on Discord
  *
@@ -19,10 +27,10 @@
 package com.brandongcobb.vyrtuous.cogs;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
+import com.brandongcobb.vyrtuous.registry.*;
 import com.brandongcobb.vyrtuous.component.bot.DiscordBot;
 import com.brandongcobb.vyrtuous.service.SettingsService;
 import com.brandongcobb.vyrtuous.utils.inc.Helpers;
-import com.brandongcobb.vyrtuous.utils.inc.Maps;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
@@ -41,6 +49,7 @@ public class HybridCommands extends ListenerAdapter implements Cog {
     private JDA api;
     private Vyrtuous app;
     private DiscordBot bot;
+    private ModelRegistry registry = new ModelRegistry();
     
     @Override
     public void register (JDA api, DiscordBot bot) {
@@ -68,12 +77,12 @@ public class HybridCommands extends ListenerAdapter implements Cog {
                             String[] userSettings = (String[]) userSettingsObj;
                             String newModel = args[2].toLowerCase();
                             TextChannel channel = (TextChannel) event.getChannel();
-                            if (Helpers.containsString(Maps.LLAMA_MODELS, newModel)) {
+                            if (Helpers.containsString(registry.LLAMA_MODELS, newModel)) {
                                 return settingsManager.completeSetUserModel(sender.getIdLong(), newModel)
                                     .thenCompose(v -> settingsManager.completeSetUserSource(sender.getIdLong(), "llama"))
                                     .thenRun(() -> channel.sendMessage("Llama model: " + newModel + " for " + sender.getName()).queue());
                             } else {
-                                String[] options = Maps.LLAMA_MODELS; // Assume this is a defined array of model keys
+                                String[] options = registry.LLAMA_MODELS; // Assume this is a defined array of model keys
                                 String optionList = String.join(", ", options);
                                 channel.sendMessage("Your options are [" + optionList + "]").queue();
                                 return CompletableFuture.completedFuture(null);
@@ -88,12 +97,12 @@ public class HybridCommands extends ListenerAdapter implements Cog {
                             String[] userSettings = (String[]) userSettingsObj;
                             String newModel = args[2].toLowerCase();
                             TextChannel channel = (TextChannel) event.getChannel();
-                            if (Helpers.containsString(Maps.OPENAI_RESPONSE_MODELS, newModel)) {
+                            if (Helpers.containsString(registry.OPENAI_RESPONSE_MODELS, newModel)) {
                                 return settingsManager.completeSetUserModel(sender.getIdLong(), newModel)
                                     .thenCompose(v -> settingsManager.completeSetUserSource(sender.getIdLong(), "openai"))
                                     .thenRun(() -> channel.sendMessage("OpenAI model: " + newModel + " for " + sender.getName()).queue());
                             } else {
-                                String[] options = Maps.OPENAI_RESPONSE_MODELS; // You define this separately
+                                String[] options = registry.OPENAI_RESPONSE_MODELS; // You define this separately
                                 String optionList = String.join(", ", options);
                                 channel.sendMessage("Your options are [" + optionList + "]").queue();
                                 return CompletableFuture.completedFuture(null);

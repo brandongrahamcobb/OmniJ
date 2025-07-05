@@ -19,7 +19,7 @@
 package com.brandongcobb.vyrtuous.service;
 
 import com.brandongcobb.vyrtuous.Vyrtuous;
-import com.brandongcobb.vyrtuous.enums.ModelRegistry;
+import com.brandongcobb.vyrtuous.registry.ModelRegistry;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -62,7 +62,7 @@ public class ModerationService {
         if (member == null) {
             return CompletableFuture.completedFuture(null);
         }
-        String warningMsg = ModelRegistry.OPENAI_MODERATION_RESPONSE_WARNING.asString();
+        String warningMsg = "You have been warned.";
         long userId = author.getIdLong();
         return CompletableFuture.supplyAsync(() -> {
             synchronized (fileLock) {

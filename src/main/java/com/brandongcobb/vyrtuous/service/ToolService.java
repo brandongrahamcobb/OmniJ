@@ -144,18 +144,5 @@ public class ToolService {
     public CompletableFuture<ToolStatus> searchWeb(SearchWebInput input) {
         return new SearchWeb(replChatMemory).run(input);
     }
-    
-//    public CompletableFuture<ToolStatus> callTool(String toolName, JsonNode arguments) throws Exception {
-//        for (Method method : this.getClass().getMethods()) {
-//            Tool annotation = method.getAnnotation(Tool.class);
-//            if (annotation != null && annotation.name().equals(toolName)) {
-//                Class<?> inputType = method.getParameterTypes()[0];
-//                Object inputObj = mapper.treeToValue(arguments, inputType);
-//                Object result = method.invoke(this, inputObj);
-//                return (CompletableFuture<ToolStatus>) result;
-//            }
-//        }
-//        throw new IllegalArgumentException("Tool '" + toolName + "' not found");
-//    }
 }
 

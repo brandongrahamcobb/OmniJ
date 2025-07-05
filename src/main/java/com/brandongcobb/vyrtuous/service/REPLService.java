@@ -19,6 +19,7 @@
 
 package com.brandongcobb.vyrtuous.service;
 
+import com.brandongcobb.vyrtuous.registry.*;
 import com.brandongcobb.metadata.Metadata;
 import com.brandongcobb.metadata.MetadataContainer;
 import com.brandongcobb.metadata.MetadataKey;
@@ -31,8 +32,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.messages.*;
@@ -55,78 +54,43 @@ import java.util.stream.Collectors;
 public class REPLService {
 
     private AIService ais;
-    private static final Pattern ALREADY_ESCAPED = Pattern.compile("\\\\([\\\\\"`])");
-    private JDA api;
     private static final AtomicLong counter = new AtomicLong();
-    private final ExecutorService inputExecutor = Executors.newSingleThreadExecutor();
     private MetadataContainer lastAIResponseContainer = null;
     private List<JsonNode> lastResults;
     private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private ObjectMapper mapper = new ObjectMapper();
     private CustomMCPServer mcpServer;
-    private MessageService mess;
+    private ModelRegistry modelRegistry = new ModelRegistry();
     private CompletableFuture<String> nextInputFuture = null;
     private String originalDirective;
     private ToolService toolService;
-    private GuildChannel rawChannel;
     private static ChatMemory replChatMemory = MessageWindowChatMemory.builder().build();
     private final ExecutorService replExecutor = Executors.newFixedThreadPool(2);
     private volatile boolean waitingForInput = false;
     
-    public REPLService(DiscordBot discordBot, CustomMCPServer server, ChatMemory chatMemory, ToolService toolService) {
-        this.api = discordBot.getJDA();
+    public REPLService(CustomMCPServer server, ChatMemory chatMemory, ToolService toolService) {
         this.ais = new AIService(chatMemory, toolService);
         this.toolService = toolService;
         this.replChatMemory = chatMemory;
         this.mcpServer = server;
-        this.mess = new MessageService(this.api);
-        this.rawChannel = api.getGuildById(System.getenv("REPL_DISCORD_GUILD_ID")).getGuildChannelById(System.getenv("REPL_DISCORD_CHANNEL_ID"));
     }
-    
-    public boolean isWaitingForInput() {
-        return nextInputFuture != null && !nextInputFuture.isDone();
-    }
-    
-    public void completeWithUserInput(String input) {
-        if (nextInputFuture != null && !nextInputFuture.isDone()) {
-            nextInputFuture.complete(input);
-            nextInputFuture = null;
-            waitingForInput = false;
-        }
-    }
-    
-    public static void printIt() {
-        List<Message> messages = replChatMemory.get("user");
-        Message lastMessage = messages.get(messages.size() - 1);
-        String content  = "";
-        if (lastMessage instanceof UserMessage userMsg) {
-            content = userMsg.getText();
-        } else if (lastMessage instanceof AssistantMessage assistantMsg) {
-            content = assistantMsg.getText();
-        } else if (lastMessage instanceof SystemMessage systemMsg) {
-            content = systemMsg.getText();
-        } else if (lastMessage instanceof ToolResponseMessage toolResponseMsg) {
-            var responses = toolResponseMsg.getResponses();
-            if (!responses.isEmpty()) {
-                content = responses.get(0).responseData();
-            }
-        }
-        System.out.println(content);
-    }
+
     /*
-     *  Helpers
+     *  Helper
      */
-    private void addToolOutput(String content) {
+    private void addToolOutput(String content, ChatMemory chatMemory) {
         String uuid = String.valueOf(counter.getAndIncrement());
         ToolResponseMessage.ToolResponse response = new ToolResponseMessage.ToolResponse(uuid, "tool", content);
         ToolResponseMessage toolMsg = new ToolResponseMessage(List.of(response));
         ToolResponseMessage.ToolResponse otherResponse = new ToolResponseMessage.ToolResponse(uuid, "tool", content.length() <= 500 ? content : content.substring(0, 500));
         ToolResponseMessage otherToolMsg = new ToolResponseMessage(List.of(response));
-        replChatMemory.add("assistant", toolMsg);
-        replChatMemory.add("user", otherToolMsg);
+        chatMemory.add("assistant", toolMsg);
+        chatMemory.add("user", otherToolMsg);
         printIt();
     }
-    
+    /*
+     *  Helper
+     */
     public String buildContext() {
         List<Message> messages = replChatMemory.get("assistant");
         if (messages.isEmpty()) {
@@ -169,7 +133,6 @@ public class REPLService {
                 params.set("arguments", argsNode);
                 String rpcText = rpcRequest.toString();
                 LOGGER.finer("[JSON-RPC →] " + rpcText);
-
                 StringWriter buffer = new StringWriter();
                 CountDownLatch latch = new CountDownLatch(1);
                 PrintWriter out = new PrintWriter(new Writer() {
@@ -181,43 +144,38 @@ public class REPLService {
                     }
                     @Override public void close() {}
                 }, true);
-
                 String responseStr = mcpServer.handleRequest(rpcText).join();
-
                 if (!latch.await(2, TimeUnit.SECONDS)) {
                     String timeoutMsg = "TOOL: [" + toolName + "] Error: Tool execution timed out";
                     LOGGER.severe(timeoutMsg);
-                    addToolOutput(timeoutMsg);
+                    addToolOutput(timeoutMsg, replChatMemory);
                     return;
                 }
-
                 LOGGER.finer("[JSON-RPC ←] " + responseStr);
                 if (responseStr.isEmpty()) {
                     String emptyMsg = "TOOL: [" + toolName + "] Error: Empty tool response";
                     LOGGER.severe(emptyMsg);
-                    addToolOutput(emptyMsg);
+                    addToolOutput(emptyMsg, replChatMemory);
                     return;
                 }
-
                 JsonNode root = mapper.readTree(responseStr);
                 JsonNode result = root.path("result");
                 String message = result.path("message").asText("No message");
                 boolean success = result.path("success").asBoolean(false);
-
                 if (success) {
-                    addToolOutput("[" + toolName + "] " + message);
+                    addToolOutput("[" + toolName + "] " + message, replChatMemory);
                     LOGGER.finer("[" + toolName + "] succeeded: " + message);
                 } else {
-                    addToolOutput("TOOL: [" + toolName + "] Error: " + message);
+                    addToolOutput("TOOL: [" + toolName + "] Error: " + message, replChatMemory);
                     LOGGER.severe(toolName + " failed: " + message);
                 }
             } catch (Exception e) {
                 String err = "TOOL: [" + toolName + "] Error: Exception executing tool: " + e.getMessage();
                 LOGGER.severe(err);
-                addToolOutput(err);
+                addToolOutput(err, replChatMemory);
             }
         }).exceptionally(ex -> {
-            LOGGER.severe("Exception in E-substep thread: " + ex.getMessage());
+            LOGGER.severe("completeESubStep (exec) failed: " + ex.getMessage());
             return null;
         });
     }
@@ -241,7 +199,7 @@ public class REPLService {
                 LOGGER.severe("Initialization error: " + e.getMessage());
             }
         }).exceptionally(ex -> {
-            LOGGER.severe("Initialization error: " + ex.getMessage());
+            LOGGER.severe("completeESubStep (init) failed: " + ex.getMessage());
             return null;
         });
     }
@@ -279,7 +237,7 @@ public class REPLService {
             }
             return CompletableFuture.completedFuture(null);
         }).exceptionally(ex -> {
-            LOGGER.severe("Tool call error: " + ex.getMessage());
+            LOGGER.severe("completeEStep failed: " + ex.getMessage());
             return null;
         });
     }
@@ -325,15 +283,13 @@ public class REPLService {
                     .orTimeout(timeout, TimeUnit.SECONDS)
                     .whenComplete((resp, err) -> {
                         if (err != null || resp == null) {
-//                            List<Message> originalMessages = replChatMemory.get("assistant");
-//                            ChatMemory newMemory = MessageWindowChatMemory.builder().build();
-//                            for (int i = 0; i < originalMessages.size() - 1; i++) {
-//                                newMemory.add("assistant", originalMessages.get(i));
-//                            }
-//                            replChatMemory = newMemory;
-//                            addToolOutput("The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
-//                            printIt();
-//                            mess.completeSendResponse(rawChannel, "[SUMMARY]: The previous output was greater than the token limit (32768 tokens) and as a result the request failed. The last entry has been removed from the context.");
+                            List<Message> originalMessages = replChatMemory.get("assistant");
+                            ChatMemory newMemory = MessageWindowChatMemory.builder().build();
+                            for (int i = 0; i < originalMessages.size() - 1; i++) {
+                                newMemory.add("assistant", originalMessages.get(i));
+                            }
+                            replChatMemory = newMemory;
+                            addToolOutput("The previous output was greater than the token limit (32768 tokens) or errored and as a result the request failed. The last entry has been removed from the context.", replChatMemory);
                             boolean shouldRetry = false;
                             if (resp != null) {
                                 String content = resp.get(new MetadataKey<>("response", Metadata.STRING));
@@ -347,13 +303,13 @@ public class REPLService {
                             }
                             if (retries < maxRetries) {
                                 retries++;
-                                replExecutor.submit(this); // Retry
+                                replExecutor.submit(this);
                             } else {
-                                LOGGER.severe("R-step permanently failed after " + retries + " attempts.");
-                                result.completeExceptionally(err != null ? err : new IllegalStateException("Final attempt returned MALFORMED_FUNCTION_CALL"));
+                                LOGGER.severe("completeRStepWithTimeoutfailed: " + retries + " attempts.");
+                                result.completeExceptionally(err != null ? err : new IllegalStateException("completeRStepWithTimeoutfailed: " + retries + " attempts."));
                             }
                         } else {
-                            result.complete(resp); // Success path
+                            result.complete(resp);
                         }
                     });
             }
@@ -368,10 +324,8 @@ public class REPLService {
         String model = System.getenv("CLI_MODEL");
         String provider = System.getenv("CLI_PROVIDER");
         String requestType = System.getenv("CLI_REQUEST_TYPE");
-
-        CompletableFuture<String> endpointFuture = ais.completeGetAIEndpoint(false, provider, "cli", requestType);
-        CompletableFuture<String> instructionsFuture = ais.completeGetInstructions(false, provider, "cli");
-
+        CompletableFuture<String> endpointFuture = modelRegistry.completeGetAIEndpoint(false, provider, "cli", requestType);
+        CompletableFuture<String> instructionsFuture = modelRegistry.completeGetInstructions(false, provider, "cli");
         return endpointFuture.thenCombine(instructionsFuture, AbstractMap.SimpleEntry::new).thenCompose(pair -> {
             String endpoint = pair.getKey();
             String instructions = pair.getValue();
@@ -387,32 +341,24 @@ public class REPLService {
                         if (resp == null) {
                             throw new CompletionException(new IllegalStateException("AI returned null"));
                         }
-
                         lastAIResponseContainer = resp;
                         OpenAIUtils utils = new OpenAIUtils(resp);
-
                         String finishReason = utils.completeGetFinishReason().join();
                         String content = utils.completeGetContent().join();
-
                         this.lastResults = new ArrayList<>();
-
                         if (content == null || content.isBlank()) {
                             LOGGER.warning("No content in model response.");
                         } else {
-                            // 1) Parse function call tool invocation from AI response metadata
                             String toolName = utils.completeGetFunctionName().join();
                             Map<String, Object> toolArgs = utils.completeGetArguments().join();
-
                             if (toolName != null && toolArgs != null) {
                                 ObjectNode toolCallNode = mapper.createObjectNode();
                                 toolCallNode.put("tool", toolName);
                                 toolCallNode.set("arguments", mapper.valueToTree(toolArgs));
                                 lastResults.add(toolCallNode);
                             } else {
-                                // 2) Parse nested JSON tool calls inside the content string
                                 Pattern jsonBlock = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```", Pattern.DOTALL);
                                 Matcher matcher = jsonBlock.matcher(content);
-
                                 while (matcher.find()) {
                                     String jsonText = matcher.group(1).trim();
                                     try {
@@ -424,8 +370,6 @@ public class REPLService {
                                         LOGGER.severe("Failed to parse inline tool JSON: " + e.getMessage());
                                     }
                                 }
-
-                                // 3) If no tools found, treat content as plain assistant message
                                 if (lastResults.isEmpty()) {
                                     replChatMemory.add("assistant", new AssistantMessage(content));
                                     replChatMemory.add("user", new AssistantMessage(content));
@@ -443,6 +387,46 @@ public class REPLService {
                 return CompletableFuture.completedFuture(new MetadataContainer());
             }
         });
+    }
+    
+    /*
+     *  Helper
+     */
+    public void completeWithUserInput(String input) {
+        if (nextInputFuture != null && !nextInputFuture.isDone()) {
+            nextInputFuture.complete(input);
+            nextInputFuture = null;
+            waitingForInput = false;
+        }
+    }
+    
+    /*
+     *  Helper
+     */
+    public boolean isWaitingForInput() {
+        return nextInputFuture != null && !nextInputFuture.isDone();
+    }
+    
+    /*
+     *  Helper
+     */
+    public static void printIt() {
+        List<Message> messages = replChatMemory.get("user");
+        Message lastMessage = messages.get(messages.size() - 1);
+        String content  = "";
+        if (lastMessage instanceof UserMessage userMsg) {
+            content = userMsg.getText();
+        } else if (lastMessage instanceof AssistantMessage assistantMsg) {
+            content = assistantMsg.getText();
+        } else if (lastMessage instanceof SystemMessage systemMsg) {
+            content = systemMsg.getText();
+        } else if (lastMessage instanceof ToolResponseMessage toolResponseMsg) {
+            var responses = toolResponseMsg.getResponses();
+            if (!responses.isEmpty()) {
+                content = responses.get(0).responseData();
+            }
+        }
+        System.out.println(content);
     }
 
     /*

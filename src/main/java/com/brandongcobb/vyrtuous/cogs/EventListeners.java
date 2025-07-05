@@ -21,6 +21,7 @@ package com.brandongcobb.vyrtuous.cogs;
 import com.brandongcobb.metadata.MetadataContainer;
 import com.brandongcobb.vyrtuous.component.bot.*;
 import com.brandongcobb.vyrtuous.objects.*;
+import com.brandongcobb.vyrtuous.registry.*;
 import com.brandongcobb.vyrtuous.service.*;
 import com.brandongcobb.vyrtuous.utils.handlers.*;
 import net.dv8tion.jda.api.JDA;
@@ -45,18 +46,20 @@ import java.util.function.Supplier;
 
 @Component
 public class EventListeners extends ListenerAdapter implements Cog {
-
+    
+    public AIService ais;
     private JDA api;
     private DiscordBot bot;
     private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
     private MessageService mess = new MessageService(api);
-    public AIService ais;
+    private ModelRegistry registry = new ModelRegistry();
     
     @Autowired
     public EventListeners(AIService ais) {
         this.ais = ais;
     }
+    
     @Override
     public void register(JDA api, DiscordBot bot) {
         this.bot = bot.completeGetBot();
@@ -151,8 +154,8 @@ public class EventListeners extends ListenerAdapter implements Cog {
                         String userModel = System.getenv("DISCORD_MODEL");
                         String provider = System.getenv("DISCORD_PROVIDER");
                         String requestType = System.getenv("DISCORD_REQUEST_TYPE");
-                        return ais.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
-                            .thenCombine(ais.completeGetInstructions(multimodal, provider, "discord"),
+                        return registry.completeGetAIEndpoint(multimodal, provider, "discord", requestType)
+                            .thenCombine(registry.completeGetInstructions(multimodal, provider, "discord"),
                                 (endpoint, instructions) -> new Object[] { endpoint, instructions })
                             .thenCompose(data -> {
                                 String endpoint = (String) data[0];
