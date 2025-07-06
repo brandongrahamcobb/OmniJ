@@ -67,13 +67,13 @@ This project relies on the following key dependencies (listed in `pom.xml`):
 *   `package com.brandongcobb.vyrtuous.service;`:  This package is for services, indicating their role in servicing requests from other parts of the code.
 *   `package com.brandongcobb.vyrtuous.objects`:  This package is for objects, indicating their role in serializing data from AIService.
 *   `package com.brandongcobb.vytuous.tools`: This package is for tools, self explanatory.
-*   `package com.brandongcobb.utils.handlers`: This package is for utilities accessing the serialized data in the program's objects.
-*   `package com.brandongcobb.utils.inc`: This package is for information which doesn't have a better place.
-*   `package com.brandongcobb.record`: This package is for recording model and tool statistics.
-*   `package com.brandongcobb.cogs`: This package has two functions and are registered under DiscordBot; one exposes commands to Discord and the other exposes a message listener.
-*   `package com.brandongcobb.enums`: This package is critical to the function of the program and also pose a vulnerability returning unserializable data from the models.
-*   `package com.brandongcobb.domain`: This package formalizes the connection between JSON tool schemas and their programatic fields.
-*   `package com.brandongcobb.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction).
+*   `package com.brandongcobb.vyrtuous.utils.handlers`: This package is for utilities accessing the serialized data in the program's objects.
+*   `package com.brandongcobb.vyrtuous.utils.inc`: This package is for information which doesn't have a better place.
+*   `package com.brandongcobb.vyrtuous.record`: This package is for recording model and tool statistics.
+*   `package com.brandongcobb.vyrtuous.cogs`: This package has two functions and are registered under DiscordBot; one exposes commands to Discord and the other exposes a message listener.
+*   `package com.brandongcobb.vyrtuous.enums`: This package is critical to the function of the program and also pose a vulnerability returning unserializable data from the models.
+*   `package com.brandongcobb.vyrtuous.domain`: This package formalizes the connection between JSON tool schemas and their programatic fields.
+*   `package com.brandongcobb.vyrtuous.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction).
 
 **[Model Context Protocol Server](https://modelcontextprotocol.io/introduction)**
 
