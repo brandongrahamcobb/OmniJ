@@ -81,41 +81,17 @@ public class Vyrtuous {
     
     public static void main(String[] args) {
         // Save original streams
-        PrintStream originalOut = System.out;
-        PrintStream originalErr = System.err;
         
         ApplicationContext ctx = null;
         
-        try {
-            // Redirect during startup
-            System.setOut(new PrintStream(new ByteArrayOutputStream()));
-            System.setErr(new PrintStream(new ByteArrayOutputStream()));
-            
-            // Set logging properties
-            System.setProperty("logging.level.root", "OFF");
-            System.setProperty("logging.level.org.springframework", "OFF");
-            System.setProperty("spring.output.ansi.enabled", "never");
-            System.setProperty("spring.jpa.show-sql", "false");
-            
-            // Configure logger
-            LOGGER.setLevel(Level.OFF);
-            for (Handler h : LOGGER.getParent().getHandlers()) {
-                h.setLevel(Level.OFF);
-            }
-            
-            // Start Spring Boot application (only once!)
-            ctx = new SpringApplicationBuilder(Vyrtuous.class)
-                .bannerMode(Banner.Mode.OFF)
-                .logStartupInfo(false)
-                .run(args);
-                
-        } finally {
-            // Restore original streams for MCP communication
-            System.setOut(originalOut);
-            System.setErr(originalErr);
+        LOGGER.setLevel(Level.OFF);
+        for (Handler h : LOGGER.getParent().getHandlers()) {
+            h.setLevel(Level.OFF);
         }
         
-        // Get beans from Spring context
+        // Start Spring Boot application (only once!)
+        ctx = new SpringApplicationBuilder(Vyrtuous.class).run(args);
+                
         Vyrtuous app = ctx.getBean(Vyrtuous.class);
         CustomMCPServer server = ctx.getBean(CustomMCPServer.class);
         REPLService replService = ctx.getBean(REPLService.class);
