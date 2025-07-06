@@ -1,0 +1,23 @@
+<configuration>
+
+  <!-- Send logs to System.err, not System.out -->
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Silence all logs by default -->
+  <root level="OFF">
+    <appender-ref ref="STDERR" />
+  </root>
+
+  <!-- OPTIONAL: Keep just your logs if you want -->
+  <!--
+  <logger name="com.brandongcobb" level="INFO" additivity="false">
+    <appender-ref ref="STDERR" />
+  </logger>
+  -->
+
+</configuration>

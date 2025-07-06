@@ -18,6 +18,8 @@
  */
 package com.brandongcobb.vyrtuous.cogs;
 
+import com.brandongcobb.vyrtuous.*;
+import java.util.logging.Logger;
 import com.brandongcobb.metadata.MetadataContainer;
 import com.brandongcobb.vyrtuous.component.bot.*;
 import com.brandongcobb.vyrtuous.objects.*;
@@ -52,6 +54,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
     private DiscordBot bot;
     private final Map<Long, MetadataContainer> genericUserResponseMap = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> genericHistoryMap = new ConcurrentHashMap<>();
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private MessageService mess = new MessageService(api);
     private ModelRegistry registry = new ModelRegistry();
     
@@ -68,7 +71,7 @@ public class EventListeners extends ListenerAdapter implements Cog {
         api.addEventListener(new ListenerAdapter() {
             @Override
             public void onReady(ReadyEvent event) {
-                System.out.println("I've always wanted to do this.");
+                LOGGER.finer("I've always wanted to do this.");
             }
         });
     }

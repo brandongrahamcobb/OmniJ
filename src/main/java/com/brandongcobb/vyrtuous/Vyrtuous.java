@@ -25,8 +25,10 @@ import net.dv8tion.jda.api.JDA;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.context.ApplicationContext;
+import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 
@@ -41,6 +43,8 @@ import java.util.logging.Logger;
 import java.util.*;
 import java.io.*;
 import jakarta.annotation.PostConstruct;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 
 @SpringBootApplication
 public class Vyrtuous {
@@ -76,18 +80,47 @@ public class Vyrtuous {
     public static final String YELLOW = "\u001B[33m";
     
     public static void main(String[] args) {
-        // 1. Boot Spring
-        ApplicationContext ctx = SpringApplication.run(Vyrtuous.class, args);
-        LOGGER.setLevel(Level.FINER);
+        // Save original streams
+        PrintStream originalOut = System.out;
+        PrintStream originalErr = System.err;
         
-        for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.FINER);
+        ApplicationContext ctx = null;
+        
+        try {
+            // Redirect during startup
+            System.setOut(new PrintStream(new ByteArrayOutputStream()));
+            System.setErr(new PrintStream(new ByteArrayOutputStream()));
+            
+            // Set logging properties
+            System.setProperty("logging.level.root", "OFF");
+            System.setProperty("logging.level.org.springframework", "OFF");
+            System.setProperty("spring.output.ansi.enabled", "never");
+            System.setProperty("spring.jpa.show-sql", "false");
+            
+            // Configure logger
+            LOGGER.setLevel(Level.OFF);
+            for (Handler h : LOGGER.getParent().getHandlers()) {
+                h.setLevel(Level.OFF);
+            }
+            
+            // Start Spring Boot application (only once!)
+            ctx = new SpringApplicationBuilder(Vyrtuous.class)
+                .bannerMode(Banner.Mode.OFF)
+                .logStartupInfo(false)
+                .run(args);
+                
+        } finally {
+            // Restore original streams for MCP communication
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
+        
+        // Get beans from Spring context
         Vyrtuous app = ctx.getBean(Vyrtuous.class);
-        // 2. Get beans from Spring
         CustomMCPServer server = ctx.getBean(CustomMCPServer.class);
         REPLService replService = ctx.getBean(REPLService.class);
-        // 3. Start REPL thread
+        
+        // Main application loop
         try (Scanner scanner = new Scanner(System.in)) {
             while (true) {
                 if (replService.isWaitingForInput()) {

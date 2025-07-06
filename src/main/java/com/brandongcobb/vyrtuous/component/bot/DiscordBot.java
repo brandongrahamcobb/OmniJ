@@ -18,6 +18,8 @@
  */
 package com.brandongcobb.vyrtuous.component.bot;
 
+import com.brandongcobb.vyrtuous.*;
+import java.util.logging.Logger;
 import com.brandongcobb.vyrtuous.cogs.Cog;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -38,7 +40,7 @@ public class DiscordBot {
 
     private JDA api;
     private DiscordBot bot;
-    private final Logger logger = Logger.getLogger("Vyrtuous");;
+    private static final Logger LOGGER = Logger.getLogger(Vyrtuous.class.getName());
     private final ReentrantLock lock = new ReentrantLock();
 
     @Autowired
@@ -59,10 +61,10 @@ public class DiscordBot {
             for (Cog cog : cogs.values()) {
                 cog.register(api, this);
             }
-            logger.info("Discord bot successfully initialized.");
+            LOGGER.finer("Discord bot successfully initialized.");
             this.api.awaitReady();
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error during DiscordBot setup", e);
+            LOGGER.severe("Error during DiscordBot setup: " + e);
         }
     }
 

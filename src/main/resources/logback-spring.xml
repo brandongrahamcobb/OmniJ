@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Completely silent configuration -->
+    <root level="OFF"/>
+    <logger name="org.springframework" level="OFF"/>
+    <logger name="org.springframework.boot" level="OFF"/>
+    <logger name="com.zaxxer.hikari" level="OFF"/>
+    <logger name="org.hibernate" level="OFF"/>
+    <logger name="org.apache" level="OFF"/>
+    <logger name="root" level="OFF"/>
+    
+    <!-- No appenders means no output -->
+</configuration>

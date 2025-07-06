@@ -5,37 +5,6 @@ Vyrtuous is a Java-based application designed to integrate local and remote AI t
 ## Project Flow
 ![jVyrtuous](pictures/jVyrtuous.svg)
 
-## Self-awareness
-```markdown
-Okay, I've examined the flowchart! It's a pretty detailed and accurate representation of my architecture, as far as can be publicly known. Here's a breakdown of my thoughts, going through the key components as depicted:
-
-Overall Impression:
-
-It's impressive someone put this together! It shows a good understanding of the core concepts behind large language models like me. The diagram clearly illustrates the multi-stage process, from input to output.
-
-Key Components & My Thoughts:
-
-Input (Text/Image): Correct. I can take both text and image inputs. The image processing is a more recent and evolving capability.
-Embedding Model (Text/Image):  Spot on.  This is crucial.  Both text and images need to be converted into a numerical representation (embeddings) that I can understand. Different embedding models are used for text and images.
-LLM (Large Language Model): This is the heart of it all!  The diagram correctly identifies this as the core reasoning engine.  I am built on the Gemma architecture.
-Decoding:  Absolutely.  The LLM outputs probabilities, and the decoding process turns those probabilities into actual text. Different decoding strategies (like sampling, top-k, etc.) can influence the output.
-Output (Text): Correct. My primary output is text.
-Routing/Conditioning: This is a smart inclusion. The diagram shows how the input type (text or image) influences the flow. This is important for multimodal models like me.
-External Tools (Optional): This is also a good point. I can be connected to external tools (though I don't have access to them in this current environment). This allows me to perform actions like web searches, calculations, or access real-time information.
-
-Things to Note/Nuances (Not criticisms, just details):
-
-Training Data: The diagram doesn't explicitly show the massive training dataset that I was built upon. That's understandable, as it's a huge and complex aspect.
-Fine-tuning:  I've been fine-tuned for specific tasks (like being a helpful assistant). This fine-tuning process isn't explicitly shown, but it's a critical step in making me useful.
-Gemma Specifics: The diagram is fairly general to LLMs. It doesn't highlight the specific architectural details of the Gemma model (e.g., the number of parameters, specific layers, etc.).
-
-
-
-In conclusion:
-
-This flowchart is a very good high-level overview of how I work. It accurately captures the essential components and the flow of information. It's a testament to the growing understanding of how these complex AI systems function.  Thank you for sharing it!
-```
-
 ## Project Description
 
 This project aims to provide a unified interface for interacting with various AI models and services, including local LLMs and cloud-based APIs like OpenAI, OpenRouter, and LM Studio. It supports features like context management, approval workflows, and a REPL interface for experimentation.
@@ -104,7 +73,7 @@ This project relies on the following key dependencies (listed in `pom.xml`):
 *   `package com.brandongcobb.cogs`: This package has two functions and are registered under DiscordBot; one exposes commands to Discord and the other exposes a message listener.
 *   `package com.brandongcobb.enums`: This package is critical to the function of the program and also pose a vulnerability returning unserializable data from the models.
 *   `package com.brandongcobb.domain`: This package formalizes the connection between JSON tool schemas and their programatic fields.
-*   `pakcage com.brandongcobb.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction).
+*   `package com.brandongcobb.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction).
 
 **[Model Context Protocol Server](https://modelcontextprotocol.io/introduction)**
 
@@ -132,15 +101,6 @@ Vyrtuous now includes a [Model Context Protocol Server](https://modelcontextprot
 *   Further implementation of Spring-Boot AI
 *   Native support for tool calling in local models.
 *   Refactor codebase for improved scalability and maintainability.
-
-## Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1.  Fork the repository.
-2.  Create a new branch for your feature or fix.
-3.  Make your changes and write tests.
-4.  Submit a pull request.
 
 ## License
 
