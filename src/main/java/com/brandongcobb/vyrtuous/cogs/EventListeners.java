@@ -79,17 +79,35 @@ public class EventListeners extends ListenerAdapter implements Cog {
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         Message message = event.getMessage();
-        if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX"))) {
+        if (message.getAuthor().isBot()) {
+            LOGGER.finer("Skipped: Message author is a bot");
             return;
         }
+
+        String prefix = System.getenv("DISCORD_COMMAND_PREFIX");
+        if (prefix != null && message.getContentRaw().startsWith(prefix)) {
+            LOGGER.finer("Skipped: Message starts with command prefix");
+            return;
+        }
+
         if (message.getReferencedMessage() != null) {
             if (!message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId())) {
+                LOGGER.finer("Skipped: Reply not to this bot");
                 return;
             }
         }
-        else if (!message.getContentRaw().contains("<@1318597210119864385>")) {
-            return;
-        }
+//
+//        if (message.getAuthor().isBot() || message.getContentRaw().startsWith((String) System.getenv("DISCORD_COMMAND_PREFIX"))) {
+//            return;
+//        }
+//        if (message.getReferencedMessage() != null) {
+//            if (!message.getReferencedMessage().getAuthor().getId().equals(event.getJDA().getSelfUser().getId())) {
+//                return;
+//            }
+//        }
+//        else if (!message.getContentRaw().contains("1318597210119864385")) {
+//           return;
+//        }
         long senderId = event.getAuthor().getIdLong();
         List<Attachment> attachments = message.getAttachments();
         MetadataContainer previousResponse = genericUserResponseMap.get(senderId);
@@ -97,13 +115,14 @@ public class EventListeners extends ListenerAdapter implements Cog {
         CompletableFuture<String> contentFuture = (attachments != null && !attachments.isEmpty())
             ? mess.completeProcessAttachments(attachments).thenApply(list -> {
                 multimodal[0] = true;
-                return String.join("\n", list) + "\n" + message.getContentDisplay().replace("<@1318597210119864385>", "");
+                return String.join("\n", list) + "\n" + message.getContentDisplay().replace("@Vyrtuous", "");
             })
-            : CompletableFuture.completedFuture(message.getContentDisplay().replace("<@1318597210119864385>", ""));
+            : CompletableFuture.completedFuture(message.getContentDisplay().replace("@Vyrtuous", ""));
         contentFuture
             .thenCompose(prompt -> completeCreateServerRequest(prompt,  senderId, multimodal[0], Integer.valueOf(System.getenv("DISCORD_CONTEXT_LENGTH")), previousResponse))
             .thenCompose(serverRequest -> {
                 try {
+                    LOGGER.finer(serverRequest.prompt);
                     return ais.completeRequest(
                         serverRequest.instructions,
                         serverRequest.prompt,
@@ -250,7 +269,6 @@ public class EventListeners extends ListenerAdapter implements Cog {
             });
     }
 
-    
     private CompletableFuture<Void> handleNonStreamedResponse(Message message, long senderId, MetadataContainer previousResponse, ServerRequest serverRequest) {
         try {
             return ais.completeRequest(

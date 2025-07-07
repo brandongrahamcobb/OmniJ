@@ -84,9 +84,9 @@ public class Vyrtuous {
         
         ApplicationContext ctx = null;
         
-        LOGGER.setLevel(Level.OFF);
+        LOGGER.setLevel(Level.FINER);
         for (Handler h : LOGGER.getParent().getHandlers()) {
-            h.setLevel(Level.OFF);
+            h.setLevel(Level.FINER);
         }
         
         // Start Spring Boot application (only once!)

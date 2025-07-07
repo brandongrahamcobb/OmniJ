@@ -112,9 +112,15 @@ public class AIService {
                         userMsg.put("role", "user");
                         userMsg.put("content", content);
                         body.put("tools", tools);
-                    } else {
+                    } else if (System.getenv("CLI_PROVIDER").equals("google")) {
                         userMsg.put("role", "user");
                         userMsg.put("content", instructions + content);
+                    } else {
+                        systemMsg.put("role", "system");
+                        systemMsg.put("content", instructions);
+                        messages.add(systemMsg);
+                        userMsg.put("role", "user");
+                        userMsg.put("content", content);
                     }
                     messages.add(userMsg);
                     body.put("messages", messages);
