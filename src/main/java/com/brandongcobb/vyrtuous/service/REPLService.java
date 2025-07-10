@@ -215,6 +215,12 @@ public class REPLService {
                 if (lastResults != null && !lastResults.isEmpty() && !finishReason.contains("MALFORMED_FUNCTION_CALL")) {
                     List<CompletableFuture<Void>> futures = new ArrayList<>();
                     return completeESubStep(firstRun).thenCompose(v -> {
+                        try {
+                            Thread.sleep(600);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            e.printStackTrace();
+                        }
                         for (JsonNode toolCallNode : lastResults) {
                             futures.add(completeESubStep(toolCallNode));
                         }
