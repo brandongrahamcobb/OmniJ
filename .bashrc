@@ -1,3 +1,17 @@
+export BASHRC_MODE=${BASHRC_MODE:-default}
+if [[ "$BASHRC_MODE" == "Lucy" ]]; then
+    source ~/.bashrc_lucy
+elif [[ "$BASHRC_MODE" == "OmniJ" ]]; then
+    source ~/.bashrc_omnij
+elif [[ "$BASHRC_MODE" == "Disco" ]]; then
+    source ~/.bashrc_disco
+elif [[ "$BASHRC_MODE" == "OmniPy" ]]; then
+    source ~/.bashrc_pyv
+elif [[ "$BASHRC_MODE" == "Vyrtuous" ]]; then
+    source ~/.bashrc_vyrtuous
+elif [[ "$BASHRC_MODE" == "llama" ]]; then
+    source ~/.bashrc_llama
+fi
 export CLI_MODEL="yur-cli-model"
 export CLI_PROVIDER="your-cli-server-provider"
 export CLI_REQUEST_TYPE="your-cli-request-type"
