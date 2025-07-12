@@ -4,7 +4,7 @@ FROM eclipse-temurin:23
 WORKDIR /app
 
 # Copy your built .jar
-COPY Vyrtuous.jar .
+COPY Application.jar .
 
 # Copy the source files (adjust path to match your real project layout)
 COPY src/main/java/com/brandongcobb/ /app/source/

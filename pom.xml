@@ -81,7 +81,7 @@
                   <manifest>
                     <addClasspath>true</addClasspath>
                     <classpathPrefix>lib/</classpathPrefix>
-                    <mainClass>com.brandongcobb.vyrtuous.Vyrtuous</mainClass>
+                    <mainClass>com.brandongcobb.omnij.Application</mainClass>
                   </manifest>
                 </archive>
               </configuration>

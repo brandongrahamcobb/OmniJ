@@ -64,16 +64,16 @@ This project relies on the following key dependencies (listed in `pom.xml`):
 
 ** Package Structure:**
 
-*   `package com.brandongcobb.vyrtuous.service;`:  This package is for services, indicating their role in servicing requests from other parts of the code.
-*   `package com.brandongcobb.vyrtuous.objects`:  This package is for objects, indicating their role in serializing data from AIService.
+*   `package com.brandongcobb.omnij.service;`:  This package is for services, indicating their role in servicing requests from other parts of the code.
+*   `package com.brandongcobb.omnij.objects`:  This package is for objects, indicating their role in serializing data from AIService.
 *   `package com.brandongcobb.vytuous.tools`: This package is for tools, self explanatory.
-*   `package com.brandongcobb.vyrtuous.utils.handlers`: This package is for utilities accessing the serialized data in the program's objects.
-*   `package com.brandongcobb.vyrtuous.utils.inc`: This package is for information which doesn't have a better place.
-*   `package com.brandongcobb.vyrtuous.record`: This package is for recording model and tool statistics.
-*   `package com.brandongcobb.vyrtuous.cogs`: This package has two functions and are registered under DiscordBot; one exposes commands to Discord and the other exposes a message listener.
-*   `package com.brandongcobb.vyrtuous.enums`: This package is critical to the function of the program and also pose a vulnerability returning unserializable data from the models.
-*   `package com.brandongcobb.vyrtuous.domain`: This package formalizes the connection between JSON tool schemas and their programatic fields.
-*   `package com.brandongcobb.vyrtuous.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction).
+*   `package com.brandongcobb.omnij.utils.handlers`: This package is for utilities accessing the serialized data in the program's objects.
+*   `package com.brandongcobb.omnij.utils.inc`: This package is for information which doesn't have a better place.
+*   `package com.brandongcobb.omnij.record`: This package is for recording model and tool statistics.
+*   `package com.brandongcobb.omnij.cogs`: This package has two functions and are registered under DiscordBot; one exposes commands to Discord and the other exposes a message listener.
+*   `package com.brandongcobb.omnij.enums`: This package is critical to the function of the program and also pose a vulnerability returning unserializable data from the models.
+*   `package com.brandongcobb.omnij.domain`: This package formalizes the connection between JSON tool schemas and their programatic fields.
+*   `package com.brandongcobb.omnij.component`: This package contains the Discord bot and the [Model Context Protocol Server](https://modelcontextprotocol.io/introduction).
 
 **[Model Context Protocol Server](https://modelcontextprotocol.io/introduction)**
 
