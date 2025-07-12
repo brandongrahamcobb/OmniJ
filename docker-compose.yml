@@ -1,11 +1,10 @@
-version: "3.9"
-
 services:
   app:
     build: .
+    platform: linux/amd64
     container_name: omnij
     env_file:
-      - .env_omnij
+      - /Users/spawd/.env_omnij
     volumes:
-      - ./src/omnij:/app/source
-    command: java -jar source/Application.java
+      - ./src/main/java/com/brandongcobb/omnij:/app/source
+    command: java -jar app/Application.jar

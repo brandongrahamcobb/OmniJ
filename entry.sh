@@ -1,2 +1,2 @@
 #!/bin/sh
-java -jar Vyrtuous.jar
+java -jar Application.jar
